@@ -2,13 +2,19 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useBooks } from '../store';
 import { buildInbox } from '../inbox';
-import { Figure, Help, Money, PageHead, TieOut } from '../components/ui';
+import { CountUp, Figure, Forecourt, Gauge, Help, Money, PageHead, TieOut } from '../components/ui';
 import { balanceAsOf, pnl } from '../../core/reports';
 import { periodOf, shortDate, todayInChicago, addDays, periodLabel } from '../../core/dates';
 import { formatMoney } from '../../core/money';
 import { checksRegister } from '../../core/bank';
 import { poolBalance } from '../../core/cash';
 import { forecast } from '../../core/forecast';
+
+/** Morning, afternoon or evening at the stores (America/Chicago). */
+function partOfDay(now = new Date()): string {
+  const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Chicago' }).format(now));
+  return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+}
 
 export function Today() {
   const { state, lines, visible, stores, user } = useBooks();
@@ -72,12 +78,40 @@ export function Today() {
 
   return (
     <>
-      <PageHead eyebrow={new Date(today + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} title={`Good morning, ${user.name.split(' ')[0]}`}
+      <PageHead eyebrow={new Date(today + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} title={`Good ${partOfDay()}, ${user.name.split(' ')[0]}`}
+        icon={<Forecourt />}
         lede={open ? `${open} item${open === 1 ? '' : 's'} need you today. Start at the top of the inbox.` : 'Nothing needs you right now. The books are clean.'}>
         <Link className="btn primary" to="/books/new">New entry</Link>
       </PageHead>
 
       <div className="stack">
+        <section className="sign-strip" aria-label="Headline numbers">
+          {canSeeBank && (
+            <Link className="sign-cell" to="/cash/forecast">
+              <span className="sign-label">Bank vs floor</span>
+              <span className={'sign-digits' + (bankBal < floor ? ' neg' : '')}><CountUp value={bankBal - floor} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
+              <Gauge value={bankBal} min={0} max={Math.max(floor * 3, bankBal)} target={floor} width={78} label="Trustmark against its floor"
+                valueText={bankBal < floor ? `${formatMoney(floor - bankBal, { whole: true, dollarSign: true })} below the floor` : `${formatMoney(bankBal - floor, { whole: true, dollarSign: true })} above the floor`} />
+              <span className="sign-note">{bankBal < floor ? 'Below the floor: top it up' : `Over the ${formatMoney(floor, { whole: true, dollarSign: true })} floor`}</span>
+            </Link>
+          )}
+          <Link className="sign-cell" to="/cash">
+            <span className="sign-label">Cash in the stores</span>
+            <span className="sign-digits"><CountUp value={cash} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
+            <span className="sign-note">Registers, safes and HQ</span>
+          </Link>
+          <Link className="sign-cell" to={`/reports/pnl?from=${month}&to=${month}`}>
+            <span className="sign-label">Profit so far in {periodLabel(month).split(' ')[0]}</span>
+            <span className={'sign-digits' + (mtd.netIncome.total < 0 ? ' neg' : ' pos')}><CountUp value={mtd.netIncome.total} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
+            <span className="sign-note">All stores, month to date</span>
+          </Link>
+          <div className="sign-cell">
+            <span className="sign-label">Waiting in the inbox</span>
+            <span className="sign-digits"><CountUp value={open} format={(n) => String(n)} /></span>
+            <span className="sign-note">{open ? 'Start at the top of the inbox below' : 'All pumps clear: nothing waiting'}</span>
+          </div>
+        </section>
+
         <section className="figures" aria-label="Cash position">
           {canSeeBank && (
             <Figure label="Trustmark balance" href="/books/accounts/acct_trustmark" value={<Money c={bankBal} whole dollar className={bankBal < floor ? 'neg' : undefined} />}

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useBooks } from '../store';
-import { AccountOptions, Help, Money, PageHead, csvMoney, useExport, useIsPhone, useToast } from '../components/ui';
+import { AccountOptions, Empty, Help, Money, PageHead, csvMoney, useExport, useIsPhone, useToast } from '../components/ui';
 import { txnTotal, findDuplicates } from '../../core/duplicates';
 import { parseMoney, formatMoney } from '../../core/money';
 import { shortDate, periodOf } from '../../core/dates';
@@ -201,7 +201,7 @@ function UncatQueue() {
   const items = useMemo(() => uncategorized(state, lines).sort((a, b) => b.date.localeCompare(a.date)), [state, lines]);
   const [choice, setChoice] = useState<Record<string, { acct: string; store: string }>>({});
   const canEdit = can(user, 'txn.edit');
-  if (!items.length) return <div className="note">Nothing to categorize. New bank lines that no rule recognises will land here.</div>;
+  if (!items.length) return <div className="note"><Empty>All pumps clear: nothing to categorize. New bank lines that no rule recognises will land here.</Empty></div>;
   return (
     <section className="panel">
       <div className="table-wrap">

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { formatMoney } from '../../core/money';
 import { HELP, type HelpKey } from '../help';
@@ -11,15 +11,18 @@ export function Money({ c, signed, whole, dollar, className }: { c: number; sign
   return <span className={cls || undefined}>{formatMoney(c, { whole, dollarSign: dollar })}</span>;
 }
 
-export function PageHead({ eyebrow, title, lede, children }: { eyebrow?: string; title: string; lede?: ReactNode; children?: ReactNode }) {
+export function PageHead({ eyebrow, title, lede, icon, children }: { eyebrow?: string; title: string; lede?: ReactNode; icon?: ReactNode; children?: ReactNode }) {
   useEffect(() => { document.title = `${title} · CFO Portal`; }, [title]);
+  const heading = (
+    <div>
+      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+      <h1>{title}</h1>
+      {lede && <p className="lede">{lede}</p>}
+    </div>
+  );
   return (
     <header className="page-head">
-      <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {lede && <p className="lede">{lede}</p>}
-      </div>
+      {icon ? <div className="head-icon">{icon}{heading}</div> : heading}
       {children && <div className="actions">{children}</div>}
     </header>
   );
@@ -163,3 +166,82 @@ export function useIsPhone(): boolean {
 
 /** Plain decimal dollars for CSV cells. */
 export const csvMoney = (c: number) => (c / 100).toFixed(2);
+
+/** True when the viewer asked the system to reduce motion. */
+function prefersReducedMotion(): boolean {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return true; }
+}
+
+/**
+ * A number that counts up once when it first shows (at most 400 ms). The real, final text is always in the
+ * DOM for screen readers and tests; only an aria-hidden visual layer animates, and not at all under reduced motion.
+ */
+export function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
+  const final = format(value);
+  const [shown, setShown] = useState<string | null>(null);
+  useEffect(() => {
+    if (prefersReducedMotion() || value === 0) { setShown(null); return; }
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = Math.min(1, (now - start) / 400);
+      if (k >= 1) { setShown(null); return; }
+      setShown(format(Math.round(value * (1 - Math.pow(1 - k, 3)))));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (shown === null) return <span className="countup">{final}</span>;
+  return <span className="countup"><span className="sr-only">{final}</span><span aria-hidden="true">{shown}</span></span>;
+}
+
+/**
+ * A fuel-gauge meter: a semicircle with a needle. `target` draws a tick and splits the arc into a low zone
+ * (below target) and a high zone. Exposed as an ARIA meter with a text value, which is also shown.
+ */
+export function Gauge({ value, max, min = 0, target, label, valueText, width }: { value: number; max: number; min?: number; target?: number; label: string; valueText: string; width?: number }) {
+  const span = max - min || 1;
+  const frac = (v: number) => Math.min(1, Math.max(0, (v - min) / span));
+  const pt = (f: number, r: number) => [60 - r * Math.cos(Math.PI * f), 56 - r * Math.sin(Math.PI * f)].map((n) => Number(n.toFixed(2)));
+  const arc = (f0: number, f1: number) => `M ${pt(f0, 44).join(' ')} A 44 44 0 0 1 ${pt(f1, 44).join(' ')}`;
+  const t = target === undefined ? undefined : frac(target);
+  const [nx, ny] = pt(frac(value), 36);
+  const tick = t === undefined ? null : [...pt(t, 53), ...pt(t, 35)];
+  return (
+    <div className="gauge" role="meter" aria-label={label} aria-valuemin={min} aria-valuemax={max} aria-valuenow={Math.min(max, Math.max(min, value))} aria-valuetext={valueText}
+      style={width ? ({ '--gauge-w': `${width}px` } as CSSProperties) : undefined}>
+      <svg viewBox="0 0 120 62" aria-hidden="true" focusable="false">
+        <path className="g-track" d={arc(0, 1)} fill="none" strokeWidth="9" />
+        {t !== undefined && t > 0 && <path className="g-low" d={arc(0, t)} fill="none" strokeWidth="9" />}
+        {t !== undefined && t < 1 && <path className="g-high" d={arc(t, 1)} fill="none" strokeWidth="9" />}
+        {tick && <line className="g-tick" x1={tick[0]} y1={tick[1]} x2={tick[2]} y2={tick[3]} strokeWidth="2.5" />}
+        <line className="g-needle" x1="60" y1="56" x2={nx} y2={ny} strokeWidth="3.5" strokeLinecap="round" />
+        <circle className="g-hub" cx="60" cy="56" r="5.5" />
+      </svg>
+      <span className="gauge-text">{valueText}</span>
+    </div>
+  );
+}
+
+/** A cheerful one-line empty state. Pass `colSpan` to render it as a table cell. */
+export function Empty({ children, colSpan }: { children: ReactNode; colSpan?: number }) {
+  if (colSpan) return <td colSpan={colSpan} className="empty">{children}</td>;
+  return <p className="empty">{children}</p>;
+}
+
+/** The forecourt pictogram: a canopy over a pump, drawn in tokens. Decorative. */
+export function Forecourt() {
+  return (
+    <svg className="forecourt" viewBox="0 0 64 52" aria-hidden="true" focusable="false">
+      <rect className="fc-canopy" x="2" y="3" width="60" height="9" rx="2" />
+      <rect className="fc-stripe" x="2" y="10" width="60" height="2.5" />
+      <line className="fc-post" x1="9" y1="12" x2="9" y2="48" strokeWidth="2.5" />
+      <line className="fc-post" x1="55" y1="12" x2="55" y2="48" strokeWidth="2.5" />
+      <rect className="fc-pump" x="22" y="22" width="16" height="26" rx="2" />
+      <rect className="fc-screen" x="25" y="25.5" width="10" height="6" rx="1" />
+      <path className="fc-hose" d="M38 28 h4 a3 3 0 0 1 3 3 v10 a2.5 2.5 0 0 0 5 0 v-9" strokeWidth="2" strokeLinecap="round" />
+      <line className="fc-ground" x1="2" y1="49" x2="62" y2="49" strokeWidth="1.5" />
+    </svg>
+  );
+}

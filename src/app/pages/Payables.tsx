@@ -499,7 +499,7 @@ export function UtilitiesPage() {
       <section className="figures" aria-label="Utilities" style={{ marginBottom: 20 }}>
         <Figure label="Accounts" value={rows.length} note={`${rows.filter((r) => r.ua.autopay).length} on autopay`} />
         <Figure label="Past due" value={pd.length} note={pd.length ? pd.map((r) => `${store(r.ua.storeId)} ${SERVICE_LABEL[r.ua.service].toLowerCase()}`).join(', ') : 'Nothing late'} />
-        <Figure label="Disconnect notices" value={dc.length} note={dc.length ? <span className="neg">{dc.map((r) => `${store(r.ua.storeId)} ${r.ua.accountNo}`).join(', ')}</span> : 'None'} />
+        <Figure label="Disconnect notices" value={dc.length} note={dc.length ? <span className="neg">{dc.map((r) => `${store(r.ua.storeId)} ${r.ua.accountNo}`).join(', ')}</span> : 'All the lights are on'} />
         <Figure label={`Jumps over ${JUMP_PCT}%`} value={jumps.length} note={jumps.length ? jumps.map((r) => `${store(r.ua.storeId)} ${SERVICE_LABEL[r.ua.service].toLowerCase()} +${r.changePct}%`).join(', ') : 'No unusual bills'} />
       </section>
       <section className="panel" aria-labelledby="ut-h">

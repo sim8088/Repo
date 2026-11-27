@@ -90,6 +90,16 @@ export function CommandCenterPage() {
               </li>
             );
           })}
+          <li className={'board-tile board-total' + (cc.total.net < 0 ? ' loss' : '')}>
+            <div className="board-top"><span className="board-code">Company</span><span className="muted small">{rows.length} stores with activity</span></div>
+            <Link className="board-net" to={pnlHref()} aria-label={`Company net profit ${formatMoney(cc.total.net, { dollarSign: true, whole: true })}, open the P&L`}><Money c={cc.total.net} whole dollar signed /></Link>
+            <div className="board-sub muted small">net profit · {pct(cc.total.netPct)} of sales · <Money c={delta(cc.total)} whole dollar signed /> vs prior</div>
+            <dl className="board-kv">
+              <dt>Sales</dt><dd><Money c={cc.total.sales} whole dollar /></dd>
+              <dt>Gross margin</dt><dd><Money c={cc.total.gross} whole dollar /> <span className="muted">{pct(cc.total.gmPct)}</span></dd>
+              <dt>Labor</dt><dd>{pct(cc.total.laborPct)}</dd>
+            </dl>
+          </li>
         </ul>
         <div className="table-wrap">
           <table className="t">

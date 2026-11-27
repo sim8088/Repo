@@ -18,8 +18,8 @@ Read this, `docs/SPEC.md` and `docs/DECISIONS.md` before changing anything. Copy
   - Every page opens with 3–5 figures (the `.figures` row), then detail. Every report has a `<TieOut>` that genuinely computes its check; never a hard-coded ✓. Every list can export CSV. Use `className="table-wrap"` around tables, and `.num` for numbers.
 - **Row-level access:** filter by `visible` (store ids). Corporate/bank data needs `visible.has(bankStoreId(state))`.
 
-## Design ("Ledger")
-Use the tokens in `src/styles.css` only, with no new colors or fonts. Newsreader for headings and big figures, Instrument Sans for UI, tabular numbers, negatives in parentheses (`formatMoney`), hairline borders, no shadows/gradients, 4–8px radius. Semantic `pos`/`neg`/`pill ok|warn|bad`. Copy is plain sentences from the CFO's side; errors say how to fix them. At 390 px wide nothing may scroll the page sideways (tables scroll inside `.table-wrap`). Inputs need labels (visible or `sr-only`). Zero axe violations.
+## Design ("Forecourt")
+Use the tokens in `src/styles.css` only, with no new colors or fonts (the role of each token is at the top of the file; see also DECISIONS "Forecourt design"). Barlow for UI text (15px body, 14px tables, 16px card titles), Barlow Condensed for page titles and big figures, tabular numbers, negatives in parentheses (`formatMoney`), hairline borders, no shadows/gradients/glows; radius 6px controls, 8px panels, 12px dialogs. Interstate blue (`--accent*`) is the only action color; Hotspot red (`--hotspot`) is only for the brand mark and active markers; caution yellow is for focus and warning accents, never small text on light. Sentence case everywhere: no all-caps labels, no letter-spacing. Shared pieces: `Figure` (pump readout), `Gauge`, `CountUp`, `Empty`, `.sign-strip` / `.board` (price sign). Semantic `pos`/`neg`/`pill ok|warn|bad`. Copy is plain sentences from the CFO's side; errors say how to fix them. At 390 px wide nothing may scroll the page sideways (tables scroll inside `.table-wrap`). Inputs need labels (visible or `sr-only`). Zero axe violations.
 
 ## Tests (all must pass before you commit)
 - `npx tsc --noEmit -p .` must be clean.

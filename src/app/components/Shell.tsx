@@ -78,7 +78,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="shell">
         {drawer && <div className="scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
         <nav className={'side' + (drawer ? ' open' : '')} aria-label="Main">
-          <Link to="/" className="brand"><span className="brand-mark" aria-hidden="true" /><b>CFO Portal</b><span className="brand-sub">{state.settings.companyName}</span></Link>
+          <Link to="/" className="brand"><span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"><path d="M4 17V4.5A1.5 1.5 0 0 1 5.5 3h5A1.5 1.5 0 0 1 12 4.5V17M3 17h10M6 6h4v3H6zM12 8h1.5a1.5 1.5 0 0 1 1.5 1.5V14a1 1 0 0 0 2 0V7.5L15 5.5" /></svg></span><b>CFO Portal</b><span className="brand-sub">{state.settings.companyName}</span></Link>
           {NAV.map((g) => (
             <div className="nav-group" key={g.title}>
               <h2>{g.title}</h2>

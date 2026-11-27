@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useBooks } from '../store';
-import { AccountOptions, Errors, Figure, Help, Money, PageHead, PartyOptions, TieOut, csvMoney, useExport, useToast } from '../components/ui';
+import { AccountOptions, Empty, Errors, Figure, Help, Money, PageHead, PartyOptions, TieOut, csvMoney, useExport, useToast } from '../components/ui';
 import {
   DEPOSIT_SOURCE_LABEL, autoMatch, bookLines, candidates, checksRegister, commitImport, createFromBankLine, excludeBankLine, isMatched,
   matchBankLine, matchIndex, previewImport, reconcileStatus, reconciledThrough, saveReconciliation, setDepositSource, suggestFor,
@@ -82,7 +82,7 @@ function MatchTab({ accountId, lines }: { accountId: ID; lines: BankLine[] }) {
         <h2>To match</h2>
         {canRec && lines.length > 0 && <button className="btn primary sm" onClick={() => { const n = autoMatch(books, user, lines.map((l) => l.id)); say(n ? `Matched ${n} line${n === 1 ? '' : 's'}. ${lines.length - n} left for you.` : 'Nothing could be matched automatically. The rest need a person.'); }}>Auto-match</button>}
       </div>
-      {sorted.length === 0 && <p className="panel-pad muted">Every bank line is matched. Import the next statement from the Import tab.</p>}
+      {sorted.length === 0 && <div className="panel-pad"><Empty>All pumps clear: every bank line is matched. Import the next statement from the Import tab.</Empty></div>}
       <ul className="inbox">
         {sorted.map((b) => {
           const c = candidates(state, b, idx, bl).slice(0, 3);
@@ -236,7 +236,7 @@ function ReconcileTab({ accountId }: { accountId: ID }) {
         <div className="panel-head"><h2 id="rh-h">History</h2></div>
         <div className="table-wrap"><table className="t">
           <thead><tr><th scope="col">Through</th><th scope="col" className="num">Statement</th><th scope="col" className="num">Books</th><th scope="col" className="num">Outstanding</th><th scope="col" className="num">Bank-only</th><th scope="col">By</th><th scope="col"><span className="sr-only">Undo</span></th></tr></thead>
-          <tbody>{recs.length === 0 ? <tr><td colSpan={7} className="muted">None yet.</td></tr> : recs.map((r, i) => (
+          <tbody>{recs.length === 0 ? <tr><Empty colSpan={7}>No reconciliations yet. The first one starts the trail.</Empty></tr> : recs.map((r, i) => (
             <tr key={r.id}><td>{shortDate(r.statementDate)}</td><td className="num"><Money c={r.statementBalance} /></td><td className="num"><Money c={r.bookBalance} /></td><td className="num"><Money c={-r.bookOnly} /></td><td className="num"><Money c={r.bankOnly} /></td><td>{userName(r.by)} · {shortDate(r.at.slice(0, 10))}</td>
               <td>{i === 0 && can(user, 'period.unlock') && (undoing === r.id
                 ? <span className="actions"><label className="sr-only" htmlFor="undo-r">Reason</label><input id="undo-r" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" style={{ width: 180 }} /><button className="btn sm danger" disabled={!reason.trim()} onClick={() => { try { undoReconciliation(books, user, r.id, reason); setUndoing(null); say('Reconciliation undone.'); } catch (e) { say(errText(e)); } }}>Undo</button></span>
@@ -430,7 +430,7 @@ export function DepositsPage() {
           </div>
           <div className="table-wrap"><table className="t">
             <thead><tr><th scope="col">Date</th><th scope="col">Description</th><th scope="col" className="num">Amount</th><th scope="col">Source</th></tr></thead>
-            <tbody>{deps.length === 0 ? <tr><td colSpan={4} className="muted">No deposits here.</td></tr> : deps.map((b) => (
+            <tbody>{deps.length === 0 ? <tr><Empty colSpan={4}>No deposits here. Quiet lane.</Empty></tr> : deps.map((b) => (
               <tr key={b.id}><td style={{ whiteSpace: 'nowrap' }}>{shortDate(b.date)}</td><td className="trunc" title={b.description}>{b.description}</td><td className="num"><Money c={b.amount} /></td>
                 <td style={{ minWidth: 200 }}>{canEdit ? <><label className="sr-only" htmlFor={'src' + b.id}>Source for {b.description}</label><select id={'src' + b.id} value={b.source ?? ''} onChange={(e) => { setDepositSource(books, user, b.id, (e.target.value || undefined) as DepositSource | undefined); say('Saved.'); }}><option value="">Unclassified</option>{SOURCES.map((s) => <option key={s} value={s}>{DEPOSIT_SOURCE_LABEL[s]}</option>)}</select></> : (b.source ? DEPOSIT_SOURCE_LABEL[b.source] : 'Unclassified')}</td></tr>
             ))}</tbody>

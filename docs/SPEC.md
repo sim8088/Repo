@@ -146,7 +146,7 @@ Bank below floor or projected below within 14 days; cash variance > $5; deposit 
 CFO (all), bookkeeper (no lock/unlock), store manager (own store: cash counts, logs, bill upload), owner (read-only + approvals), outside accountant (read + export). 2FA, encryption at rest, daily backups, no bank credentials stored, row-level store access, every export logged.
 
 ## 11. Design
-See CONVENTIONS.md. Warm paper, ink, one vermilion accent; Newsreader + Instrument Sans; tabular figures; negatives in parentheses; no gradients/glows/shadows; hairlines; WCAG 2.1 AA with zero axe violations; phone bottom tab bar.
+See CONVENTIONS.md. "Forecourt": asphalt canopy, concrete page, Interstate blue actions, Hotspot red mark; Barlow + Barlow Condensed; tabular figures; negatives in parentheses; no gradients/glows/shadows; hairlines; WCAG 2.1 AA with zero axe violations; phone bottom tab bar.
 
 ## 12. One-screen workflows
 Morning check · Post a Craddock notice · Reconcile the bank · Weekly payroll review · Cash day · Pay bills · Month-end close · Answer the owner · Quarterly CFO review · Evaluate a deal · Year-end.

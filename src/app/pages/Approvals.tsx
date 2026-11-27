@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useBooks } from '../store';
-import { Errors, Figure, Help, Money, PageHead, TieOut, csvMoney, useExport, useToast } from '../components/ui';
+import { Empty, Errors, Figure, Help, Money, PageHead, TieOut, csvMoney, useExport, useToast } from '../components/ui';
 import { APPROVAL_PROVIDERS, approvalQueue } from '../../core/approvals';
 import { awaitingApproval, billTotal } from '../../core/payables';
 import { daysBetween, shortDate, todayInChicago } from '../../core/dates';
@@ -43,7 +43,7 @@ export function ApprovalsPage() {
           <section key={p.kind} className="panel" aria-labelledby={`ap-${p.kind}`} style={{ marginBottom: 16 }}>
             <div className="panel-head"><h2 id={`ap-${p.kind}`}>{p.label}</h2><span className="muted small">{items.length} waiting</span></div>
             {!allowed && items.length > 0 && <p className="panel-pad muted small" style={{ paddingBottom: 0 }}>Your role can see these but can't approve them. The owner or the CFO approves.</p>}
-            {items.length === 0 ? <p className="panel-pad muted">Nothing waiting.</p> : (
+            {items.length === 0 ? <div className="panel-pad"><Empty>Nothing waiting for a signature. Enjoy the coffee.</Empty></div> : (
               <ul className="inbox">
                 {items.map((i) => (
                   <li key={i.id} style={{ gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>

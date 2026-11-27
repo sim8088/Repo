@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useBooks } from '../store';
-import { Errors, Figure, Help, Money, PageHead, TieOut, csvMoney, useToast } from '../components/ui';
+import { Errors, Figure, Gauge, Help, Money, PageHead, TieOut, csvMoney, useToast } from '../components/ui';
 import { ExportButtons, useEntries } from '../components/reportkit';
 import {
   COVENANT_LABEL, TRIGGER_LABEL, acknowledgeBalance, addMarketRate, addPropertyValue, bpsPct, covLimit, covenantMonitor, debtDashboard, debtOf, defaultProposal,
@@ -146,7 +146,7 @@ export function CovenantsPage() {
         <Link className="btn" to="/debt/lender-package">Lender package</Link>
       </PageHead>
       <section className="figures" aria-label="Covenant ratios" style={{ marginBottom: 20 }}>
-        <Figure label="DSCR" value={ratioX(h?.dscr)} note={h ? `EBITDA ${usd(h.ebitdaAnnual)} ÷ debt service ${usd(h.debtServiceAnnual)} a year` : 'No months yet'} />
+        <Figure label="DSCR" value={ratioX(h?.dscr)} note={h ? <>EBITDA {usd(h.ebitdaAnnual)} ÷ debt service {usd(h.debtServiceAnnual)} a year{h.dscr !== null && h.dscr !== undefined && Number.isFinite(h.dscr) && <div><Gauge value={h.dscr} min={0} max={Math.max(3, s.dscrTarget / 50)} target={s.dscrTarget / 100} width={88} label="DSCR against target" valueText={`${ratioX(h.dscr)} vs ${(s.dscrTarget / 100).toFixed(2)}x target`} /></div>}</> : 'No months yet'} />
         <Figure label="Leverage (debt ÷ EBITDA)" value={ratioX(h?.leverage)} note={h ? `${usd(h.debt)} debt at ${shortDate(h.date)}` : ''} />
         <Figure label="Fixed-charge coverage" value={ratioX(h?.fcc)} note={h ? `Group DSCR with related-party mortgages ${ratioX(h.globalDscr)}` : ''} />
         <Figure label="Liquidity today" value={<Money c={mon.metrics.at(-1)?.liquidity ?? 0} whole dollar />} note="Operating bank account(s)" />
