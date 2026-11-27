@@ -6,6 +6,9 @@ import { Figure, Help, Money, PageHead, TieOut } from '../components/ui';
 import { balanceAsOf, pnl } from '../../core/reports';
 import { periodOf, shortDate, todayInChicago, addDays, periodLabel } from '../../core/dates';
 import { formatMoney } from '../../core/money';
+import { checksRegister } from '../../core/bank';
+import { poolBalance } from '../../core/cash';
+import { forecast } from '../../core/forecast';
 
 export function Today() {
   const { state, lines, visible, stores, user } = useBooks();
@@ -20,6 +23,9 @@ export function Today() {
   const cash = cashIds.reduce((a, id) => a + balanceAsOf(state, id, today, lines), 0);
   const clearing = clearIds.reduce((a, id) => a + balanceAsOf(state, id, today, lines), 0);
   const canSeeBank = visible.has('st_corp');
+  const hq = poolBalance(state, today);
+  const outstanding = useMemo(() => (canSeeBank ? checksRegister(state, today).filter((c) => c.status === 'outstanding' || c.status === 'stale') : []), [state, today, canSeeBank, lines]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fc = useMemo(() => (canSeeBank && bank ? forecast(state, bank.id, today) : null), [state, bank, today, canSeeBank, lines]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Yesterday, or the latest day with sales if yesterday has none.
   const salesDays = useMemo(() => {
@@ -77,10 +83,20 @@ export function Today() {
             <Figure label="Trustmark balance" href="/books/accounts/acct_trustmark" value={<Money c={bankBal} whole dollar className={bankBal < floor ? 'neg' : undefined} />}
               note={bankBal < floor ? <span className="neg">Below the {formatMoney(floor, { whole: true, dollarSign: true })} floor by {formatMoney(floor - bankBal, { dollarSign: true })}</span> : <>{formatMoney(bankBal - floor, { whole: true, dollarSign: true })} above the {formatMoney(floor, { whole: true, dollarSign: true })} floor</>} />
           )}
-          <Figure label="Cash on hand" href={`/books/accounts/${cashIds[0] ?? ''}`} value={<Money c={cash} whole dollar />} note="Registers, safe and in transit, all stores" />
+          <Figure label="Cash on hand" href="/cash" value={<Money c={cash} whole dollar />} note={canSeeBank ? <>{formatMoney(hq, { whole: true, dollarSign: true })} at HQ waiting to deposit; the rest in registers</> : 'Registers and safe'} />
           <Figure label="Supplier clearing" href="/books/accounts/acct_craddock" value={<Money c={clearing} whole dollar />} note="Craddock, Dash and Fiserv, net. Positive is owed to us." />
+          {canSeeBank && <Figure label="Checks outstanding" href="/bank/checks?status=outstanding" value={<Money c={outstanding.reduce((a, c) => a + c.amount, 0)} whole dollar />} note={`${outstanding.length} check${outstanding.length === 1 ? '' : 's'} written, not cleared`} />}
           <Figure label={`${periodLabel(month)} net profit`} href={`/reports/pnl?from=${month}&to=${month}`} value={<Money c={mtd.netIncome.total} whole dollar signed />} note={`On ${formatMoney(mtd.netSales.total, { whole: true, dollarSign: true })} net sales, to date`} />
         </section>
+
+        {fc && (
+          <section className="figures" aria-label="Projected bank balance">
+            {[7, 14, 30].map((n) => (
+              <Figure key={n} label={`Projected in ${n} days`} href="/cash/forecast" value={<Money c={fc.at(n)} whole dollar className={fc.at(n) < fc.floor ? 'neg' : undefined} />} note={fc.at(n) < fc.floor ? <span className="neg">Below the floor</span> : `${formatMoney(fc.at(n) - fc.floor, { whole: true, dollarSign: true })} above the floor`} />
+            ))}
+            <Figure label="Lowest in 13 weeks" href="/cash/forecast" value={<Money c={fc.minBalance} whole dollar className={fc.minBalance < fc.floor ? 'neg' : undefined} />} note={shortDate(fc.minDate)} />
+          </section>
+        )}
 
         <div className="grid-2">
           <section className="panel" aria-labelledby="inbox-h">

@@ -2,6 +2,18 @@
 
 This file records the context and decisions behind the portal so they don't get lost between sessions. Add new entries at the top.
 
+## 2026-11-27 — Phase 2 build (Bank & cash)
+- **Keep building in this repo** (CFO decision, 2026-11-27); StationBooks stays as it is.
+- **HM17 opened November 2026** (CFO decision, 2026-11-27).
+- **Bank lines are a separate subledger** (`state.bank.lines`). Each one matches one or more ledger lines on its bank account. Reconciliation is computed: book balance − book-only items + bank-only items = statement. It can only be saved at a $0.00 difference, and it locks the bank lines it covers.
+- **Import is idempotent.** The key is the FITID when the file has one; otherwise it's account + date + amount + description, numbered within the file so two identical real lines both import. Every line keeps its import batch id.
+- **Auto-match only takes clear winners:** a check-number hit, or one candidate at least 10 points ahead. Ties are left for a person.
+- **Cash chain postings:** a count vs POS difference, a pickup vs count difference and an HQ vs pickup difference all go to `6340 Cash over / short` at the store. The pickup moves cash from `1010` (store) to `1020 Cash at HQ / in transit` (Corporate). The pooled deposit moves `1020` → Trustmark. Flags fire at materiality ($5.00); smaller differences are still posted.
+- **HM11 cash payroll** is a payout from the HQ pool. Payouts for change are transfers (no expense). Owner withdrawals follow the Settings policy.
+- **Stale checks:** 60 days (configurable). **Deposit due:** within 2 days of pickup (configurable).
+- **Forecast** starts from the book balance (outstanding checks are already in it). Recurring items are detected from 13 weeks of history; the CFO can switch any off or add manual items.
+- **Not yet:** PDF statement parsing, a direct bank feed (needs a provider such as Plaid and the hosted back end), and check images from the bank (attach them to the transaction for now).
+
 ## 2026-11-27 — Phase 1 build
 - **Stack:** Vite + React 19 + TypeScript, plain CSS tokens ("Ledger" design), react-router (hash routes, so it works as a static page). The accounting core in `src/core` is framework-free and unit-tested.
 - **Storage:** IndexedDB on one device for Phase 1. Swapping in a hosted back end (multi-user, 2FA, encryption, backups) is a prerequisite before real data goes in.

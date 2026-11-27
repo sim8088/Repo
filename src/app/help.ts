@@ -88,6 +88,40 @@ export const HELP = {
     purpose: 'Company-wide settings.',
     steps: ['Set the fiscal year start, materiality and the owner-withdrawal policy.', 'Reset to the demo dataset to start over.'],
   },
+  bank: {
+    purpose: 'Get every bank line matched to the books, then reconcile to the statement so the bank balance is proven.',
+    steps: [
+      'Import: upload the CSV, OFX or QFX from the bank. The preview shows totals and whether the running balance ties; importing twice never duplicates.',
+      'To match: click Auto-match, then take a suggested match, or open "Something else…" to book a bank-only line, match several entries to one deposit, or exclude a line with a reason.',
+      'Reconcile: pick the statement date and type the ending balance. Outstanding checks and bank-only items are listed; mark reconciled when the difference is $0.00.',
+    ],
+    tips: ['Booking a line from the feed teaches the rules, so next month it comes suggested.', 'Lines inside a reconciled period are locked; undo the reconciliation (CFO, with a reason) to change them.'],
+  },
+  checks: {
+    purpose: 'Every check written, whether it cleared, and which are going stale.',
+    steps: ['Filter by status.', 'Follow up stale checks with the payee, or void one that will never be cashed (with a reason).', '"Cleared, not in books" means the bank paid a check nobody entered: book it from the bank feed.'],
+    tips: ['A check that already cleared can\'t be voided; book a reversing entry instead.'],
+  },
+  deposits: {
+    purpose: 'Where each deposit came from: store cash, card settlement, Fiserv, rent, rebates, ATM, loan repayments and so on.',
+    steps: ['Tick "Only unclassified" to see what still needs a source.', 'Pick the source in the row; it saves straight away.', 'The side panel totals deposits by source for the month and ties to the total.'],
+  },
+  cash: {
+    purpose: 'Follow every dollar of register cash from the store count to the bank, and see every handoff variance.',
+    steps: [
+      'Pick the business day. Each store\'s bag shows its count, pickup, HQ receipt and deposit.',
+      'Record the next step in the row: the amount is prefilled from the step before, so type only what was actually counted.',
+      'Tick received bags and record the pooled deposit with the slip total. Cash kept back for payouts stays at HQ.',
+      'Record cash paid out of the pool: payroll, vendors, change for a store, owner withdrawals.',
+      'Review flagged variances and sign each one off with what you found.',
+    ],
+    tips: ['Any difference posts to Cash over / short at the store, so the books always match the cash.', 'Differences of $5.00 or more are flagged; smaller ones are posted but not flagged.'],
+  },
+  forecast: {
+    purpose: 'Thirteen weeks of projected bank balance against the floor, built from what actually recurs in the books.',
+    steps: ['Read the weekly table: inflows, outflows and the ending balance. Weeks below the floor are red.', 'Switch off any detected recurring item that won\'t repeat.', 'Add one-off or recurring items the history can\'t know about: a tax payment, a loan, a new store opening.'],
+    tips: ['It starts from the book balance, which already counts checks written but not cleared.', 'Fuel loads and supplier netting arrive with phase 3 and make the fuel side sharper.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

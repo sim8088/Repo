@@ -122,6 +122,7 @@ kbd { font: 12px var(--sans); border: 1px solid var(--rule); border-bottom-width
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .stack > *, .grid-2 > *, .grid-3 > * { min-width: 0; }
+.grid-2.wide-left { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 
 .figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); border: 1px solid var(--rule); border-radius: var(--r-lg); background: var(--panel); }
 .figure { padding: 16px 20px; border-right: 1px solid var(--rule); min-width: 0; }
@@ -287,7 +288,7 @@ details.help ol, details.help ul { padding-left: 20px; }
   .search-short { display: inline; }
   .content { padding: 20px 16px calc(92px + env(safe-area-inset-bottom)); }
   h1 { font-size: 32px; }
-  .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .grid-2, .grid-3, .grid-2.wide-left { grid-template-columns: minmax(0, 1fr); }
   .figure { border-right: 0; border-bottom: 1px solid var(--rule); }
   .figure:last-child { border-bottom: 0; }
   input, select, textarea { font-size: 16px; min-height: 44px; }

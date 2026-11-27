@@ -1,9 +1,19 @@
-export interface NavItem { label: string; to: string; badge?: 'inbox' | 'uncat'; }
+export interface NavItem { label: string; to: string; badge?: 'inbox' | 'uncat' | 'unmatched' | 'unclassified' | 'cash'; }
 export interface NavGroup { title: string; items: NavItem[]; }
 
 /** Built screens. The full information architecture, phase by phase, is on /roadmap. */
 export const NAV: NavGroup[] = [
   { title: 'Today', items: [{ label: 'My day', to: '/', badge: 'inbox' }] },
+  {
+    title: 'Bank & cash',
+    items: [
+      { label: 'Bank feed & reconciliation', to: '/bank', badge: 'unmatched' },
+      { label: 'Checks register', to: '/bank/checks' },
+      { label: 'Deposits', to: '/bank/deposits', badge: 'unclassified' },
+      { label: 'Cash chain', to: '/cash', badge: 'cash' },
+      { label: 'Cash forecast', to: '/cash/forecast' },
+    ],
+  },
   { title: 'Reports', items: [{ label: 'Profit & loss by store', to: '/reports/pnl' }, { label: 'Trial balance', to: '/reports/trial-balance' }] },
   {
     title: 'Books',

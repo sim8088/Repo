@@ -1,4 +1,7 @@
 import { Books } from '../core/books';
+import { recordCashStep, depositBags, recordPayout, poolBalance, posExpectedCash, bagFlagged } from '../core/cash';
+import { guessDepositSource, reconcileStatus, saveReconciliation } from '../core/bank';
+import type { BankLine, DepositSource } from '../core/types';
 import { defaultChartOfAccounts } from '../core/coa';
 import { addDays, dayOfWeek, lastDayOfPeriod } from '../core/dates';
 import type { DraftLine, TxnDraft } from '../core/ledger';
@@ -12,7 +15,9 @@ import type { BooksState, Entity, Party, Rule, Store, User } from '../core/types
  */
 export const DEMO_START = '2026-09-01';
 export const DEMO_END = '2026-11-26';
-export const SCHEMA = 1;
+export const SCHEMA = 2;
+/** The demo bank feed runs through this date; later checks are still outstanding. */
+export const FEED_END = '2026-11-25';
 
 export const CFO_ID = 'usr_cfo';
 
@@ -91,6 +96,9 @@ export function emptyState(): BooksState {
       ownerWithdrawalPolicy: 'expense',
       ownerWithdrawalExpenseAccountId: 'acct_misc',
       jeApprovalLimitCents: 1_000_000,
+      depositWithinDays: 2,
+      staleCheckDays: 60,
+      forecastDisabled: [],
     },
     entities: structuredClone(ENTITIES),
     stores: structuredClone(STORES),
@@ -102,6 +110,9 @@ export function emptyState(): BooksState {
     periods: {},
     audit: [],
     dismissedDuplicates: [],
+    bank: { lines: [], batches: [], reconciliations: [], openings: {} },
+    cash: { bags: [], payouts: [] },
+    forecastItems: [],
     seq: 0,
   };
 }
@@ -168,14 +179,12 @@ export function buildDemo(): BooksState {
   ] });
 
   // Running subledger positions the generator needs.
-  const cashOnHand: Record<string, number> = {};
   const clearing: Record<string, number> = {};
   const galsSinceLoad: Record<string, number> = {};
   const cardWeek: Record<string, number> = {};
   const fiserv = { bal: 0, monthCard: {} as Record<string, number> };
   const deptWeek: Record<string, { tobacco: number; grocery: number; beer: number; kitchen: number }> = {};
   for (const p of PROFILES) {
-    cashOnHand[p.store] = p.opened > DEMO_START ? c(4_000) : c(6_500);
     clearing[p.store] = p.opened > DEMO_START ? 0 : c(14_000);
     // Stagger the first load so September's cash-basis fuel cost isn't artificially light.
     galsSinceLoad[p.store] = p.opened > DEMO_START ? 0 : 3_800 + Math.round(rand() * 3_400);
@@ -237,8 +246,14 @@ export function buildDemo(): BooksState {
       post({ date: d, kind: 'journal', description: `POS daily close ${code(p.store)}`, tags: ['pos'], lines });
 
       clearing[p.store] += card;
-      cashOnHand[p.store] += cash;
       cardWeek[p.store] += card;
+      clockDate = d;
+      {
+        const r = rand();
+        const variance = r < 0.035 ? -c(6 + Math.round(rand() * 40)) : r < 0.09 ? -Math.round(rand() * 400) : 0;
+        const expected = posExpectedCash(state, p.store, d) ?? cash;
+        recordCashStep(books, cfo, { storeId: p.store, businessDate: d, stage: 'count', amount: expected + variance, person: `${code(p.store)} manager` });
+      }
       galsSinceLoad[p.store] += gal + (truck ? 0 : diesel);
       if (truck) {
         fiserv.bal += truckCard;
@@ -266,19 +281,28 @@ export function buildDemo(): BooksState {
       }
     }
 
-    // ── Pooled cash deposit Mon / Wed / Fri (store cash minus a $2,500 float).
+    // ── Cash chain. Yesterday's bags are picked up and recounted at HQ this morning;
+    // today's are counted tonight after the POS close (below). Deposits go Mon / Wed / Fri.
+    clockDate = d;
+    for (const p of PROFILES) {
+      const prev = addDays(d, -1);
+      if (prev < p.opened) continue;
+      const bag = state.cash.bags.find((b) => b.storeId === p.store && b.businessDate === prev);
+      if (!bag) continue;
+      const counted = bag.events[0].amount;
+      const pickupShort = rand() < 0.015 ? c(20) : 0;
+      recordCashStep(books, cfo, { storeId: p.store, businessDate: prev, stage: 'pickup', amount: counted - pickupShort, person: 'Route operator', date: d });
+      recordCashStep(books, cfo, { storeId: p.store, businessDate: prev, stage: 'hq_receipt', amount: counted - pickupShort, person: 'HQ clerk', date: d });
+    }
+    if (dow === 5) {
+      const hm11 = c(4_600 * jitter(0.05));
+      recordPayout(books, cfo, { date: d, fromStoreId: 'st_corp', kind: 'payroll', payee: 'HM11 crew (weekly cash payroll)', amount: hm11, person: 'HQ clerk', accountId: 'acct_wages', storeId: 'st_hm11' });
+    }
     if (dow === 1 || dow === 3 || dow === 5) {
-      const lines: DraftLine[] = [];
-      let total = 0;
-      for (const p of PROFILES) {
-        if (d < p.opened) continue;
-        const amt = cashOnHand[p.store] - c(2_500);
-        if (amt <= 0) continue;
-        lines.push(cr('acct_cash_registers', p.store, amt, `${code(p.store)} cash`));
-        cashOnHand[p.store] -= amt;
-        total += amt;
-      }
-      if (total > 0) post({ date: d, kind: 'transfer', description: 'DEPOSIT', memo: 'Pooled store cash', tags: ['cash'], lines: [dr('acct_trustmark', 'st_corp', total), ...lines] });
+      const ready = state.cash.bags.filter((b) => b.events.some((e) => e.stage === 'hq_receipt') && !b.events.some((e) => e.stage === 'deposit')
+        && !(b.storeId === 'st_hm13' && b.businessDate === '2026-11-21')); // one bag held back: the inbox flags it overdue
+      const amount = poolBalance(state, d) - c(3_000); // keep a float at HQ for payouts
+      if (ready.length && amount > 0) depositBags(books, cfo, { bagIds: ready.map((b) => b.id), date: d, amount, person: 'HQ clerk', slipNo: `DS-${d.replace(/-/g, '').slice(2)}` });
     }
 
     // ── Weekly supplier settlement on Tuesdays.
@@ -330,9 +354,6 @@ export function buildDemo(): BooksState {
           dr('acct_wages', s, n, 'Net pay'), dr('acct_payroll_taxes', s, tax, 'Employee + employer taxes'), cr('acct_trustmark', 'st_corp', n + tax),
         ] });
       }
-      const hm11 = c(4_600 * jitter(0.05));
-      post({ date: d, kind: 'money_out', description: 'Cash payroll HM11', tags: ['payroll', 'cash'], lines: [dr('acct_wages', 'st_hm11', hm11, 'Cash wages'), cr('acct_cash_registers', 'st_hm11', hm11)] });
-      cashOnHand.st_hm11 -= hm11;
     }
 
     // ── Weekly merchandise & kitchen purchases on Thursdays.
@@ -448,13 +469,86 @@ export function buildDemo(): BooksState {
   ];
   for (const r of rules) state.rules.push({ id: books.nextId('rule'), ...r });
 
-  // September is closed and locked.
+  buildBankFeed(state, books, cfo, rand);
+  // Older flagged variances were looked into at the weekly cash review; recent ones are still open.
+  for (const b of state.cash.bags) if (b.businessDate < '2026-11-12' && bagFlagged(state, b)) b.reviewed = { by: cfo.id, at: addDays(b.businessDate, 4) + 'T15:00:00.000Z', note: 'Recounted with the store manager; cashier short, written up.' };
+  for (const t of state.transactions) if (!t.batchId) { t.source = 'demo'; t.batchId = 'demo-2026Q4'; }
+  for (const [date, at] of [['2026-09-30', '2026-10-06'], ['2026-10-31', '2026-11-05']]) {
+    clockDate = at;
+    const st = reconcileStatus(state, 'acct_trustmark', date);
+    saveReconciliation(books, cfo, 'acct_trustmark', date, st.feedBalance!);
+  }
+
+  // August (opening balances) and September are closed and locked.
   clockDate = '2026-10-09';
   books.lockPeriod(cfo, '2026-08');
   books.lockPeriod(cfo, '2026-09');
   const count = state.transactions.length;
   // Keep the log readable: one entry for the whole demo load instead of thousands.
-  state.audit = state.audit.filter((a) => a.objectType !== 'transaction');
-  state.audit.unshift({ id: books.nextId('aud'), at: '2026-08-31T17:00:00.000Z', userId: cfo.id, action: 'data', objectType: 'data', objectId: 'demo', summary: `Loaded demo dataset: ${count} transactions, 1 Sep – 26 Nov 2026 (batch demo-2026Q4)` });
+  state.audit = state.audit.filter((a) => a.objectType === 'period' || a.objectType === 'reconciliation');
+  state.audit.unshift({ id: books.nextId('aud'), at: '2026-08-31T17:00:00.000Z', userId: cfo.id, action: 'data', objectType: 'data', objectId: 'demo', summary: `Loaded demo dataset: ${count} transactions, ${state.bank.lines.length} bank lines, ${state.cash.bags.length} cash bags, 1 Sep – 26 Nov 2026 (batch demo-2026Q4)` });
   return state;
+}
+
+/**
+ * The demo Trustmark statement lines: one per bank-side ledger line through FEED_END. Checks clear
+ * 3–9 days after they are written (later ones are still outstanding); one old check never clears.
+ * Lines from 22 Nov on are left unmatched so auto-match has work to do, and a few lines exist only
+ * at the bank (a fee, an unexplained deposit, a rebate nobody booked yet).
+ */
+function buildBankFeed(state: BooksState, books: Books, cfo: User, rand: () => number) {
+  const acct = 'acct_trustmark';
+  state.bank.openings[acct] = { date: '2026-08-31', balance: c(142_500) };
+  const batches = new Map<string, string>();
+  const batchFor = (date: string) => {
+    const m = date.slice(0, 7);
+    if (!batches.has(m)) {
+      const id = books.nextId('imp');
+      batches.set(m, id);
+      state.bank.batches.push({ id, accountId: acct, fileName: `Trustmark ${m} (demo).csv`, format: 'demo', importedAt: (m === '2026-11' ? FEED_END : lastDay(m)) + 'T14:00:00.000Z', by: cfo.id, added: 0, skipped: 0, totalIn: 0, totalOut: 0, from: '', to: '' });
+    }
+    return batches.get(m)!;
+  };
+  const lines: BankLine[] = [];
+  const add = (date: string, description: string, amount: number, extra: Partial<BankLine> = {}) => {
+    const batchId = batchFor(date);
+    lines.push({ id: books.nextId('bl'), accountId: acct, date, description, amount, hash: `demo:${state.seq}`, batchId, matchedLineIds: [], ...extra });
+  };
+  for (const t of state.transactions) {
+    if (t.deleted || t.kind === 'opening' || t.description === 'SYSCO INV 77120419') continue; // the duplicate never hit the bank
+    for (const l of t.lines) {
+      if (l.accountId !== acct || l.system) continue;
+      const amount = l.debit - l.credit;
+      let date = t.date;
+      if (t.checkNo && amount < 0) {
+        if (t.checkNo === '4107') continue; // never cleared: stale
+        date = addDays(t.date, 3 + Math.floor(rand() * 7));
+      }
+      if (date > FEED_END) continue;
+      const desc = t.checkNo && amount < 0 ? `CHECK ${t.checkNo}` : t.description.toUpperCase();
+      const tagSource: DepositSource | undefined = amount <= 0 ? undefined
+        : t.tags.includes('deposit') ? 'store_cash' : t.tags.includes('settlement') ? 'card_settlement' : t.tags.includes('rent') ? 'tenant_rent'
+        : t.tags.includes('lottery') ? 'lottery' : t.tags.includes('rebates') ? 'rebate' : t.tags.includes('intercompany') ? 'related_repayment' : undefined;
+      const source = amount > 0 ? guessDepositSource(desc) ?? tagSource : undefined;
+      add(date, desc, amount, { checkNo: t.checkNo && amount < 0 ? t.checkNo : undefined, source, matchedLineIds: t.date < '2026-11-22' ? [l.id] : [] });
+    }
+  }
+  add('2026-11-19', 'ACH CREDIT VICKSBURG REBATE', c(940.15), { source: 'rebate' });
+  add('2026-11-24', 'WIRE TRANSFER FEE', -c(25));
+  add('2026-11-25', 'DEPOSIT 7734', c(1_875));
+  lines.sort((a, b) => a.date.localeCompare(b.date));
+  for (const b of lines) b.hash = `demo:${b.batchId}:${b.id}`;
+  state.bank.lines = lines;
+  for (const bt of state.bank.batches) {
+    const mine = lines.filter((b) => b.batchId === bt.id);
+    bt.added = mine.length;
+    bt.totalIn = mine.filter((b) => b.amount > 0).reduce((a, b) => a + b.amount, 0);
+    bt.totalOut = mine.filter((b) => b.amount < 0).reduce((a, b) => a - b.amount, 0);
+    bt.from = mine[0]?.date ?? '';
+    bt.to = mine.at(-1)?.date ?? '';
+  }
+}
+
+function lastDay(period: string): string {
+  return lastDayOfPeriod(period);
 }

@@ -31,7 +31,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const inbox = useMemo(() => buildInbox(state, lines, visible), [state, lines, visible]);
   const inboxCount = inbox.filter((i) => !i.review).reduce((a, i) => a + i.count, 0);
-  const uncat = inbox.find((i) => i.key === 'uncat')?.count ?? 0;
+  const badge = (k: string) => inbox.filter((i) => i.key === k).reduce((a, i) => a + i.count, 0);
 
   useEffect(() => setDrawer(false), [loc.pathname, loc.search]);
   useEffect(() => {
@@ -70,7 +70,7 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => { window.clearTimeout(id); window.removeEventListener('resize', mark); };
   });
 
-  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : loc.pathname.startsWith(to));
+  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : to === '/bank' || to === '/cash' ? loc.pathname === to : loc.pathname.startsWith(to));
 
   return (
     <>
@@ -83,7 +83,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <div className="nav-group" key={g.title}>
               <h2>{g.title}</h2>
               {g.items.map((i) => {
-                const n = i.badge === 'inbox' ? inboxCount : i.badge === 'uncat' ? uncat : 0;
+                const n = i.badge === 'inbox' ? inboxCount : i.badge === 'uncat' ? badge('uncat') : i.badge === 'unmatched' ? badge('unmatched') : i.badge === 'unclassified' ? badge('unclassified') : i.badge === 'cash' ? badge('cashvar') + badge('overdue') : 0;
                 return (
                   <NavLink key={i.to} to={i.to} end={i.to === '/'} className="nav-link" aria-current={isActive(i.to) ? 'page' : undefined}>
                     <span>{i.label}</span>
@@ -96,7 +96,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="nav-group">
             <h2>Later phases</h2>
             <NavLink to="/roadmap" className="nav-link">Roadmap &amp; build status</NavLink>
-            <p className="nav-soon">Bank &amp; cash, fuel, intercompany, payroll and the rest arrive phase by phase.</p>
+            <p className="nav-soon">Fuel, intercompany, payroll and the rest arrive phase by phase.</p>
           </div>
         </nav>
         <div className="main">
@@ -128,8 +128,8 @@ export function Shell({ children }: { children: ReactNode }) {
       <nav className="tabbar" aria-label="Quick">
         <NavLink to="/" end aria-current={loc.pathname === '/' ? 'page' : undefined}><Icon d="M3 11 12 4l9 7v9H3z M9 20v-6h6v6" />Today</NavLink>
         <NavLink to="/reports/pnl" aria-current={loc.pathname.startsWith('/reports') ? 'page' : undefined}><Icon d="M4 20V10m6 10V4m6 16v-7m4 7H2" />Reports</NavLink>
+        <NavLink to="/bank" aria-current={loc.pathname.startsWith('/bank') || loc.pathname.startsWith('/cash') ? 'page' : undefined}><Icon d="M3 10 12 4l9 6M5 10v8m4-8v8m6-8v8m4-8v8M3 20h18" />Bank</NavLink>
         <NavLink to="/books/transactions" aria-current={loc.pathname.startsWith('/books') ? 'page' : undefined}><Icon d="M5 4h14v16H5z M8 8h8M8 12h8M8 16h5" />Books</NavLink>
-        <button onClick={() => setCmd(true)}><Icon d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm9 3-4.3-4.3" />Search</button>
         <button onClick={() => setDrawer(true)} aria-expanded={drawer}><Icon d="M5 12h.01M12 12h.01M19 12h.01" />More</button>
       </nav>
       <CommandBar open={cmd} onClose={() => setCmd(false)} />

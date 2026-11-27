@@ -13,6 +13,9 @@ import { PnlPage, TrialBalancePage } from './app/pages/Reports';
 import { Periods } from './app/pages/Periods';
 import { AuditPage, EntitiesPage, PartiesPage, RulesPage, SettingsPage, StoresPage, UsersPage } from './app/pages/Setup';
 import { Roadmap } from './app/pages/Roadmap';
+import { BankPage, ChecksPage, DepositsPage } from './app/pages/Bank';
+import { CashPage } from './app/pages/Cash';
+import { ForecastPage } from './app/pages/Forecast';
 import { PageHead } from './app/components/ui';
 
 function ScrollTop() {
@@ -45,6 +48,11 @@ function App() {
             <Route path="/setup/users" element={<UsersPage />} />
             <Route path="/setup/audit" element={<AuditPage />} />
             <Route path="/setup/settings" element={<SettingsPage />} />
+            <Route path="/bank" element={<BankPage />} />
+            <Route path="/bank/checks" element={<ChecksPage />} />
+            <Route path="/bank/deposits" element={<DepositsPage />} />
+            <Route path="/cash" element={<CashPage />} />
+            <Route path="/cash/forecast" element={<ForecastPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

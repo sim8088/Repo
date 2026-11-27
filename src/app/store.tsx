@@ -73,5 +73,7 @@ export function useBooks() {
   /** Lines this user may see (row-level access by store). */
   const myLines: FlatLine[] = useMemo(() => lines.filter((f) => visible.has(f.l.storeId)), [lines, visible]);
   const stores: Store[] = ctx.books.state.stores.filter((s) => !s.deleted && visible.has(s.id));
-  return { ...ctx, state: ctx.books.state, version, lines: myLines, allLines: lines, stores, visible };
+  // A fresh top-level snapshot per change, so any useMemo keyed on `state` recomputes. Writes always go through `books`.
+  const state = useMemo(() => ({ ...ctx.books.state }), [ctx.books, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { ...ctx, state, version, lines: myLines, allLines: lines, stores, visible };
 }

@@ -59,6 +59,9 @@ export function validateDraft(state: BooksState, d: TxnDraft): string[] {
   if (dr !== cr) {
     errs.push(`Debits and credits are off by ${formatMoney(Math.abs(dr - cr), { dollarSign: true })}. Adjust a line so both sides are equal.`);
   }
+  if (d.kind === 'transfer' && d.lines.some((l) => { const a = accounts.get(l.accountId); return a && isPnl(a); })) {
+    errs.push('Transfers only move money between balance-sheet accounts, so they never touch the P&L. Use money in or money out for income or expenses.');
+  }
   const period = state.periods[periodOf(d.date)];
   if (period?.status === 'locked') {
     errs.push(`${periodOf(d.date)} is locked. Unlock it from Close › Periods (with a reason) or date this in an open month.`);

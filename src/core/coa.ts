@@ -8,7 +8,7 @@ const ROWS: Row[] = [
   // Assets
   ['1000', 'acct_trustmark', 'Trustmark operating', 'asset', 'bank'],
   ['1010', 'acct_cash_registers', 'Cash on hand – registers & safe', 'asset', 'cash'],
-  ['1020', 'acct_cash_transit', 'Cash in transit', 'asset', 'cash'],
+  ['1020', 'acct_cash_transit', 'Cash at HQ / in transit', 'asset', 'cash'],
   ['1100', 'acct_craddock', 'Craddock receivable (clearing)', 'asset', 'clearing'],
   ['1110', 'acct_dash', 'Dash Oil clearing', 'asset', 'clearing'],
   ['1120', 'acct_fiserv', 'Fiserv / AccessOne clearing', 'asset', 'clearing'],
@@ -75,6 +75,7 @@ const ROWS: Row[] = [
   ['6310', 'acct_bank_fees', 'Bank fees', 'expense', 'general'],
   ['6320', 'acct_supplies', 'Store supplies', 'expense', 'general'],
   ['6330', 'acct_licenses', 'Licenses & permits', 'expense', 'general'],
+  ['6340', 'acct_over_short', 'Cash over / short', 'expense', 'general'],
   ['6400', 'acct_depreciation', 'Depreciation', 'expense', 'general'],
   ['6500', 'acct_interest', 'Interest expense', 'expense', 'general'],
   ['6900', 'acct_misc', 'Miscellaneous', 'expense', 'general'],

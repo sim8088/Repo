@@ -10,7 +10,8 @@ import { suggest } from '../../core/rules';
 import { can } from '../../core/permissions';
 import type { Transaction, ID } from '../../core/types';
 
-type Mode = 'money_out' | 'money_in' | 'journal';
+type Mode = 'money_out' | 'money_in' | 'transfer' | 'journal';
+const BS = new Set(['asset', 'liability', 'equity']);
 interface CatRow { key: number; accountId: ID; storeId: ID; amount: string; memo: string; }
 interface JRow { key: number; accountId: ID; storeId: ID; debit: string; credit: string; memo: string; partyId: ID; }
 
@@ -21,7 +22,7 @@ function fromTxn(t: Transaction | undefined, moneyIds: Set<string>) {
   if (!t) return null;
   const user = t.lines.filter((l) => !l.system);
   const money = user.filter((l) => moneyIds.has(l.accountId));
-  const simple = (t.kind === 'money_out' || t.kind === 'money_in') && money.length === 1 && user.length >= 2 && user.filter((l) => !moneyIds.has(l.accountId)).every((l) => (t.kind === 'money_out' ? l.debit > 0 : l.credit > 0));
+  const simple = (t.kind === 'money_out' || t.kind === 'money_in' || t.kind === 'transfer') && money.length === 1 && user.length >= 2 && user.filter((l) => !moneyIds.has(l.accountId)).every((l) => (t.kind === 'money_in' ? l.credit > 0 : l.debit > 0));
   return { simple, money: money[0], cats: user.filter((l) => l !== money[0]), user };
 }
 
@@ -63,7 +64,7 @@ export function TransactionForm() {
     if (mode === 'journal') {
       return { ...base, lines: jrows.filter((r) => r.accountId || r.debit || r.credit).map<DraftLine>((r) => ({ id: undefined, accountId: r.accountId, storeId: r.storeId, debit: cents(r.debit) ?? NaN, credit: cents(r.credit) ?? NaN, memo: r.memo, partyId: r.partyId || undefined })) };
     }
-    const out = mode === 'money_out';
+    const out = mode === 'money_out' || mode === 'transfer';
     const lines: DraftLine[] = [];
     let total = 0;
     for (const r of cats) {
@@ -119,7 +120,8 @@ export function TransactionForm() {
   };
 
   const pctSum = Object.values(split.pct).reduce((a, v) => a + (Number(v) || 0), 0);
-  const kindLabel = mode === 'money_out' ? 'Money out' : mode === 'money_in' ? 'Money in' : 'Journal entry';
+  const kindLabel = mode === 'money_out' ? 'Money out' : mode === 'money_in' ? 'Money in' : mode === 'transfer' ? 'Transfer' : 'Journal entry';
+  const catFilter = (a: { subtype: string; type: string; id: string }) => (mode === 'transfer' ? BS.has(a.type) && a.id !== moneyAcct : !MONEY.has(a.subtype));
 
   return (
     <>
@@ -129,8 +131,8 @@ export function TransactionForm() {
       <div className="stack">
         {!editing && (
           <div className="seg" role="group" aria-label="Entry type">
-            {(['money_out', 'money_in', 'journal'] as Mode[]).filter((m) => m !== 'journal' || can(user, 'journal.create')).map((m) => (
-              <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{m === 'money_out' ? 'Money out' : m === 'money_in' ? 'Money in' : 'Journal entry'}</button>
+            {(['money_out', 'money_in', 'transfer', 'journal'] as Mode[]).filter((m) => m !== 'journal' || can(user, 'journal.create')).map((m) => (
+              <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{m === 'money_out' ? 'Money out' : m === 'money_in' ? 'Money in' : m === 'transfer' ? 'Transfer' : 'Journal entry'}</button>
             ))}
           </div>
         )}
@@ -153,11 +155,11 @@ export function TransactionForm() {
 
         {mode !== 'journal' ? (
           <section className="panel" aria-labelledby="cats-h">
-            <div className="panel-head"><h2 id="cats-h">{mode === 'money_out' ? 'Paid from and what it was for' : 'Deposited to and where it came from'}</h2></div>
+            <div className="panel-head"><h2 id="cats-h">{mode === 'money_out' ? 'Paid from and what it was for' : mode === 'transfer' ? 'Moved from and to (never touches the P&L)' : 'Deposited to and where it came from'}</h2></div>
             <div className="panel-pad stack">
               <div className="form-grid">
-                <div className="field"><label htmlFor="macct">{mode === 'money_out' ? 'Paid from' : 'Deposited to'}</label>
-                  <select id="macct" value={moneyAcct} onChange={(e) => setMoneyAcct(e.target.value)}><AccountOptions filter={(a) => MONEY.has(a.subtype)} /></select></div>
+                <div className="field"><label htmlFor="macct">{mode === 'money_out' ? 'Paid from' : mode === 'transfer' ? 'Moved from' : 'Deposited to'}</label>
+                  <select id="macct" value={moneyAcct} onChange={(e) => setMoneyAcct(e.target.value)}><AccountOptions filter={(a) => (mode === 'transfer' ? BS.has(a.type) : MONEY.has(a.subtype))} /></select></div>
                 <div className="field"><label htmlFor="mstore">Held by</label>
                   <select id="mstore" value={moneyStore} onChange={(e) => setMoneyStore(e.target.value)}>{stores.map((s) => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select>
                   <span className="hint">The shared Trustmark account belongs to Corporate.</span></div>
@@ -165,7 +167,7 @@ export function TransactionForm() {
               <div className="lines-grid">
                 {cats.map((r, i) => (
                   <div className="line-row" key={r.key}>
-                    <div className="field acct"><label htmlFor={'ca' + r.key}>Category {i + 1}</label><select id={'ca' + r.key} value={r.accountId} onChange={(e) => setCats(cats.map((x) => (x.key === r.key ? { ...x, accountId: e.target.value } : x)))}><option value="">Choose…</option><AccountOptions filter={(a) => !MONEY.has(a.subtype)} /></select></div>
+                    <div className="field acct"><label htmlFor={'ca' + r.key}>{mode === 'transfer' ? `Moved to ${i + 1}` : `Category ${i + 1}`}</label><select id={'ca' + r.key} value={r.accountId} onChange={(e) => setCats(cats.map((x) => (x.key === r.key ? { ...x, accountId: e.target.value } : x)))}><option value="">Choose…</option><AccountOptions filter={catFilter} /></select></div>
                     <div className="field"><label htmlFor={'cs' + r.key}>Store</label><select id={'cs' + r.key} value={r.storeId} onChange={(e) => setCats(cats.map((x) => (x.key === r.key ? { ...x, storeId: e.target.value } : x)))}>{stores.map((s) => <option key={s.id} value={s.id}>{s.code}</option>)}</select></div>
                     <div className="field" style={{ gridColumn: 'span 2' }}><label htmlFor={'cm' + r.key}>Amount</label><input id={'cm' + r.key} className="num" inputMode="decimal" value={r.amount} placeholder="0.00" onChange={(e) => setCats(cats.map((x) => (x.key === r.key ? { ...x, amount: e.target.value } : x)))} /></div>
                     <div className="field memo"><label htmlFor={'cn' + r.key}>Line memo</label><input id={'cn' + r.key} value={r.memo} onChange={(e) => setCats(cats.map((x) => (x.key === r.key ? { ...x, memo: e.target.value } : x)))} /></div>
@@ -176,7 +178,7 @@ export function TransactionForm() {
               <div className="actions">
                 <button className="btn sm" onClick={() => setCats([...cats, { key: K++, accountId: '', storeId: cats.at(-1)?.storeId ?? defStore, amount: '', memo: '' }])}>Add a category line</button>
                 <button className="btn sm" aria-expanded={split.open} onClick={() => setSplit({ ...split, open: !split.open })}>Split across stores by %</button>
-                <span style={{ marginLeft: 'auto' }}>Total <b><Money c={mode === 'money_out' ? crT : dr} dollar /></b></span>
+                <span style={{ marginLeft: 'auto' }}>Total <b><Money c={mode === 'money_in' ? dr : crT} dollar /></b></span>
               </div>
               {split.open && (
                 <div className="panel panel-pad" style={{ background: 'var(--panel-2)' }}>

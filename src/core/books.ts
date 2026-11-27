@@ -24,7 +24,7 @@ export class Books {
   private listeners = new Set<Listener>();
   private version = 0;
 
-  constructor(public state: BooksState, private clock: () => string = () => new Date().toISOString()) {}
+  constructor(public state: BooksState, public clock: () => string = () => new Date().toISOString()) {}
 
   // ── plumbing ────────────────────────────────────────────────────────────
   subscribe(fn: Listener): () => void {
@@ -34,7 +34,7 @@ export class Books {
   getVersion(): number {
     return this.version;
   }
-  private changed(): void {
+  changed(): void {
     this.version += 1;
     for (const l of this.listeners) l();
   }
@@ -42,10 +42,10 @@ export class Books {
     this.state.seq += 1;
     return `${prefix}_${this.state.seq.toString(36)}`;
   }
-  private require(actor: User, p: Permission, what: string): void {
+  require(actor: User, p: Permission, what: string): void {
     if (!can(actor, p)) throw new PermissionError(`Your role can't ${what}. Ask the CFO to do it or to change your role.`);
   }
-  private audit(actor: User, e: Omit<AuditEntry, 'id' | 'at' | 'userId'>): void {
+  audit(actor: User, e: Omit<AuditEntry, 'id' | 'at' | 'userId'>): void {
     this.state.audit.push({ id: this.nextId('aud'), at: this.clock(), userId: actor.id, ...e });
   }
   private assertStoreAccess(actor: User, lines: { storeId: ID }[]): void {
@@ -209,7 +209,16 @@ export class Books {
     };
     this.updateTransaction(actor, t.id, draft, 'Categorized from inbox');
     if (opts.learn === false) return;
-    const match = suggest(this.state, t.description);
+    this.learnRule(actor, t.description, accountId, storeId, t.partyId);
+    this.changed();
+  }
+
+  /**
+   * Learn from a categorization: a matching rule that agreed gains a hit, one that disagreed gains
+   * an override and is retargeted once overrides outnumber hits; with no rule, a new one is learned.
+   */
+  learnRule(actor: User, description: string, accountId: ID, storeId: ID, partyId?: ID): void {
+    const match = suggest(this.state, description);
     if (match) {
       const r = match.rule;
       if (r.accountId === accountId && r.storeId === storeId) r.hits += 1;
@@ -223,9 +232,9 @@ export class Books {
         }
       }
     } else {
-      const key = ruleKey(t.description);
+      const key = ruleKey(description);
       if (key) {
-        const rule: Rule = { id: this.nextId('rule'), contains: key, accountId, storeId, partyId: t.partyId, origin: 'learned', hits: 1, overrides: 0, createdAt: this.clock(), active: true };
+        const rule: Rule = { id: this.nextId('rule'), contains: key, accountId, storeId, partyId, origin: 'learned', hits: 1, overrides: 0, createdAt: this.clock(), active: true };
         this.state.rules.push(rule);
         this.audit(actor, { action: 'learn', objectType: 'rule', objectId: rule.id, summary: `Learned rule: "${key}" → ${this.account(accountId)?.name}`, after: rule });
       }

@@ -6,6 +6,7 @@ const ROUTES = [
   '/books/new', '/books/new?kind=journal', '/books/accounts', '/books/accounts/acct_trustmark', '/reports/pnl', '/reports/trial-balance',
   '/close/periods', '/setup/stores', '/setup/entities', '/setup/parties', '/setup/rules', '/setup/users', '/setup/audit', '/setup/settings', '/roadmap',
   '/books/transactions/TX-000300',
+  '/bank', '/bank?tab=reconcile', '/bank?tab=lines', '/bank?tab=import', '/bank/checks', '/bank/deposits', '/cash', '/cash?show=flagged', '/cash/forecast', '/books/new?kind=transfer',
 ];
 
 async function open(page: Page, route: string) {
@@ -95,9 +96,63 @@ test('screenshots for review', async ({ page }) => {
   for (const [w, scheme] of [[1440, 'light'], [1440, 'dark'], [390, 'light'], [390, 'dark']] as const) {
     await page.setViewportSize({ width: w, height: w === 390 ? 844 : 1000 });
     await page.emulateMedia({ colorScheme: scheme });
-    for (const r of ['/', '/reports/pnl', '/books/transactions', '/books/transactions?queue=uncat']) {
+    for (const r of ['/', '/reports/pnl', '/books/transactions', '/bank', '/cash', '/cash/forecast']) {
       await open(page, r);
       await page.screenshot({ path: `test-results/shots/${w}-${scheme}-${r.replace(/[/?=]/g, '_') || 'today'}.png`, fullPage: false });
     }
   }
+});
+
+test('bank: auto-match, book a bank-only fee, import idempotently, reconcile November', async ({ page }) => {
+  await open(page, '/bank');
+  const before = Number((await page.getByRole('button', { name: /To match/ }).textContent())!.match(/\((\d+)\)/)![1]);
+  await page.getByRole('button', { name: 'Auto-match' }).click();
+  await expect.poll(async () => Number((await page.getByRole('button', { name: /To match/ }).textContent())!.match(/\((\d+)\)/)![1])).toBeLessThan(before);
+  const fee = page.locator('li', { hasText: 'WIRE TRANSFER FEE' });
+  await fee.getByRole('button', { name: /Book it|Something else/ }).click();
+  await fee.getByLabel('Category').selectOption('acct_bank_fees');
+  await fee.getByRole('button', { name: 'Book & match' }).click();
+  await expect(page.locator('li', { hasText: 'WIRE TRANSFER FEE' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Import' }).click();
+  const csv = 'Date,Description,Amount\n2026-11-26,ACH DEBIT ATMOS ENERGY 9921,-187.20\n2026-11-26,POS PURCHASE HOME DEPOT 4471,-64.10\n';
+  await page.locator('input[type=file]').setInputFiles({ name: 'trustmark-nov26.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await page.getByRole('button', { name: 'Import 2 new lines' }).click();
+  await page.locator('input[type=file]').setInputFiles({ name: 'trustmark-nov26.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByText('0 new, 2 already imported')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import 0 new lines' })).toBeDisabled();
+
+  await page.getByRole('button', { name: 'Reconcile' }).click();
+  await page.getByLabel('Statement date').fill('2026-11-25');
+  await expect(page.getByText('Difference $0.00 — fully explained')).toBeVisible();
+  await page.getByRole('button', { name: /Mark reconciled through/ }).click();
+  await expect(page.getByText(/Reconciled through Nov 25, 2026/).first()).toBeVisible();
+});
+
+test('cash chain: pickup, HQ receipt and a pooled deposit', async ({ page }) => {
+  await open(page, '/cash?date=2026-11-26');
+  const row = page.locator('tr', { hasText: 'HM13' }).first();
+  await row.getByLabel('Operator pickup amount').fill('100.00');
+  await row.getByRole('button', { name: 'Record' }).click();
+  await expect(row.locator('.pill', { hasText: /Short/ })).toBeVisible();
+  await row.getByRole('button', { name: 'Record' }).click();
+  await expect(page.getByRole('checkbox', { name: /Deposit HM13 2026-11-26/ })).toBeVisible();
+  await page.getByRole('checkbox', { name: /Deposit HM13 2026-11-26/ }).check();
+  await page.getByRole('button', { name: /Record deposit of 1 bag/ }).click();
+  await expect(page.getByRole('checkbox', { name: /Deposit HM13 2026-11-26/ })).toHaveCount(0);
+});
+
+test('forecast shows 13 weeks that roll forward, and items can be added', async ({ page }) => {
+  await open(page, '/cash/forecast');
+  await expect(page.getByText('Opening + inflows − outflows = ending')).toBeVisible();
+  await page.getByLabel('What').fill('Property tax HM13');
+  await page.getByLabel('Amount').fill('18,500');
+  await page.getByRole('button', { name: 'Add to forecast' }).click();
+  await expect(page.locator('td', { hasText: 'Property tax HM13' })).toBeVisible();
+});
+
+test('dismissing a duplicate updates the list straight away', async ({ page }) => {
+  await open(page, '/books/transactions?queue=dup');
+  await page.getByRole('button', { name: 'Not a duplicate' }).first().click();
+  await expect(page.getByText('No possible duplicates')).toBeVisible();
 });

@@ -2,6 +2,9 @@ import type { BooksState, ID, Transaction } from '../core/types';
 import { uncategorized, balanceAsOf, type FlatLine } from '../core/reports';
 import { findDuplicates, txnTotal } from '../core/duplicates';
 import { addDays, periodOf, todayInChicago } from '../core/dates';
+import { checksRegister, isMatched, matchIndex } from '../core/bank';
+import { bagFlagged, bagOverdue } from '../core/cash';
+import { formatMoney } from '../core/money';
 
 export interface InboxItem {
   key: string;
@@ -32,11 +35,28 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
   const thisPeriod = periodOf(today);
   const openPast = [...new Set(lines.map((f) => f.period))].filter((p) => p < thisPeriod && state.periods[p]?.status !== 'locked').sort();
   const noDoc = vis.filter((t) => needsDocument(t, state, today));
+  const seesBank = visible.has(state.stores.find((x) => x.kind === 'corporate')?.id ?? '');
+  const idx = matchIndex(state);
+  const unmatched = seesBank ? state.bank.lines.filter((b) => !b.excluded && !isMatched(b, idx)) : [];
+  const unclassified = seesBank ? state.bank.lines.filter((b) => !b.excluded && b.amount > 0 && !b.source) : [];
+  const bags = state.cash.bags.filter((b) => visible.has(b.storeId));
+  const flagged = bags.filter((b) => !b.reviewed && bagFlagged(state, b));
+  const overdue = bags.filter((b) => bagOverdue(state, b, today));
+  const stale = seesBank ? checksRegister(state, today).filter((c) => c.status === 'stale') : [];
+  const bank: InboxItem[] = seesBank ? [
+    { key: 'unmatched', count: unmatched.length, title: 'Unmatched bank lines', detail: unmatched.length ? 'Auto-match, match by hand, or book what only the bank knows about.' : 'Every bank line is matched.', to: '/bank?tab=match', action: 'Match' },
+    { key: 'unclassified', count: unclassified.length, title: 'Unclassified deposits', detail: 'Say where each deposit came from.', to: '/bank/deposits?show=unclassified', action: 'Classify' },
+  ] : [];
+  const mat = formatMoney(state.settings.materialityCents, { dollarSign: true });
   return [
+    ...bank,
+    { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
+    { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },
     { key: 'dup', count: dups.length, title: 'Possible duplicates', detail: 'Same amount and payee within 3 days.', to: '/books/transactions?queue=dup', action: 'Review' },
     { key: 'floor', count: below.length, title: 'Accounts below their floor', detail: below.length ? below.map((a) => a.name).join(', ') : 'Trustmark is above the $30,000 floor.', to: below[0] ? `/books/accounts/${below[0].id}` : '/books/accounts/acct_trustmark', action: 'Open' },
     { key: 'close', count: openPast.length, title: 'Past months still open', detail: openPast.length ? openPast.join(', ') + ' — close and lock when reconciled.' : 'Every past month is locked.', to: '/close/periods', action: 'Close' },
+    ...(seesBank ? [{ key: 'stale', count: stale.length, title: 'Stale checks', detail: 'Uncleared after ' + state.settings.staleCheckDays + ' days. Follow up or void.', to: '/bank/checks?status=stale', action: 'Review', review: true }] : []),
     { key: 'nodoc', count: noDoc.length, title: 'Payments of $1,000+ with no document', detail: 'Last 30 days. Attach the invoice or notice so each number traces to its source.', to: '/books/transactions?queue=nodoc', action: 'Attach', review: true },
   ];
 }
