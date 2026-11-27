@@ -1030,7 +1030,7 @@ export function fuelMargin(state: BooksState, opts: { storeIds: ID[]; from: stri
     const gallons = r3(x.gallons);
     const cogs = x.costCpg === null ? 0 : Math.round(gallons * x.costCpg);
     const margin = x.retail - cogs;
-    return { ...x, gallons, cogs, margin, retailCpg: gallons ? x.retail / gallons : 0, costCpg: gallons ? x.cogs / gallons : x.costCpg, marginCpg: gallons ? margin / gallons : 0 };
+    return { ...x, gallons, cogs, margin, retailCpg: gallons ? x.retail / gallons : 0, costCpg: gallons ? cogs / gallons : x.costCpg, marginCpg: gallons ? margin / gallons : 0 };
   }).sort((a, b) => a.bucket.localeCompare(b.bucket) || a.storeId.localeCompare(b.storeId) || GRADES.indexOf(a.grade) - GRADES.indexOf(b.grade));
   const stores: StoreFuelSummary[] = opts.storeIds.map((storeId) => {
     const mine = out.filter((r) => r.storeId === storeId);

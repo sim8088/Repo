@@ -384,3 +384,14 @@ describe('Phase 3 demo data', () => {
     }
   });
 });
+
+describe('fuel margin rows', () => {
+  it('each grade row reports its delivered cost per gallon (cogs ÷ gallons), not zero', async () => {
+    const { buildDemo } = await import('../data/seed');
+    const { fuelMargin } = await import('./fuel');
+    const s = buildDemo();
+    const m = fuelMargin(s, { storeIds: s.stores.map((x) => x.id), from: '2026-10-01', to: '2026-10-31', by: 'month' });
+    for (const r of m.rows.filter((x) => x.gallons > 0 && x.cogs > 0)) expect(r.costCpg!).toBeCloseTo(r.cogs / r.gallons, 6);
+    expect(m.rows.some((r) => (r.costCpg ?? 0) > 0)).toBe(true);
+  });
+});

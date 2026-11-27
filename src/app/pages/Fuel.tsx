@@ -125,7 +125,7 @@ export function FuelMarginPage() {
                 {m.stores.length > 1 && <tr className="total"><td>All stores</td><td className="num">{gal(tot.gallons)}</td><td className="num">{dpg(per(tot.retail))}</td><td className="num">{dpg(per(tot.cogs))}</td><td className="num">{cpg(per(tot.retail - tot.cogs))}</td><td className="num"><Money c={tot.retail - tot.cogs} whole /></td><td className="num">{cpg(per(disc), 2)}</td><td className="num">{cpg(per(fees), 2)}</td><td className="num">{cpg(per(disc + fees), 2)}</td><td className="num">{cpg(per(tot.retail - tot.cogs - disc - fees))}</td><td /></tr>}
               </tbody>
             </table></div>
-            <div className="panel-head" style={{ borderTop: '1px solid var(--rule)' }}><h2>By grade</h2><span className="muted small">{periodLabel(month)}</span></div>
+            <div className="panel-head" style={{ borderTop: '1px solid var(--rule)' }}><h2>By grade</h2><span className="muted small">{periodLabel(month)}{fuelOf(state).invoices.some((i) => i.batchId === 'stationbooks') && ' · costs per grade are approximate: StationBooks keeps one blended cost per load, so store totals are exact but grade margins are not'}</span></div>
             <div className="table-wrap"><table className="t">
               <thead><tr><th scope="col">Store</th><th scope="col">Grade</th><th scope="col" className="num">Gallons</th><th scope="col" className="num">Retail</th><th scope="col" className="num">Retail / gal</th><th scope="col" className="num">Delivered cost / gal</th><th scope="col" className="num">COGS (accrual)</th><th scope="col" className="num">Margin cpg</th></tr></thead>
               <tbody>{m.rows.map((r) => (
