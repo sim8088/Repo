@@ -221,7 +221,7 @@ export function LicensesPage() {
       </PageHead>
       <section className="figures" aria-label="Licenses" style={{ marginBottom: 20 }}>
         <Figure label="On file" value={all.length} note={`${new Set(all.map((l) => l.storeId)).size} stores`} />
-        <Figure label="Expiring in 30 days" value={<span className={expiring.length ? 'neg' : undefined}>{expiring.length}</span>} note={expiring.map((l) => `${l.name} ${shortDate(l.expiresOn)}`).join('; ') || 'None'} />
+        <Figure label="Expiring in 30 days" value={<span className={expiring.length ? 'neg' : undefined}>{expiring.length}</span>} note={expiring.map((l) => `${l.name} ${shortDate(l.expiresOn)}`).join('; ') || 'Every license is current'} />
         <Figure label="Expired" value={<span className={expired.length ? 'neg' : undefined}>{expired.length}</span>} note={expired.length ? expired.map((l) => l.name).join(', ') : 'None'} />
         <Figure label="Renewal fees, next 12 months" value={<Money c={fees12} whole dollar />} />
       </section>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useBooks } from '../store';
-import { AccountOptions, Errors, Figure, Help, Money, PageHead, TieOut, useToast } from '../components/ui';
+import { AccountOptions, Empty, Errors, Figure, Help, Money, PageHead, TieOut, useToast } from '../components/ui';
 import {
   PAYOUT_LABEL, STAGES, STAGE_LABEL, bagFlagged, bagOverdue, bagVariances, cashByLocation, depositBags, event, poolBalance,
   posExpectedCash, recordCashStep, recordPayout, reviewBag,
@@ -157,7 +157,7 @@ function DepositPanel({ bags, pool, onMsg }: { bags: CashBag[]; pool: number; on
   return (
     <section className="panel" aria-labelledby="dep-h" style={{ marginBottom: 20 }}>
       <div className="panel-head"><h2 id="dep-h">At HQ, waiting to deposit</h2><span className="muted small">Pool <Money c={pool} dollar /></span></div>
-      {bags.length === 0 ? <p className="panel-pad muted">Nothing waiting. Received bags show up here until they are deposited.</p> : (
+      {bags.length === 0 ? <div className="panel-pad"><Empty>Nothing waiting: the safe is clear. Received bags show up here until they are deposited.</Empty></div> : (
         <>
           <div className="table-wrap"><table className="t">
             <thead><tr><th scope="col"><input type="checkbox" aria-label="Select all bags" checked={picked.size === bags.length} onChange={(e) => setPicked(e.target.checked ? new Set(bags.map((b) => b.id)) : new Set())} /></th><th scope="col">Bag</th><th scope="col">Received</th><th scope="col" className="num">Amount</th><th scope="col">Status</th></tr></thead>
@@ -239,7 +239,7 @@ function PayoutPanel({ onMsg }: { onMsg: (m: string) => void }) {
       )}
       <div className="table-wrap"><table className="t">
         <thead><tr><th scope="col">Date</th><th scope="col">From</th><th scope="col">For</th><th scope="col">Paid to</th><th scope="col" className="num">Amount</th><th scope="col">By</th></tr></thead>
-        <tbody>{recent.length === 0 ? <tr><td colSpan={6} className="muted">No payouts yet.</td></tr> : recent.map((p) => (
+        <tbody>{recent.length === 0 ? <tr><Empty colSpan={6}>No payouts yet. The till is quiet.</Empty></tr> : recent.map((p) => (
           <tr key={p.id}><td>{shortDate(p.date)}</td><td>{p.fromStoreId === corp ? 'HQ pool' : state.stores.find((s) => s.id === p.fromStoreId)?.code}</td><td>{PAYOUT_LABEL[p.kind]}</td><td><Link to={`/books/transactions/${p.txnId}`}>{p.payee}</Link></td><td className="num"><Money c={p.amount} /></td><td>{p.person}</td></tr>
         ))}</tbody>
       </table></div>
@@ -254,7 +254,7 @@ function ReviewList({ bags, title, onClose }: { bags: CashBag[]; title: string; 
   return (
     <section className="panel" aria-labelledby="rv-h" style={{ marginBottom: 20 }}>
       <div className="panel-head"><h2 id="rv-h">{title}</h2><button className="btn sm ghost" onClick={onClose}>Close</button></div>
-      {bags.length === 0 ? <p className="panel-pad muted">Nothing here.</p> : (
+      {bags.length === 0 ? <div className="panel-pad"><Empty>Nothing here: all bags accounted for.</Empty></div> : (
         <ul className="inbox">{bags.map((b) => {
           const st = state.stores.find((s) => s.id === b.storeId);
           const v = bagVariances(state, b).filter((x) => x.flagged);

@@ -2,6 +2,54 @@
 
 This file records the context and decisions behind the portal so they don't get lost between sessions. Add new entries at the top.
 
+## 2026-11-27 — Forecourt design
+The CFO asked for "a nice and entertaining design". The generic "Ledger" look (warm paper, serif, vermilion) is replaced by **Forecourt**, the CFO's house direction for the fuel-station portals, with a few playful touches. Class names and DOM structure are unchanged, so every screen and test followed.
+
+**Tokens.** The old token names are kept and remapped, so the phase blocks in `src/styles.css` follow without edits. Light → dark:
+
+| Token | Role | Light | Dark |
+|---|---|---|---|
+| `--asphalt` | Sidebar canopy, tab bar, sign boards (both themes) | #1E2329 | #1E2329 |
+| `--paper` | Page (concrete) | #EBEDEF | #121519 |
+| `--panel` / `--panel-2` | Panels / subtle fill | #FFFFFF / #F5F6F7 | #22282F / #1B2025 |
+| `--ink` / `--ink-2` / `--muted` | Text | #14171A / #3D444C / #59616B | #EEF1F4 / #C8CFD6 / #9BA5AF |
+| `--rule` / `--control-rule` | Hairlines / input borders | #D5D9DE / #858E98 | #353D46 / #6B7580 |
+| `--accent`, `--accent-ink`, `--accent-fill` | Interstate blue: the only action color | #1C4E96 | #6FA3EE / #8DB8F5 / #2F66B8 |
+| `--hotspot` | Brand mark, active-nav bar, tab-bar marker only | #D7262E | same |
+| `--caution` / `--focus` | Focus ring, warning accents | #F2B705 | same |
+| `--pos` / `--neg` | Gains / losses | #17703F / #B3261E | #5DD08E / #FF8A80 |
+| `--led`, `--led-pos`, `--led-neg` | Price-sign digits on asphalt | #FFC94A, #5EE08F, #FF7B73 | same |
+| `--sign-green` / `--sign-red` / `--sign-yellow` | Road-sign badges | #00704A / #B3141C / #F2B705 | same |
+
+Where `--accent` used to mean "brand", each use was decided: the sidebar active bar, tab-bar marker and brand mark use `--hotspot`; note bars, selected rows, segmented buttons and data marks use blue. The only literal colors left are the print stylesheet's white and black. No inline styles in `src/app` used literal colors.
+
+**Type.** Barlow (15px body, 14px tables, 16px card titles) and Barlow Condensed (page titles 44px, 34px on phones, weight 600; big figures and sign digits), loaded from Google Fonts with Roboto Condensed / Arial Narrow / system fallbacks. Tabular figures everywhere. Table headers and nav group headings are sentence case at normal tracking. Headings use balanced wrapping.
+
+**Depth, shape, motion.** Hairline borders only, no card shadows, gradients or glows. Radius 6px controls, 8px panels, 12px dialogs. No entry animations; a button press (under 200ms) and Today's count-up are the only motion, both off under reduced motion.
+
+**Signature: the price-sign board.** A dark asphalt panel with lit Barlow Condensed digits (amber, green for profit, red for loss), one row per item.
+- Command center: `.board` restyled in place. Each row: store code and name, sales and gross margin in amber, labor pill, then net profit large in green or red; the company total is a new last row.
+- Today: a new `.sign-strip` hero with bank vs floor (with a fuel gauge), cash in the stores, profit so far this month and the inbox count. It sits above the existing figures, so the Today layout stays mergeable.
+
+**Fun touches.**
+- A time-of-day greeting ("Good morning / afternoon / evening", America/Chicago) with a small forecourt pictogram (canopy and pump) drawn in tokens. `PageHead` gained an optional `icon`.
+- Figures read like pump displays: the value sits in an inset display window with a hairline border.
+- Status pills are road signs: `.pill.ok` a green route sign with a white inset edge, `.pill.warn` a caution-yellow sign with a diamond, `.pill.bad` red. All white or ink text, at least 6:1.
+- `<Gauge value max min target label valueText />` in `ui.tsx`: an SVG semicircle with a needle and a low/high zone split at the target. It is exposed as an ARIA `meter` with `aria-valuetext`. Used for bank vs floor on Today and DSCR vs target on the covenant monitor.
+- `<CountUp>`: Today's sign digits count up once, for at most 400 ms. The real value is in the DOM from the start (an sr-only copy while the aria-hidden visual layer animates). It doesn't run under `prefers-reduced-motion`.
+- `<Empty>`: cheerful one-line empty states in the shared spots touched (bank matching, categorize queue, cash bags and payouts, approvals, reconciliations, deposits), plus kinder figure notes ("All the lights are on", "Every license is current").
+
+**Accessibility.**
+- Contrast was checked token by token: muted text is 5.3:1 on concrete, blue links 6.9:1, sidebar muted text 6.9:1 on asphalt, and LED amber 10:1.
+- Sidebar counts are caution-yellow plates with ink text.
+- Caution is never small text on light. Focus is a 3px caution ring with a 2px dark edge, so it reads on white and on asphalt.
+- Inputs are 16px on phones, and the tab bar respects the safe-area insets.
+- axe (wcag2a/aa, 21a/aa) is clean at 390 and 1440 px, light and dark, across the full e2e route sweep.
+
+**Print.** Still white with black text and no sidebar or tab bar. Sign strips print as plain outlined boxes, and the board stays hidden.
+
+**Screenshots** are in `docs/screenshots/` (10 routes × 1440/390 light, plus Today, Command center and Covenants at 1440 dark).
+
 ## 2026-11-27 — Integration after all 14 phases
 - Phases 3–14 were built in parallel and merged phase by phase. Every merge was re-verified: typecheck, the full unit suite, and the full browser suite (axe at 390/1440 px, light and dark, plus each phase's workflows).
 - Cross-phase fixes made while merging:
@@ -209,7 +257,7 @@ This file records the context and decisions behind the portal so they don't get 
 - **Not yet:** PDF statement parsing, a direct bank feed (needs a provider such as Plaid and the hosted back end), and check images from the bank (attach them to the transaction for now).
 
 ## 2026-11-27 — Phase 1 build
-- **Stack:** Vite + React 19 + TypeScript, plain CSS tokens ("Ledger" design), react-router (hash routes, so it works as a static page). The accounting core in `src/core` is framework-free and unit-tested.
+- **Stack:** Vite + React 19 + TypeScript, plain CSS tokens ("Ledger" design, replaced by "Forecourt" on 2026-11-27), react-router (hash routes, so it works as a static page). The accounting core in `src/core` is framework-free and unit-tested.
 - **Storage:** IndexedDB on one device for Phase 1. Swapping in a hosted back end (multi-user, 2FA, encryption, backups) is a prerequisite before real data goes in.
 - **Intercompany is automatic.** Each store has its own entity, and Corporate is the hub. When a transaction's lines span entities, the ledger adds `2900 Due to related entities` / `1900 Due from related entities` lines so each entity balances. Example: the shared Trustmark account (CORP) pays an HM11 bill.
 - **Owner withdrawals:** the default policy is *Corporate · Miscellaneous expense* (CFO decision, 2026-11-02). It can be switched to equity draws in Settings, and the policy fills in when an owner is picked on an entry.

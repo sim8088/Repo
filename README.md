@@ -4,6 +4,8 @@ The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstad
 
 The portal was built in 14 phases, each usable on its own. **All 14 are built:** Foundation, Bank & cash, Fuel, Reports, Intercompany & payables, People & payroll, Inside store & kitchen, Budgets & close, Compliance, assets & ask, GL toolkit & QuickBooks, Tax, Debt & treasury, Growth & owners, and Controls & risk. The app's `/roadmap` screen lists what each one covers.
 
+**Design:** "Forecourt", the CFO's house direction for the fuel-station portals: an asphalt sidebar canopy, concrete page, white panels, Interstate blue for every action and Hotspot red only on the brand mark and the active marker. Barlow for text, Barlow Condensed for titles and figures. The signature is the price-sign board (Today's headline strip and the Command center). Screenshots are in [`docs/screenshots/`](docs/screenshots/); the tokens and rules are in `docs/DECISIONS.md` and `src/styles.css`.
+
 ## Run it
 
 ```bash
