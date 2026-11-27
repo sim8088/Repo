@@ -324,6 +324,73 @@ export const HELP = {
     steps: ['Read the item and open it if you need the detail.', 'Approve (with an optional note) or reject with a reason.'],
     tips: ['Bills are here now. Rate changes, write-offs and adjusting entries join as their phases ship; amount limits by role come with controls.'],
   },
+  // ── Phase 7: inside store and kitchen
+  insideDepts: {
+    purpose: 'Sales and true margin by department: POS sales, purchases mapped to departments and the inventory counts.',
+    steps: [
+      'Pick the month and store. Sales come from the POS daily close; units and customer counts from the POS department import.',
+      'Cost of goods = purchases − the increase in counted inventory. Click purchases to see the entries behind them.',
+      'To add a day, open "Import POS department sales", pick the store and day, and paste or upload the department report. The preview must tie to the file total and to the POS close before you import.',
+    ],
+    tips: ['Importing the same report twice adds nothing; a corrected report needs the earlier import undone first.', 'A month with no closing count shows purchases only, so margin moves with delivery timing.'],
+  },
+  insidePurchases: {
+    purpose: 'Every merchandise and food purchase in the books (check, EFT, cash and approved bills), assigned to departments.',
+    steps: ['Filter by month, store or department.', 'Check "Without a department" is zero; add a vendor mapping for anything that is not.', "A vendor mapped to several departments is split by that store's sales of them that month."],
+    tips: ['Purchases with no mapping follow their account: 5100 beer, 5110 tobacco, 5120 grocery, beverages and other (by sales), 5200 kitchen.'],
+  },
+  insideInventory: {
+    purpose: 'Count inventory by department, see shrink, and post the inventory adjustment through the ledger.',
+    steps: [
+      'Pick the store and count date, then enter each department counted at cost.',
+      "Book = last count + purchases − sales at the department's expected cost. Shrink = book − counted, shown as a % of the department's sales.",
+      "Post count moves 1310 Merchandise inventory to the counted total against each department's cost of goods. Store managers save the count; the CFO or bookkeeper posts it.",
+    ],
+    tips: ['Counts post in date order and never into a locked month.', "Red shrink is over the department's threshold; it lands in the inbox."],
+  },
+  insideBudgets: {
+    purpose: 'Monthly buying budgets per store and department, against what has been bought so far.',
+    steps: ['Pick the month. Spent is purchases to date; awaiting approval is bills not yet approved.', 'Type a budget and press Save to change it.', 'A red bar is over budget and shows in the inbox.'],
+    tips: ['This is purchasing control. The profit-and-loss budget arrives with Budgets & close.'],
+  },
+  insideRebates: {
+    purpose: 'Scan-data and loyalty programs: what each manufacturer owes from units sold, against what it paid.',
+    steps: ["Expected = department units sold × the manufacturer's share × the rate per unit.", 'When a period ends, Claim it: the amount goes onto the rebate in Receivables, where the deposit is applied.', 'A payment below the scan-data figure shows Short-paid; follow up with the manufacturer.'],
+    tips: ['Units come from the POS department import, so import every day first.'],
+  },
+  insideLottery: {
+    purpose: 'Each lottery week: sales, payouts, commission and settlement, and whether the register took what the lottery says it should.',
+    steps: ["Enter the week from the lottery's weekly report and the register's lottery net.", 'Settlement should equal sales − payouts − commission.', 'A register short of the lottery report is a shortage. Look into it and sign it off with what you found.'],
+    tips: ['Commissions tie to 4140 Lottery commissions in the ledger, month by month.'],
+  },
+  insideAgeChecks: {
+    purpose: 'A log of tobacco and alcohol ID checks and what was done about each failure.',
+    steps: ['Log every check: date, store, product, result and who ran it.', 'A failure needs a follow-up and a due date.', 'Close the follow-up when it is done.'],
+    tips: ['License expiry dates live with Compliance.'],
+  },
+  kitchenSales: {
+    purpose: 'Food sales by store and day, and what sold.',
+    steps: ['Pick the month and store. Daily sales come from 4200 on the POS daily close.', 'Import the POS item report for a store and period to see the menu mix; it must add to food sales in the books.'],
+  },
+  kitchenFoodCost: {
+    purpose: "Food cost % by store and month against each store's target.",
+    steps: ['Food cost = kitchen purchases ± the change in counted kitchen inventory; it always equals 5200 in the ledger.', 'A month is measured once it has a kitchen count near its end. Until then it shows purchases only, marked *.', "Set each store's target below. Red is outside the target band and goes to the inbox."],
+    tips: ['Waste % shows how much of the cost is food thrown away.'],
+  },
+  kitchenWaste: {
+    purpose: 'What the kitchen threw away, what it cost, and how many points of food cost it is.',
+    steps: ['Log each item with qty, cost and a reason.', 'Read the points of food cost and the cost % without waste.'],
+    tips: ['Waste is not posted: it was already bought, so it is inside food cost.'],
+  },
+  kitchenPrime: {
+    purpose: 'Kitchen labor and prime cost (food + kitchen labor) as a share of food sales.',
+    steps: ["Pick the month. Kitchen labor is payroll's Kitchen department for pay weeks paid in the month.", 'Compare prime cost % across stores.'],
+    tips: ['Put each cook in the Kitchen department on People › Employees so their pay lands here.'],
+  },
+  kitchenPrices: {
+    purpose: 'Supplier price changes on the items the kitchen buys most.',
+    steps: ["Import the supplier's invoice detail. Each invoice is matched to its purchase in the books.", 'Read the alerts: a top item whose latest price moved more than the threshold from the price before.', 'Mark an alert reviewed once you have checked it with the supplier or re-priced the menu.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

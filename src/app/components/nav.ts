@@ -26,6 +26,28 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: 'Inside store',
+    items: [
+      { label: 'Department sales & margin', to: '/inside' },
+      { label: 'Vendor purchases', to: '/inside/purchases' },
+      { label: 'Inventory & shrink', to: '/inside/inventory' },
+      { label: 'Purchasing budgets', to: '/inside/budgets' },
+      { label: 'Scan-data & rebates', to: '/inside/rebates' },
+      { label: 'Lottery', to: '/inside/lottery' },
+      { label: 'Age-check audits', to: '/inside/age-checks' },
+    ],
+  },
+  {
+    title: 'Kitchen',
+    items: [
+      { label: 'Food sales & menu mix', to: '/kitchen' },
+      { label: 'Food cost', to: '/kitchen/food-cost' },
+      { label: 'Waste log', to: '/kitchen/waste' },
+      { label: 'Labor & prime cost', to: '/kitchen/labor' },
+      { label: 'Supplier prices', to: '/kitchen/prices' },
+    ],
+  },
+  {
     title: 'Intercompany',
     items: [
       { label: 'Related parties', to: '/intercompany/parties' },

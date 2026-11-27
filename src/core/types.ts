@@ -1,5 +1,6 @@
 import type { Cents } from './money';
 import type { FuelState } from './fuelTypes';
+import type { InsideState, KitchenState } from './insideTypes';
 
 export type ID = string;
 
@@ -157,7 +158,7 @@ export interface AuditEntry {
   userId: ID;
   action: string;
   objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people' | 'fuel'
-    | 'bill' | 'intercompany' | 'receivable';
+    | 'bill' | 'intercompany' | 'receivable' | 'inside' | 'kitchen';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -455,6 +456,10 @@ export interface BooksState {
   seq: number;
   /** People & payroll (phase 6). Books saved before phase 6 lack it: read it through `peopleOf(state)`. */
   people: PeopleState;
+  /** Inside store (phase 7). Older books lack it: read it through `insideOf(state)`. */
+  inside: InsideState;
+  /** Kitchen (phase 7). Older books lack it: read it through `kitchenOf(state)`. */
+  kitchen: KitchenState;
 }
 
 // ── People & payroll (phase 6) ─────────────────────────────────────────

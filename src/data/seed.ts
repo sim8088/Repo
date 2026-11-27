@@ -15,6 +15,10 @@ import { generateRent } from '../core/intercompany';
 import { rentTemplates, seedIntercompany } from './seed-intercompany';
 import { seedPayables } from './seed-payables';
 import { seedReceivables } from './seed-receivables';
+import { emptyInside } from '../core/inside';
+import { emptyKitchen } from '../core/kitchen';
+import { seedInside } from './seed-inside';
+import { seedKitchen } from './seed-kitchen';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -48,6 +52,7 @@ export interface SeedCtx {
 export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedPayroll,
   seedIntercompany, seedPayables, seedReceivables,
+  seedInside, seedKitchen,
 ];
 
 function rng(seed: number) {
@@ -147,6 +152,8 @@ export function emptyState(): BooksState {
     intercompany: { limits: {}, rentTemplates: [] },
     payables: { bills: [], utilities: [], statements: [] },
     receivables: { rent: [], items: [] },
+    inside: emptyInside(),
+    kitchen: emptyKitchen(),
     seq: 0,
   };
 }
