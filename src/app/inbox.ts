@@ -11,6 +11,8 @@ import { billTotal, dueWithin, pastDue, unscheduledDueSoon, utilityRows, vendorN
 import { lateRent } from '../core/receivables';
 import { overLimit } from '../core/intercompany';
 import { approvalQueue } from '../core/approvals';
+import { insideInbox } from '../core/inside';
+import { kitchenInbox } from '../core/kitchen';
 
 export interface InboxItem {
   key: string;
@@ -95,6 +97,8 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     ...bank,
     ...(seesBank ? payrollInbox(state, visible) : []),
     ...fuelInbox(state, visible, today),
+    ...insideInbox(state, visible, today),
+    ...kitchenInbox(state, visible),
     ...ap,
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
     { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },

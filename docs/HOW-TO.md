@@ -232,3 +232,42 @@ Pick row groups (net sales, sales by line of business, cost of goods, gross prof
 
 ## Exports
 Every report has **Export CSV**, **Export Excel** (a real .xlsx workbook) and **Print / PDF**. Exports are logged in the audit log.
+# Phase 7 — Inside store and kitchen
+
+## Department sales & margin (`/inside`)
+Sales by department for a month and store, from the POS daily close (4100–4150, 4200), with units and customer counts from the POS department import, purchases mapped to departments and the inventory change from counts. Cost of goods = purchases − the increase in counted inventory, so margin is true department margin once a month is counted. Figures: inside sales, inside gross margin, average ticket, transactions a day, the thinnest margin. Tie-outs: cost of goods = 5100–5200 in the ledger; the POS import = the POS close day by day; every purchase has a department.
+
+**Import POS department sales** (tab): pick the store and business day, upload or paste the PDI C-Store Essentials or CStorePro department report (Department and Sales; Units/Qty and a Customer count or Total row are read when present). The preview must tie to the file total and, department by department, to the POS close already in the books. POS department names map to ours through each department's POS names; map a new one from the preview. Re-importing adds nothing; a corrected report needs the earlier batch undone first. Nothing posts: the close already did.
+
+## Vendor purchases (`/inside/purchases`)
+Every merchandise and food purchase in the books (checks, EFT, cash and approved bills), by vendor, with how it was paid and its departments. Vendor mappings say which department(s) a vendor's purchases belong to; a vendor shipping several departments (the grocery wholesaler) is split by that store's sales of them that month. Unmapped purchases follow their account (5100 beer, 5110 tobacco, 5120 grocery / beverages / other by sales, 5200 kitchen).
+
+## Inventory & shrink (`/inside/inventory`)
+Enter a count at cost by department for a store and date. Book = last count + purchases − sales × the department's expected cost %; shrink = book − counted, as a % of the department's sales, red over the department's threshold (1.5% inside, 5% kitchen). **Post count** moves 1310 Merchandise inventory to the counted value against each department's cost-of-goods account (an "inventory count" journal). Store managers save counts for their store; the CFO or bookkeeper posts. Counts post in date order and never into a locked month; only the latest posted count can be voided. The tie-out proves 1310 at each store equals the latest counts.
+
+## Purchasing budgets (`/inside/budgets`)
+A monthly buying budget per store and department against purchases to date and bills awaiting approval, with a remaining bar. Over budget goes to the inbox. This is purchasing control, separate from the profit-and-loss budget of Phase 8.
+
+## Scan-data & rebates (`/inside/rebates`)
+Manufacturer programs: department, share of its units that qualify, cents per unit, monthly or quarterly. Expected = units sold (from the POS import) × share × rate. **Claim** an ended period to put that amount on the rebate in Receivables (or update the linked one); the payment is applied there, and a payment below the scan-data figure shows short-paid and goes to the inbox.
+
+## Lottery (`/inside/lottery`)
+Each store's lottery week: instant and online sales, cashes and payouts, commission, the settlement swept and the register's lottery net. Settlement must equal sales − payouts − commission; a register short of the lottery report (by $5 or more) is a lottery shortage until someone signs it off. Commissions tie to 4140 in the ledger month by month. Nothing posts.
+
+## Age-check audits (`/inside/age-checks`)
+Date, store, product, pass/fail, who ran it and the clerk. A failure needs a follow-up and due date; close it when done. License expiry lives with Compliance (Phase 9).
+
+## Food sales & menu mix (`/kitchen`)
+Food sales by store and day from 4200 on the POS close, and the menu mix from the POS item report (Item, Qty, Sales, for a store and period). The item import ties to food sales in the books and is idempotent.
+
+## Food cost (`/kitchen/food-cost`)
+Food cost % = (kitchen purchases ± the change in counted kitchen inventory) ÷ food sales, by store and month, with a target per store (±2 points) and the trend. A month is measured once a kitchen count is posted on or after the 25th; before that it shows purchases only (*). Food cost always equals 5200 in the ledger. Waste % and the cost % without waste show alongside.
+
+## Waste log (`/kitchen/waste`)
+Item, qty, cost and reason. Waste is not posted (it was bought, so it is inside food cost); the screen shows how many points of food cost it is.
+
+## Labor & prime cost (`/kitchen/labor`)
+Kitchen labor from payroll's Kitchen department (gross + employer taxes + cash/check pay, for pay weeks paid in the month) and prime cost (food cost + kitchen labor) as a % of food sales.
+
+## Supplier prices (`/kitchen/prices`)
+Import item-level invoice detail (Sysco etc.). Each invoice is matched to its purchase in the books (vendor, store, total, within 7 days). The top items by spend alert when the latest price moved more than 5% from the price before; mark an alert reviewed once dealt with. Lines without an item code (freight, surcharges) are kept but not price-tracked.

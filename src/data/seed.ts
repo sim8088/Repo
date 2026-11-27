@@ -17,6 +17,10 @@ import { seedPayables } from './seed-payables';
 import { seedReceivables } from './seed-receivables';
 import { seedReports } from './seed-reports';
 import { emptyReports } from '../core/statements';
+import { emptyInside } from '../core/inside';
+import { emptyKitchen } from '../core/kitchen';
+import { seedInside } from './seed-inside';
+import { seedKitchen } from './seed-kitchen';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -51,6 +55,7 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedPayroll,
   seedIntercompany, seedPayables, seedReceivables,
   seedReports,
+  seedInside, seedKitchen,
 ];
 
 function rng(seed: number) {
@@ -151,6 +156,8 @@ export function emptyState(): BooksState {
     payables: { bills: [], utilities: [], statements: [] },
     receivables: { rent: [], items: [] },
     reports: emptyReports(),
+    inside: emptyInside(),
+    kitchen: emptyKitchen(),
     seq: 0,
   };
 }
@@ -498,7 +505,9 @@ export function buildDemo(): BooksState {
  * Lines from 22 Nov on are left unmatched so auto-match has work to do, and a few lines exist only
  * at the bank (a fee, an unexplained deposit, a rebate nobody booked yet).
  */
-function buildBankFeed(state: BooksState, books: Books, cfo: User, rand: () => number) {
+function buildBankFeed(state: BooksState, books: Books, cfo: User, _rand: () => number) {
+  // Its own random stream, so module seeders that draw from the shared one never shift the statement.
+  const rand = rng(0xba4c);
   const acct = 'acct_trustmark';
   state.bank.openings[acct] = { date: '2026-08-31', balance: c(142_500) };
   const batches = new Map<string, string>();
@@ -524,6 +533,7 @@ function buildBankFeed(state: BooksState, books: Books, cfo: User, rand: () => n
       let date = t.date;
       if (t.checkNo && amount < 0) {
         if (t.checkNo === '4107') continue; // never cleared: stale
+        if (t.date > addDays(FEED_END, -7)) continue; // written in the feed's last week: still outstanding
         date = addDays(t.date, 3 + Math.floor(rand() * 7));
       }
       if (date > FEED_END) continue;

@@ -27,6 +27,8 @@ import { OtherReceivablesPage, RentRollPage } from './app/pages/Receivables';
 import { ApprovalsPage } from './app/pages/Approvals';
 import { BalanceSheetPage, CashFlowPage, CommandCenterPage, DrillPage } from './app/pages/Statements';
 import { BoardPackPage, ReportBuilderPage, ScorecardsPage } from './app/pages/ReportTools';
+import { AgeChecksPage, BudgetsPage, DeptSalesPage, InventoryPage, LotteryPage, RebatesPage, VendorPurchasesPage } from './app/pages/Inside';
+import { FoodCostPage, FoodSalesPage, PrimeCostPage, SupplierPricesPage, WastePage } from './app/pages/Kitchen';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -98,6 +100,18 @@ function App() {
             <Route path="/payables/1099" element={<Ten99Page />} />
             <Route path="/receivables/rent" element={<RentRollPage />} />
             <Route path="/receivables/other" element={<OtherReceivablesPage />} />
+            <Route path="/inside" element={<DeptSalesPage />} />
+            <Route path="/inside/purchases" element={<VendorPurchasesPage />} />
+            <Route path="/inside/inventory" element={<InventoryPage />} />
+            <Route path="/inside/budgets" element={<BudgetsPage />} />
+            <Route path="/inside/rebates" element={<RebatesPage />} />
+            <Route path="/inside/lottery" element={<LotteryPage />} />
+            <Route path="/inside/age-checks" element={<AgeChecksPage />} />
+            <Route path="/kitchen" element={<FoodSalesPage />} />
+            <Route path="/kitchen/food-cost" element={<FoodCostPage />} />
+            <Route path="/kitchen/waste" element={<WastePage />} />
+            <Route path="/kitchen/labor" element={<PrimeCostPage />} />
+            <Route path="/kitchen/prices" element={<SupplierPricesPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

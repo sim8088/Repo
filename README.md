@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables) and 6 (People & payroll). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll) and 7 (Inside store & kitchen). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -49,6 +49,8 @@ src/core/      Accounting core: pure TypeScript, no UI. Most of the logic and th
 src/data/      seed.ts (demo dataset), seed-payroll.ts (phase 6 demo), storage.ts (IndexedDB persistence)
   fuel.ts        fuel subledger: invoices, notices, Dash clearing, truck lane, margin, accrual COGS, tanks, pricing
   fuelio.ts      notice / invoice / Comdata file parsers
+  inside.ts      inside store: POS department import, vendor purchases → departments, counts and shrink, budgets, scan-data, lottery, age checks
+  kitchen.ts     kitchen: food sales, menu mix, food cost, waste, kitchen labor, supplier price alerts
 src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (IndexedDB persistence)
   intercompany.ts, payables.ts, receivables.ts, approvals.ts   phase 5
   statements.ts  phase 4: booked / cash / accrual P&L and the bridge, balance sheet, cash flow, command center, scorecards, report builder
@@ -98,6 +100,18 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Board pack | One printable monthly page: an editable letter written from the numbers, P&L, balance sheet, cash, KPIs, intercompany positions, open issues. |
 | Report builder | Rows (accounts or groups) × columns (stores or months) on any basis; saved reports with a cadence (no email yet). |
 | Exports | CSV and real Excel (.xlsx) on every report, plus print to PDF; a tie-out footer on each. |
+## What Phase 7 adds
+
+| Area | What works |
+|---|---|
+| POS import | Daily department sales (PDI C-Store Essentials / CStorePro CSV). The preview ties to the file total and to the POS close in the books; idempotent, batch id on every row. Units, transactions per day and average ticket. |
+| Department margin | Configurable departments mapped to revenue and cost-of-goods accounts; vendor purchases (checks, EFT, cash, bills) mapped to departments; true margin with the inventory change. Ties to 5100–5200. |
+| Inventory & shrink | Counts by department at cost, book vs counted, shrink % by department. Posting a count moves 1310 through the ledger. |
+| Purchasing budgets | Monthly per store and department, spend to date, bills awaiting approval and a remaining bar. |
+| Scan-data | Programs per manufacturer: units × share × rate vs received, on the Phase 5 rebate items. Short-paid flagged. |
+| Lottery & age checks | Weekly lottery settlement per store with the shortage flag; commissions tie to 4140. Age-check audit log with follow-ups. |
+| Kitchen | Food sales by day, menu mix import, food cost % with counts and a target per store, waste log and its effect, kitchen labor and prime cost, supplier price alerts from item-level invoice detail. |
+| Inbox | Food cost outside target, shrink over threshold, purchasing budget exceeded, lottery shortage, scan-data short-paid, supplier price jump. |
 
 ## What Phase 3 adds
 
