@@ -5,11 +5,12 @@ export type Permission =
   | 'period.lock' | 'period.unlock'
   | 'setup.edit' | 'users.edit' | 'export' | 'approve' | 'view.all_stores' | 'view.reports'
   | 'bank.import' | 'bank.reconcile' | 'cash.count' | 'cash.handle'
-  | 'payroll.edit' | 'fuel.edit' | 'fuel.post' | 'fuel.readings' | 'bills.enter' | 'bills.pay' | 'ar.edit';
+  | 'payroll.edit' | 'fuel.edit' | 'fuel.post' | 'fuel.readings' | 'bills.enter' | 'bills.pay' | 'ar.edit'
+  | 'budget.edit' | 'close.edit';
 
 const MATRIX: Record<Role, Permission[]> = {
-  cfo: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'period.lock', 'period.unlock', 'setup.edit', 'users.edit', 'export', 'approve', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit'],
-  bookkeeper: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'setup.edit', 'export', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit'],
+  cfo: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'period.lock', 'period.unlock', 'setup.edit', 'users.edit', 'export', 'approve', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit', 'budget.edit', 'close.edit'],
+  bookkeeper: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'setup.edit', 'export', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit', 'budget.edit', 'close.edit'],
   store_manager: ['txn.create', 'cash.count', 'fuel.readings', 'bills.enter'],
   owner: ['approve', 'view.all_stores', 'view.reports', 'export'],
   reviewer: ['view.all_stores', 'view.reports', 'export'],

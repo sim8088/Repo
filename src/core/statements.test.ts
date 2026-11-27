@@ -130,10 +130,10 @@ describe('cash and accrual bases', () => {
     expect(priorRange('2026-01', '2026-02')).toEqual({ from: '2025-11', to: '2025-12' });
   });
 
-  it('budget hook: no figures says phase 8; figures give variances', () => {
+  it('budget hook: no figures says so; figures give variances', () => {
     const { s } = small();
     const st = statement(s, { basis: 'accrual', from: '2026-09', to: '2026-09', storeIds: [HM11] });
-    expect(budgetCompare(st)).toEqual({ available: false, message: 'Budgets arrive in phase 8.' });
+    expect(budgetCompare(st)).toMatchObject({ available: false });
     const c = budgetCompare(st, { byAccount: { acct_repairs: 40_000 } });
     expect(c.available && c.rows.find((r) => r.accountId === 'acct_repairs')).toMatchObject({ actual: 50_000, budget: 40_000, variance: 10_000 });
   });

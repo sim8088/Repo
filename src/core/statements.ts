@@ -302,21 +302,23 @@ export function drill(entries: BasisEntry[], opts: { basis: ReportBasis; from: s
 
 // ── Budget hook (phase 8) ────────────────────────────────────────────────
 /** Budget figures for one range, shown sign, by account id (and optionally by column). Phase 8 supplies these. */
-export interface BudgetFigures { byAccount: Record<ID, number> }
+export interface BudgetFigures { byAccount: Record<ID, number>; /** Budget net profit; when left out it is figured from the statement's accounts. */ net?: number }
 export type BudgetCompare =
   | { available: false; message: string }
   | { available: true; rows: { accountId: ID; actual: number; budget: number; variance: number; pct: number | null }[]; actualNet: number; budgetNet: number };
 
-/** Actual vs budget per P&L line. With no budget figures it says so; phase 8 passes them in. */
+/** Actual vs budget per P&L line. With no budget figures it says so; Budgets (phase 8, src/core/budgets.ts) passes them in. */
 export function budgetCompare(stmt: Statement, budget?: BudgetFigures): BudgetCompare {
-  if (!budget) return { available: false, message: 'Budgets arrive in phase 8.' };
+  if (!budget) return { available: false, message: 'No active budget covers these months. Build one in Budgets › Annual budget.' };
   const ids = new Set([...stmt.rows.map((r) => r.account.id), ...Object.keys(budget.byAccount)]);
   const rows = [...ids].map((accountId) => {
     const actual = stmt.rows.find((r) => r.account.id === accountId)?.total ?? 0;
     const b = budget.byAccount[accountId] ?? 0;
     return { accountId, actual, budget: b, variance: actual - b, pct: b ? (actual - b) / Math.abs(b) : null };
   });
-  return { available: true, rows, actualNet: stmt.netIncome.total, budgetNet: 0 };
+  const sign = new Map(stmt.rows.map((r) => [r.account.id, shownSign(r.account)]));
+  const budgetNet = budget.net ?? Object.entries(budget.byAccount).reduce((a, [id, v]) => a + (sign.get(id) ?? -1) * v, 0);
+  return { available: true, rows, actualNet: stmt.netIncome.total, budgetNet };
 }
 
 // ── Balance sheet ────────────────────────────────────────────────────────

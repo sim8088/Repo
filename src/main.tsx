@@ -27,6 +27,8 @@ import { OtherReceivablesPage, RentRollPage } from './app/pages/Receivables';
 import { ApprovalsPage } from './app/pages/Approvals';
 import { BalanceSheetPage, CashFlowPage, CommandCenterPage, DrillPage } from './app/pages/Statements';
 import { BoardPackPage, ReportBuilderPage, ScorecardsPage } from './app/pages/ReportTools';
+import { AnnualBudgetPage, BreakEvenPage, BvaPage, RollingForecastPage, ScenariosPage } from './app/pages/Budgets';
+import { BinderPage, ChecklistPage } from './app/pages/Close';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -58,6 +60,13 @@ function App() {
             <Route path="/reports/board" element={<BoardPackPage />} />
             <Route path="/reports/builder" element={<ReportBuilderPage />} />
             <Route path="/close/periods" element={<Periods />} />
+            <Route path="/close" element={<ChecklistPage />} />
+            <Route path="/close/binder" element={<BinderPage />} />
+            <Route path="/budgets" element={<AnnualBudgetPage />} />
+            <Route path="/budgets/bva" element={<BvaPage />} />
+            <Route path="/budgets/forecast" element={<RollingForecastPage />} />
+            <Route path="/budgets/scenarios" element={<ScenariosPage />} />
+            <Route path="/budgets/break-even" element={<BreakEvenPage />} />
             <Route path="/setup/stores" element={<StoresPage />} />
             <Route path="/setup/entities" element={<EntitiesPage />} />
             <Route path="/setup/parties" element={<PartiesPage />} />

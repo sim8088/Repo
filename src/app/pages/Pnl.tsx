@@ -5,6 +5,7 @@ import { Help, Money, PageHead, TieOut, csvMoney } from '../components/ui';
 import { BasisSeg, BASES, ExportButtons, pct, ratioPct, useEntries } from '../components/reportkit';
 import { latestSalesPeriod, pnl, type PnlSection } from '../../core/reports';
 import { BASIS_LABEL, bridge, budgetCompare, priorRange, statement, type Bridge, type Statement, type StmtRow } from '../../core/statements';
+import { budgetStatement, hasBudget } from '../../core/budgets';
 import { lastDayOfPeriod, periodLabel, periodOf, todayInChicago } from '../../core/dates';
 import { LOB_LABEL } from '../../core/coa';
 import { can } from '../../core/permissions';
@@ -14,9 +15,9 @@ import type { LineOfBusiness, ReportBasis } from '../../core/types';
 // ── Profit & loss: booked, cash, accrual, and the bridge ─────────────────
 const SECTION_LABEL: Record<PnlSection, string> = { revenue: 'Sales', contra_revenue: 'Discounts', cogs: 'Cost of goods', expense: 'Operating expenses' };
 type Mode = ReportBasis | 'compare';
-type View = 'store' | 'month' | 'prior';
+type View = 'store' | 'month' | 'prior' | 'budget';
 type Grid = Pick<Statement, 'rows' | 'netSales' | 'cogs' | 'grossProfit' | 'expenses' | 'netIncome' | 'salesByLob' | 'gpByLob'>;
-interface Col { key: string; label: string; title?: string; drill?: { basis: ReportBasis; from: string; to: string; storeId?: string }; diff?: boolean }
+interface Col { key: string; label: string; title?: string; drill?: { basis: ReportBasis; from: string; to: string; storeId?: string }; diff?: boolean; plain?: boolean }
 
 /** Two statements' totals side by side, plus a difference column (a − b). */
 function merge(a: Statement, b: Statement, ka: string, kb: string, kd: string): Grid {
@@ -41,7 +42,7 @@ export function PnlPage() {
   const toP = sp.get('to') ?? fromP;
   const storeFilter = sp.get('store') ?? '';
   const mode = (['booked', 'cash', 'accrual', 'compare'].includes(sp.get('basis') ?? '') ? sp.get('basis') : 'booked') as Mode;
-  const view = (['store', 'month', 'prior'].includes(sp.get('view') ?? '') ? sp.get('view') : 'store') as View;
+  const view = (['store', 'month', 'prior', 'budget'].includes(sp.get('view') ?? '') ? sp.get('view') : 'store') as View;
   const showPct = sp.get('pct') === '1';
   const defaulted = !sp.get('from');
   const cols = stores.filter((s) => (storeFilter ? s.id === storeFilter : true));
@@ -52,6 +53,8 @@ export function PnlPage() {
   const ledger = useMemo(() => pnl(state, { from: fromP, to: toP, storeIds: ids, lines }), [state, fromP, toP, key, lines]); // eslint-disable-line react-hooks/exhaustive-deps
   const main = useMemo(() => statement(state, { basis, from: fromP, to: toP, storeIds: ids, cols: view === 'month' && mode !== 'compare' ? 'month' : 'store', entries }), [state, basis, fromP, toP, key, view, mode, entries]); // eslint-disable-line react-hooks/exhaustive-deps
   const br = useMemo(() => bridge(state, { from: fromP, to: toP, storeIds: ids, entries }), [state, fromP, toP, key, entries]); // eslint-disable-line react-hooks/exhaustive-deps
+  const bud = useMemo(() => budgetStatement(state, { from: fromP, to: toP, storeIds: ids }), [state, fromP, toP, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const budgeted = hasBudget(state, fromP, toP);
   const periods = useMemo(() => [...new Set(lines.map((f) => f.period))].sort(), [lines]);
   const set = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); if (!n.get('from')) n.set('from', fromP); setSp(n, { replace: true }); };
   const label = fromP === toP ? periodLabel(fromP) : `${periodLabel(fromP)} – ${periodLabel(toP)}`;
@@ -67,6 +70,9 @@ export function PnlPage() {
     const cash = statement(state, { basis: 'cash', from: fromP, to: toP, storeIds: ids, entries });
     grid = merge(main, cash, 'accrual', 'cash', 'diff');
     colDefs = [{ key: 'cash', label: 'Cash', drill: { basis: 'cash', from: fromP, to: toP, storeId: sf } }, { key: 'accrual', label: 'Accrual', drill: { basis: 'accrual', from: fromP, to: toP, storeId: sf } }, { key: 'diff', label: 'Accrual − cash', diff: true }];
+  } else if (view === 'budget') {
+    grid = merge(main, bud, 'cur', 'pri', 'chg');
+    colDefs = [{ key: 'cur', label: 'Actual', drill: { basis, from: fromP, to: toP, storeId: sf } }, { key: 'pri', label: 'Budget', plain: true }, { key: 'chg', label: 'Variance', diff: true }];
   } else if (view === 'prior') {
     const pri = statement(state, { basis, from: prior.from, to: prior.to, storeIds: ids, entries });
     grid = merge(main, pri, 'cur', 'pri', 'chg');
@@ -81,12 +87,13 @@ export function PnlPage() {
     if (d.basis === 'booked') return `/books/transactions?account=${accountId}${d.storeId ? `&store=${d.storeId}` : ''}&from=${d.from}-01&to=${lastDayOfPeriod(d.to)}`;
     return `/reports/drill?basis=${d.basis}&account=${accountId}${d.storeId ? `&store=${d.storeId}` : ''}&from=${d.from}&to=${d.to}`;
   };
-  const merged = mode === 'compare' || view === 'prior';
+  const merged = mode === 'compare' || view === 'prior' || view === 'budget';
   const headKey = merged ? colDefs[mode === 'compare' ? 1 : 0].key : 'total';
   const fig = { netSales: grid.netSales[headKey], grossProfit: grid.grossProfit[headKey], expenses: grid.expenses[headKey], netIncome: grid.netIncome[headKey] };
 
   const under = (v: number, c: Col, base: Record<string, number> | undefined, pri?: number) => {
-    if (c.diff) return view === 'prior' && pri !== undefined ? <div className="muted small">{pri ? pct(v / Math.abs(pri)) : '–'}</div> : null;
+    if (c.diff) return (view === 'prior' || view === 'budget') && mode !== 'compare' && pri !== undefined ? <div className="muted small">{pri ? pct(v / Math.abs(pri)) : '–'}</div> : null;
+    if (c.plain) return null;
     return base ? <div className="muted small">{ratioPct(v, base[c.key])}</div> : null;
   };
   const sub = (title: string, vals: Record<string, number>, cls = 'sub', base?: Record<string, number>) => (
@@ -102,7 +109,7 @@ export function PnlPage() {
       {colDefs.map((c) => {
         const v = x.by[c.key];
         if (!v) return <td className="num" key={c.key}><span className="muted">–</span></td>;
-        if (!c.drill) return <td className="num" key={c.key}><Money c={v} signed />{under(v, c, undefined, x.by.pri)}</td>;
+        if (!c.drill) return <td className="num" key={c.key}><Money c={v} signed={!c.plain} />{under(v, c, undefined, x.by.pri)}</td>;
         return <td className="num" key={c.key}><Link className="cell-link" to={drillHref(x.account.id, c)} aria-label={`${x.account.name}, ${c.label}: ${formatMoney(v)} — see transactions`}><Money c={v} /></Link>{showPct && under(v, c, grid.netSales)}</td>;
       })}
     </tr>
@@ -124,7 +131,7 @@ export function PnlPage() {
   if (mode === 'compare') ties.push({ label: grid.netIncome.diff === br.total ? 'Line differences add to the bridge' : 'Line differences do not add to the bridge', ok: grid.netIncome.diff === br.total });
   if (sumCols !== null) ties.push({ label: colsOk ? (view === 'month' ? 'Month columns add to the total' : 'Store columns add to the total') : 'Columns do not add up', ok: colsOk });
 
-  const exportName = `pnl-${mode}-${merged ? (mode === 'compare' ? 'compare' : 'prior') : view}-${fromP}-to-${toP}${storeFilter ? '-' + codeOf(storeFilter) : ''}`;
+  const exportName = `pnl-${mode}-${merged ? (mode === 'compare' ? 'compare' : view) : view}-${fromP}-to-${toP}${storeFilter ? '-' + codeOf(storeFilter) : ''}`;
   const exportHeader = ['Account', 'Section', 'Line of business', ...colDefs.map((c) => c.title ?? c.label)];
   const exportRows: (string | number)[][] = [
     ...grid.rows.map((x) => [x.account.name, SECTION_LABEL[x.section], LOB_LABEL[x.lob], ...colDefs.map((c) => csvMoney(x.by[c.key] ?? 0))]),
@@ -134,7 +141,8 @@ export function PnlPage() {
     ...(mode !== 'booked' ? [[], ['Bridge: net profit, cash basis', '', '', csvMoney(br.cash)], ...br.lines.map((l) => [l.label, 'Bridge', '', csvMoney(l.amount)]), ['Net profit, accrual basis', '', '', csvMoney(br.accrual)]] : []),
     [], ...ties.map((t) => [`Tie-out: ${t.label}`, t.ok ? 'OK' : 'CHECK']),
   ];
-  const budget = budgetCompare(main);
+  const budget = budgetCompare(main, budgeted ? { byAccount: Object.fromEntries(bud.rows.map((r) => [r.account.id, r.total])), net: bud.netIncome.total } : undefined);
+  if (view === 'budget' && mode !== 'compare') ties.push({ label: grid.netIncome.cur === main.netIncome.total && grid.netIncome.pri === bud.netIncome.total ? 'Actual and budget columns tie to their statements' : 'Budget comparison does not tie', ok: grid.netIncome.cur === main.netIncome.total && grid.netIncome.pri === bud.netIncome.total });
   if (!can(user, 'view.reports') && !stores.length) return <PageHead title="Profit & loss" lede="Your role doesn't include company reports. Ask the CFO for access." />;
 
   return (
@@ -156,7 +164,7 @@ export function PnlPage() {
           <div className="field"><label htmlFor="p-from">From month</label><select id="p-from" value={fromP} onChange={(e) => { const n = new URLSearchParams(sp); n.set('from', e.target.value); if (toP < e.target.value) n.set('to', e.target.value); setSp(n, { replace: true }); }}>{periods.map((p) => <option key={p} value={p}>{periodLabel(p)}</option>)}</select></div>
           <div className="field"><label htmlFor="p-to">To month</label><select id="p-to" value={toP} onChange={(e) => { const n = new URLSearchParams(sp); n.set('from', fromP); n.set('to', e.target.value); setSp(n, { replace: true }); }}>{periods.filter((p) => p >= fromP).map((p) => <option key={p} value={p}>{periodLabel(p)}</option>)}</select></div>
           <div className="field"><label htmlFor="p-store">Store</label><select id="p-store" value={storeFilter} onChange={(e) => set('store', e.target.value)}><option value="">All stores</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select></div>
-          <div className="field"><label htmlFor="p-view">View</label><select id="p-view" value={mode === 'compare' ? 'store' : view} disabled={mode === 'compare'} onChange={(e) => set('view', e.target.value === 'store' ? '' : e.target.value)}><option value="store">By store</option><option value="month">By month (trend)</option><option value="prior">Vs prior period</option></select></div>
+          <div className="field"><label htmlFor="p-view">View</label><select id="p-view" value={mode === 'compare' ? 'store' : view} disabled={mode === 'compare'} onChange={(e) => set('view', e.target.value === 'store' ? '' : e.target.value)}><option value="store">By store</option><option value="month">By month (trend)</option><option value="prior">Vs prior period</option><option value="budget">Vs budget</option></select></div>
           <div className="field seg-field"><span className="seg-label" aria-hidden>Basis</span><BasisSeg label="Basis" value={mode} onChange={(v) => set('basis', v === 'booked' ? '' : v)} options={[...BASES, { v: 'compare' as const, label: 'Compare' }]} /></div>
           <label className="check" style={{ marginBottom: 8 }}><input type="checkbox" checked={showPct} onChange={(e) => set('pct', e.target.checked ? '1' : '')} /> % of sales</label>
         </div>
@@ -193,8 +201,18 @@ export function PnlPage() {
       {mode !== 'booked' && <BridgePanel br={br} from={fromP} to={toP} storeId={storeFilter} />}
 
       <section className="panel" style={{ marginTop: 20 }}>
-        <div className="panel-head"><h2>Budget comparison</h2><span className="muted small">{budget.available ? 'Budget vs actual' : budget.message}</span></div>
-        <div className="panel-pad"><p className="muted small" style={{ margin: 0 }}>Budget vs actual on every line, with the variance in dollars and percent, plugs in here once budgets are entered.</p></div>
+        <div className="panel-head"><h2>Budget comparison</h2><span className="muted small">{budget.available ? `Active budget, ${label}` : budget.message}</span></div>
+        {budget.available ? (
+          <div className="panel-pad">
+            <dl className="kv">
+              <dt>Actual net profit ({BASIS_LABEL[basis].toLowerCase()})</dt><dd><Money c={budget.actualNet} dollar signed /></dd>
+              <dt>Budget net profit</dt><dd><Money c={budget.budgetNet} dollar signed /></dd>
+              <dt>Variance</dt><dd><Money c={budget.actualNet - budget.budgetNet} dollar signed /> {budget.budgetNet ? <span className="muted small">{pct((budget.actualNet - budget.budgetNet) / Math.abs(budget.budgetNet))}</span> : null}</dd>
+              <dt>Lines off budget</dt><dd>{budget.rows.filter((r) => r.variance).length} of {budget.rows.length}</dd>
+            </dl>
+            <p className="small" style={{ marginBottom: 0 }}>{view !== 'budget' && mode !== 'compare' && <><Link to={`?${new URLSearchParams({ ...Object.fromEntries(sp), from: fromP, view: 'budget' }).toString()}`}>Show the budget column on every line</Link> · </>}<Link to={`/budgets/bva?month=${fromP}${toP !== fromP ? `&to=${toP}` : ''}${storeFilter ? `&store=${storeFilter}` : ''}${basis !== 'accrual' ? `&basis=${basis}` : ''}`}>Budget vs actual with variance comments</Link>{basis !== 'accrual' && <span className="muted"> · the budget is built on the accrual basis</span>}</p>
+          </div>
+        ) : <div className="panel-pad"><p className="muted small" style={{ margin: 0 }}><Link to="/budgets">Build a budget</Link> to see budget vs actual on every line.</p></div>}
       </section>
       <Help k="pnl" />
     </>

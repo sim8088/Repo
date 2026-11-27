@@ -17,6 +17,10 @@ import { seedPayables } from './seed-payables';
 import { seedReceivables } from './seed-receivables';
 import { seedReports } from './seed-reports';
 import { emptyReports } from '../core/statements';
+import { emptyBudgets } from '../core/budgets';
+import { emptyClose } from '../core/close';
+import { seedBudgets } from './seed-budgets';
+import { seedClose } from './seed-close';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -51,6 +55,7 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedPayroll,
   seedIntercompany, seedPayables, seedReceivables,
   seedReports,
+  seedBudgets, seedClose,
 ];
 
 function rng(seed: number) {
@@ -151,6 +156,8 @@ export function emptyState(): BooksState {
     payables: { bills: [], utilities: [], statements: [] },
     receivables: { rent: [], items: [] },
     reports: emptyReports(),
+    budgets: emptyBudgets(),
+    close: emptyClose(),
     seq: 0,
   };
 }

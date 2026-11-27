@@ -157,7 +157,8 @@ export interface AuditEntry {
   userId: ID;
   action: string;
   objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people' | 'fuel'
-    | 'bill' | 'intercompany' | 'receivable' | 'report';
+    | 'bill' | 'intercompany' | 'receivable' | 'report'
+    | 'budget' | 'close';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -457,6 +458,10 @@ export interface BooksState {
   people: PeopleState;
   /** Reports (phase 4): saved reports, scorecard thresholds and notes. Read it through `reportsOf(state)`. */
   reports: ReportsState;
+  /** Budgets, forecasts and scenarios (phase 8). Read it through `budgetsOf(state)`. */
+  budgets: BudgetsState;
+  /** Month-end close checklist (phase 8). Read it through `closeOf(state)`. */
+  close: CloseState;
 }
 
 // ── Reports (phase 4) ──────────────────────────────────────────────────
@@ -638,4 +643,88 @@ export interface PeopleState {
   laborTargets: Record<ID, number>;
   /** Filing checklist marks, keyed e.g. "2026Q3:941" or "2026:w2:sent". */
   checklist: Record<string, ChecklistMark>;
+}
+
+// ── Budgets (phase 8) ──────────────────────────────────────────────────
+export type BudgetMethod = 'prior_actuals' | 'zero';
+
+/** One budget for one fiscal year. Cells are in the P&L's shown sign: sales +, costs +. */
+export interface BudgetVersion {
+  id: ID;
+  fiscalYear: number;
+  name: string;
+  method: BudgetMethod;
+  growthPct: number;
+  /** How the figures were built, in plain words (e.g. annualized from Sep–Oct 2026). */
+  basisNote: string;
+  /** `${storeId}|${accountId}|${YYYY-MM}` → cents. */
+  lines: Record<string, Cents>;
+  /** Exactly one active version per fiscal year: the one every comparison reads. */
+  active: boolean;
+  /** Remaining months of the rolling forecast: the budget, or the run rate of the last complete months. */
+  forecastMode: 'budget' | 'run_rate';
+  /** Forecast overrides by cell (same keys as `lines`). */
+  forecast: Record<string, Cents>;
+  createdBy: ID;
+  createdAt: string;
+  updatedBy: ID;
+  updatedAt: string;
+}
+
+/** A comment on one budget-vs-actual cell: one P&L line, one store, one month. */
+export interface VarianceComment { id: ID; period: string; storeId: ID; accountId: ID; text: string; by: ID; at: string }
+
+export type ScenarioAdj =
+  | { kind: 'fuel_margin'; cpg: number; storeId?: ID; from?: string }
+  | { kind: 'new_store'; code: string; copyOf: ID; opens: string; rampMonths: number; rampStartPct: number }
+  | { kind: 'close_kitchen'; weekday: number; storeId?: ID; from?: string }
+  | { kind: 'account_pct'; target: string; pct: number; storeId?: ID; from?: string };
+
+export interface Scenario {
+  id: ID;
+  name: string;
+  fiscalYear: number;
+  adjustments: ScenarioAdj[];
+  note?: string;
+  createdBy: ID;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BudgetsState {
+  versions: BudgetVersion[];
+  comments: VarianceComment[];
+  scenarios: Scenario[];
+  /** A variance needs a comment when it is at least this many dollars (cents) and this many percent of budget. */
+  threshold: { pct: number; minCents: Cents };
+}
+
+// ── Month-end close (phase 8) ──────────────────────────────────────────
+export type CloseStepKey = 'sales' | 'fuel_invoices' | 'card_fees' | 'bank' | 'cash' | 'payroll' | 'intercompany' | 'accruals' | 'inventory' | 'rent' | 'variances' | 'lock';
+export type CloseStatus = 'not_started' | 'in_progress' | 'done' | 'blocked';
+
+/** What someone recorded on one step for one month and store (`*` = company-wide). */
+export interface CloseItem {
+  period: string;
+  storeId: ID;
+  step: CloseStepKey;
+  status: CloseStatus;
+  ownerId?: ID;
+  note?: string;
+  attachments: Attachment[];
+  updatedBy?: ID;
+  updatedAt?: string;
+}
+
+/** A related party (or group entity) agreed its balance with us at a month end. */
+export interface IcAck { id: ID; period: string; counterpartyId: ID; balance: Cents; note?: string; by: ID; at: string }
+
+export interface CloseState {
+  /** `${period}|${storeId}|${step}` → item. */
+  items: Record<string, CloseItem>;
+  /** Default owner and due date (business days after month end) per step. */
+  config: Partial<Record<CloseStepKey, { ownerId?: ID; dueDays: number }>>;
+  acks: IcAck[];
+  /** Months locked with steps still open: who, why, and what was open. */
+  overrides: Record<string, { by: ID; at: string; reason: string; open: string[] }>;
 }

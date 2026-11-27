@@ -11,6 +11,25 @@ import { billTotal, dueWithin, pastDue, unscheduledDueSoon, utilityRows, vendorN
 import { lateRent } from '../core/receivables';
 import { overLimit } from '../core/intercompany';
 import { approvalQueue } from '../core/approvals';
+import { cellName, closeInbox } from '../core/close';
+import { uncommentedVariances } from '../core/budgets';
+import { basisEntries } from '../core/statements';
+import { periodLabel } from '../core/dates';
+
+/** Month-end close (phase 8): overdue close steps, months past their lock date, and budget variances still to explain. */
+function closeItems(state: BooksState, visible: Set<ID>, today: string): InboxItem[] {
+  const storeIds = state.stores.filter((s) => visible.has(s.id)).map((s) => s.id);
+  const entries = basisEntries(state);
+  const ci = closeInbox(state, { today, storeIds, entries });
+  const vars = uncommentedVariances(state, { storeIds, today, entries });
+  const months = [...new Set(ci.overdue.map((o) => o.period))];
+  const vMonths = [...new Set(vars.map((v) => v.period))].sort();
+  return [
+    { key: 'closetasks', count: ci.overdue.length, title: 'Close steps overdue', detail: ci.overdue.length ? `${ci.overdue.slice(0, 3).map((o) => `${cellName(state, o.cell)} (${periodLabel(o.period)})`).join('; ')}${ci.overdue.length > 3 ? '…' : ''}.` : 'Every close step is on time.', to: months[0] ? `/close?month=${months[0]}` : '/close', action: 'Close' },
+    { key: 'closelate', count: ci.pastDue.length, title: 'Months past their close date, not locked', detail: ci.pastDue.length ? `${ci.pastDue.map(periodLabel).join(', ')}: finish the checklist and lock.` : 'Every month is locked by its due date.', to: ci.pastDue[0] ? `/close?month=${ci.pastDue[0]}` : '/close', action: 'Lock' },
+    { key: 'variances', count: vars.length, title: 'Budget variances over the threshold with no comment', detail: vars.length ? `${vMonths.map(periodLabel).join(', ')}: say why each line is off budget.` : 'Every variance over the threshold is explained.', to: vMonths[0] ? `/budgets/bva?month=${vMonths[0]}&show=open` : '/budgets/bva', action: 'Explain' },
+  ];
+}
 
 export interface InboxItem {
   key: string;
@@ -101,6 +120,7 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },
     { key: 'dup', count: dups.length, title: 'Possible duplicates', detail: 'Same amount and payee within 3 days.', to: '/books/transactions?queue=dup', action: 'Review' },
     { key: 'floor', count: below.length, title: 'Accounts below their floor', detail: below.length ? below.map((a) => a.name).join(', ') : 'Trustmark is above the $30,000 floor.', to: below[0] ? `/books/accounts/${below[0].id}` : '/books/accounts/acct_trustmark', action: 'Open' },
+    ...(seesBank ? closeItems(state, visible, today) : []),
     { key: 'close', count: openPast.length, title: 'Past months still open', detail: openPast.length ? openPast.join(', ') + ' — close and lock when reconciled.' : 'Every past month is locked.', to: '/close/periods', action: 'Close' },
     ...(seesBank ? [{ key: 'stale', count: stale.length, title: 'Stale checks', detail: 'Uncleared after ' + state.settings.staleCheckDays + ' days. Follow up or void.', to: '/bank/checks?status=stale', action: 'Review', review: true }] : []),
     { key: 'nodoc', count: noDoc.length, title: 'Payments of $1,000+ with no document', detail: 'Last 30 days. Attach the invoice or notice so each number traces to its source.', to: '/books/transactions?queue=nodoc', action: 'Attach', review: true },
