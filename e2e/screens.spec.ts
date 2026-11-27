@@ -631,7 +631,9 @@ test('account reconciliations: review one, prepare one with its document, and a 
   await page.getByRole('button', { name: 'Sign as reviewer' }).click();
   await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Signed off');
   await open(page, '/books/recons/acct_owner_capital?period=2026-10');
-  await page.getByLabel('Balance per support').fill('1,750,400.00');
+  // Support equals the GL balance shown on the page, whatever the demo data makes it.
+  const gl = (await page.locator('.figure', { hasText: 'GL at' }).locator('.value').textContent())!.replace(/[$,]/g, '').trim();
+  await page.getByLabel('Balance per support').fill(gl);
   await page.getByLabel('What it is').fill('Capital account statement');
   await page.locator('input[type=file]').setInputFiles({ name: 'capital.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 demo') });
   await expect(page.getByText('capital.pdf')).toBeVisible();
