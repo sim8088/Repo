@@ -9,6 +9,7 @@ import { formatMoney } from '../../core/money';
 import { checksRegister } from '../../core/bank';
 import { poolBalance } from '../../core/cash';
 import { forecast } from '../../core/forecast';
+import { CompassLine } from './Compass';
 
 export function Today() {
   const { state, lines, visible, stores, user } = useBooks();
@@ -78,6 +79,7 @@ export function Today() {
       </PageHead>
 
       <div className="stack">
+        <CompassLine />
         <section className="figures" aria-label="Cash position">
           {canSeeBank && (
             <Figure label="Trustmark balance" href="/books/accounts/acct_trustmark" value={<Money c={bankBal} whole dollar className={bankBal < floor ? 'neg' : undefined} />}

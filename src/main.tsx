@@ -44,6 +44,7 @@ import { JournalDetailPage, JournalFormPage, JournalsPage } from './app/pages/Jo
 import { ReconDetailPage, ReconsPage } from './app/pages/Recons';
 import { ConsolidationPage } from './app/pages/Consolidation';
 import { QboDifferencesPage, QboLogPage, QboMappingPage, QboStatusPage, QboSyncPage } from './app/pages/Qbo';
+import { CompassPage } from './app/pages/Compass';
 import { AcquisitionsPage, CapitalPage, ComparePage, EvaluateDealPage, OwnersPage, ProFormaPage, QuarterlyReviewPage, ReadinessPage, SitesPage, ValuationPage } from './app/pages/Growth';
 import { BookToTaxPage, CpaPackagePage, SalesTaxPage, TaxCalendarPage, TaxDepreciationPage, TaxEntitiesPage, TaxEstimatesPage, TaxMethodsPage, TaxOwnersPage, TaxPlanningPage } from './app/pages/Tax';
 import { ApprovalLimitsPage, CashControlsPage, ControlsOverviewPage, FraudSignalsPage, RiskPage, SecurityPage, SodPage, UstPage } from './app/pages/Controls';
@@ -180,6 +181,7 @@ function App() {
             <Route path="/tax/cpa" element={<CpaPackagePage />} />
             <Route path="/growth" element={<ReadinessPage />} />
             <Route path="/growth/readiness" element={<ReadinessPage />} />
+            <Route path="/growth/compass" element={<CompassPage />} />
             <Route path="/growth/sites" element={<SitesPage />} />
             <Route path="/growth/pro-forma" element={<ProFormaPage />} />
             <Route path="/growth/compare" element={<ComparePage />} />

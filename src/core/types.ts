@@ -12,6 +12,8 @@ export type * from './assetTypes';
 export type * from './taxTypes';
 import type { GrowthState } from './growthTypes';
 export type * from './growthTypes';
+import type { CompassState } from './compassTypes';
+export type * from './compassTypes';
 import type { ControlsState } from './controlsTypes';
 export type * from './controlsTypes';
 import type { InsideState, KitchenState } from './insideTypes';
@@ -485,6 +487,8 @@ export interface BooksState {
   tax?: TaxState;
   /** Growth & owners (phase 13). Read it through `growthOf(state)`. */
   growth?: GrowthState;
+  /** Growth compass: settings and the monthly verdict history. Read it through `compassOf(state)`. */
+  compass?: CompassState;
   /** Inside store (phase 7). Older books lack it: read it through `insideOf(state)`. */
   inside: InsideState;
   /** Kitchen (phase 7). Older books lack it: read it through `kitchenOf(state)`. */

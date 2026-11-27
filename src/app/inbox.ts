@@ -20,6 +20,7 @@ import { kitchenInbox } from '../core/kitchen';
 import { debtInbox } from '../core/debt';
 import { taxInbox } from '../core/tax';
 import { deploySuggestion, growthInbox } from '../core/growth';
+import { compassInbox } from '../core/compass';
 
 /** Phase 9: compliance deadlines, licenses, notices, maintenance and warranties, and month-end postings for assets and debt. */
 function phase9Inbox(state: BooksState, visible: Set<ID>, today: string, seesBank: boolean): InboxItem[] {
@@ -149,6 +150,7 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     // Phase 13 reuses Phase 12's "cash above the reserve 2+ months" line and adds what to do with it.
     ...(seesBank ? debtInbox(state, today, visible).map((i) => (i.key === 'debt_deployable' && i.count ? { ...i, detail: `${i.detail} ${deploySuggestion(state, today)}`, to: '/growth/capital' } : i)) : []),
     ...(seesBank ? growthInbox(state, today) : []),
+    ...(seesBank ? compassInbox(state, today) : []),
     ...taxInbox(state, visible, today),
     ...controlsInbox(state, visible, today, seesBank),
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },

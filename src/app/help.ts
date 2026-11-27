@@ -751,6 +751,11 @@ export const HELP = {
     steps: ['Pick the deal.', 'Try other financing; the tests re-run as you type.', 'Read the reasons: a failed critical test is a no-go, a failed other test makes it conditional.'],
     tips: ['Thresholds (DSCR and leverage targets, hurdle rate) are the growth settings.'],
   },
+  growthCompass: {
+    purpose: 'When to grow, and what to do first: one verdict on a five-step ladder (Fix, Stabilize, Optimize, Replicate, Scale) from return on invested capital against the cost of capital, cash conversion, the reserve, debt capacity after a new-store loan and the newest store\'s ramp. Each gate shows the value against its threshold.',
+    steps: ['Read the stage and the sentence under it: it names the gates holding you on this rung.', 'Work the next three moves in order; each links to the screen that does it.', 'Use "Open store #N when …" to see exactly which numbers must change, with a date where the trend allows one.', 'Check the sensitivity: which gate flips first if fuel margin or gallons move.', 'Change any assumption under "How this is calculated" (the cost of equity is a judgement call), then record the month once it is closed.'],
+    tips: ['With fewer than 12 months on the books the ratios are annualized, and the screen says so. There is no prior-year data yet, so growth is month over month and against the budget.', 'Store ROIC is before corporate overhead; the company figure is after it.', 'The inbox flags a change of stage against the last recorded month.'],
+  },
   // Phase 14: controls & risk.
   controlsOverview: {
     purpose: 'One line per control: approval limits, segregation of duties, cash, fraud signals, insurance, the tanks and backups, each green, amber or red, with the screen that fixes it.',

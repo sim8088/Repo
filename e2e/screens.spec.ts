@@ -43,6 +43,8 @@ const ROUTES = [
   // Phase 13: growth & owners
   '/growth/readiness', '/growth/sites', '/growth/pro-forma', '/growth/compare', '/growth/acquisitions', '/growth/capital', '/growth/valuation',
   '/growth/owners', '/growth/review', '/growth/evaluate', '/growth/compare?site=none', '/growth',
+  // Growth compass
+  '/growth/compass',
   // Phase 14: Controls & risk
   '/controls', '/controls/limits', '/controls/sod', '/controls/sod?tab=all', '/controls/cash', '/controls/fraud', '/controls/fraud?show=all&kind=check_sequence',
   '/controls/fraud?tab=pos', '/controls/fraud?tab=driveoffs', '/controls/risk', '/controls/risk?tab=coverage', '/controls/risk?tab=claims',
@@ -809,6 +811,30 @@ test('growth: record an owner distribution and see it tie to the ledger', async 
   await page.getByLabel('Amount', { exact: true }).fill('');
   await page.locator('tr', { hasText: 'Owner B' }).getByRole('link', { name: /^TX-/ }).first().click();
   await expect(page.getByText('3100 · Owner draws')).toBeVisible();
+});
+
+test('growth compass: a stage, three moves, and the spread moves with the cost of equity', async ({ page }) => {
+  await open(page, '/');
+  await expect(page.locator('.compass-today')).toContainText('Growth compass: Fix');
+  await page.getByRole('link', { name: 'Growth compass: Fix' }).click();
+  await expect(page.locator('h1')).toHaveText('Growth compass');
+  await expect(page.getByTestId('compass-stage')).toHaveText('Fix');
+  await expect(page.locator('.compass-ladder [aria-current="step"]')).toContainText('Fix');
+  await expect(page.locator('.compass-moves > li')).toHaveCount(3);
+  await expect(page.locator('tr', { hasText: 'No covenant broken or forecast to break' }).locator('.pill')).toHaveText('Fail');
+  await expect(page.locator('.tie.ok', { hasText: 'Invested capital ties to the balance sheet' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Free cash flow ties to the cash flow statement' })).toBeVisible();
+  const spread = page.locator('.figure', { hasText: 'ROIC − WACC' }).locator('.value');
+  await expect(spread).toHaveText('+1.0 pts');
+  await page.getByLabel('Cost of equity %').fill('20');
+  await page.getByRole('button', { name: 'Save assumptions' }).click();
+  await expect(page.getByText('Assumptions saved.')).toBeVisible();
+  await expect(spread).not.toHaveText('+1.0 pts');
+  await expect(spread).toContainText('−');
+  await expect(page.locator('tr', { hasText: 'Company ROIC at or above the cost of capital' }).locator('.pill')).toHaveText('Fail');
+  await axe(page, 'compass after an edit');
+  await page.getByRole('button', { name: 'Record October 2026' }).click();
+  await expect(page.locator('.tie.ok', { hasText: 'October 2026 is in the history' })).toBeVisible();
 });
 
 test('controls: a bookkeeper approving a bill above their limit is refused, and the message names who can', async ({ page }) => {
