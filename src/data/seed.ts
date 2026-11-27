@@ -21,6 +21,25 @@ export const FEED_END = '2026-11-25';
 
 export const CFO_ID = 'usr_cfo';
 
+/** What a module's demo seeder gets. Post through `books` so every entry is validated and balanced. */
+export interface SeedCtx {
+  state: BooksState;
+  books: Books;
+  cfo: User;
+  /** Deterministic random in [0, 1). */
+  rand: () => number;
+  /** Set the clock entries are stamped with (YYYY-MM-DD). */
+  setClock: (date: string) => void;
+}
+
+/**
+ * Module seeders, run in order after the core demo (POS, fuel loads, settlements, payroll, cash chain)
+ * and before the bank feed is built, so anything they post to Trustmark shows up on the statement.
+ * Periods are still open when they run.
+ */
+export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
+];
+
 function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -469,6 +488,7 @@ export function buildDemo(): BooksState {
   ];
   for (const r of rules) state.rules.push({ id: books.nextId('rule'), ...r });
 
+  for (const seed of MODULE_SEEDS) seed({ state, books, cfo, rand, setClock: (d) => { clockDate = d; } });
   buildBankFeed(state, books, cfo, rand);
   // Older flagged variances were looked into at the weekly cash review; recent ones are still open.
   for (const b of state.cash.bags) if (b.businessDate < '2026-11-12' && bagFlagged(state, b)) b.reviewed = { by: cfo.id, at: addDays(b.businessDate, 4) + 'T15:00:00.000Z', note: 'Recounted with the store manager; cashier short, written up.' };
