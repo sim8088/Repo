@@ -10,6 +10,8 @@ import {
 } from '../../core/journals';
 import { ValidationError } from '../../core/books';
 import { can } from '../../core/permissions';
+import { canApproveKind } from '../../core/limits';
+import { jeLimitKind } from '../../core/journals';
 import { formatMoney, parseMoney } from '../../core/money';
 import { periodOf, shortDate, todayInChicago } from '../../core/dates';
 import type { Attachment, ID, JournalEntry } from '../../core/types';
@@ -381,7 +383,7 @@ export function JournalDetailPage() {
   const entCode = (sid: ID) => state.entities.find((e) => e.id === store(sid)?.entityId)?.code ?? '';
   const userLines = t?.lines.filter((l) => !l.system) ?? [];
   const postedTies = !t || (userLines.length === j.lines.length && j.lines.every((l, i) => userLines[i].accountId === l.accountId && userLines[i].debit === l.debit && userLines[i].credit === l.credit));
-  const canDecide = j.status === 'pending' && can(user, 'approve') && user.id !== j.preparedBy;
+  const canDecide = j.status === 'pending' && canApproveKind(state, user, jeLimitKind(j)) && user.id !== j.preparedBy;
   const run = (fn: () => void, msg: string) => { setErrors([]); try { fn(); say(msg); setRejecting(false); } catch (e) { setErrors(errText(e)); } };
   const history = state.audit.filter((a) => a.objectType === 'journal' && a.objectId === j.id);
   return (
@@ -404,7 +406,7 @@ export function JournalDetailPage() {
             <div className="field" style={{ width: 280 }}><label htmlFor="jd-note">{rejecting ? 'Why reject?' : 'Note (optional)'}</label><input id="jd-note" value={note} onChange={(e) => setNote(e.target.value)} /></div>
             {rejecting
               ? <button className="btn danger" onClick={() => run(() => rejectJournal(books, user, j.id, note), `Rejected ${j.ref}.`)}>Confirm reject</button>
-              : <><button className="btn primary" onClick={() => run(() => approveJournal(books, user, j.id, note), `Approved ${j.ref}; it is posted.`)}>Approve and post</button><button className="btn ghost" onClick={() => setRejecting(true)}>Reject…</button></>}
+              : <><button className="btn primary" onClick={() => run(() => approveJournal(books, user, j.id, note), `Approved ${j.ref}; it is posted.`)}>Approve and post</button>{can(user, 'approve') && <button className="btn ghost" onClick={() => setRejecting(true)}>Reject…</button>}</>}
           </div>
         </section>
       )}

@@ -6,6 +6,7 @@ import { APPROVAL_PROVIDERS, approvalQueue } from '../../core/approvals';
 import { awaitingApproval, billTotal } from '../../core/payables';
 import { daysBetween, shortDate, todayInChicago } from '../../core/dates';
 import { can } from '../../core/permissions';
+import { canApproveKind } from '../../core/limits';
 import { ValidationError } from '../../core/books';
 
 export function ApprovalsPage() {
@@ -37,7 +38,7 @@ export function ApprovalsPage() {
       <Errors errors={errors} />
       {APPROVAL_PROVIDERS.map((p) => {
         const items = queue.filter((i) => i.provider === p);
-        const allowed = can(user, p.permission);
+        const allowed = p.limitKind ? canApproveKind(state, user, p.limitKind) : can(user, p.permission);
         return (
           <section key={p.kind} className="panel" aria-labelledby={`ap-${p.kind}`} style={{ marginBottom: 16 }}>
             <div className="panel-head"><h2 id={`ap-${p.kind}`}>{p.label}</h2><span className="muted small">{items.length} waiting</span></div>
@@ -58,7 +59,7 @@ export function ApprovalsPage() {
                           ? <button className="btn danger sm" onClick={() => run(() => p.reject(books, user, i.id, notes[i.id] ?? ''), 'Rejected.')}>Confirm reject</button>
                           : <>
                             <button className="btn primary sm" onClick={() => run(() => p.approve(books, user, i.id, notes[i.id]), `Approved ${i.title}.`)} aria-label={`Approve ${i.title}`}>Approve</button>
-                            <button className="btn ghost sm" onClick={() => setRejecting(i.id)} aria-label={`Reject ${i.title}`}>Reject…</button>
+                            {can(user, p.permission) && <button className="btn ghost sm" onClick={() => setRejecting(i.id)} aria-label={`Reject ${i.title}`}>Reject…</button>}
                           </>}
                       </div>
                     )}
@@ -70,7 +71,7 @@ export function ApprovalsPage() {
           </section>
         );
       })}
-      <p className="muted small">Bills and journal entries over the approval limit are here; write-offs join as their phases ship. Approval limits by role and amount arrive with Controls.</p>
+      <p className="muted small">Bills and journal entries over the approval threshold are here (write-offs are journal entries from a write-off template). Who may approve how much is set under <Link to="/controls/limits">Controls › Approval limits</Link>; an approval over your limit is refused and says who can approve it.</p>
       {toast}
       <Help k="approvals" />
     </>
