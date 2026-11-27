@@ -445,7 +445,8 @@ export function openPastMonths(state: BooksState, today = todayInChicago()): str
   const cur = periodOf(today);
   const ms = new Set<string>();
   for (const t of state.transactions) if (!t.deleted && t.kind !== 'opening') ms.add(periodOf(t.date));
-  return [...ms].filter((p) => p < cur && state.periods[p]?.status !== 'locked').sort();
+  const from = state.settings.closeFrom ?? '';
+  return [...ms].filter((p) => p < cur && p >= from && state.periods[p]?.status !== 'locked').sort();
 }
 
 export interface CloseInbox { overdue: { period: string; cell: ChecklistCell }[]; pastDue: string[] }

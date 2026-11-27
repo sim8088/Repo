@@ -448,6 +448,8 @@ export interface Settings {
   staleCheckDays: number;
   /** Detected recurring cash items the CFO switched off in the forecast. */
   forecastDisabled: string[];
+  /** First month the close checklist applies to (YYYY-MM). Earlier months (e.g. history imported from StationBooks) aren't judged. */
+  closeFrom?: string;
 }
 
 export interface BooksState {

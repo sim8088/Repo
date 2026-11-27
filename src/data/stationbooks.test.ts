@@ -59,6 +59,7 @@ describe('StationBooks import', () => {
     expect(trialBalance(state, { asOf: '2026-12-31' }).difference).toBe(0);
     expect(state.source?.kind).toBe('stationbooks');
     expect(state.settings.companyName).toBe('Demo Co');
+    expect(state.settings.closeFrom).toBe('2026-11');
   });
 
   it('the P&L equals StationBooks: sales − expenses per store, with KPI categories on the standard accounts', () => {

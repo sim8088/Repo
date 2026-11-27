@@ -101,7 +101,8 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
   const floors = state.accounts.filter((a) => a.floorCents !== undefined && a.active);
   const below = floors.filter((a) => balanceAsOf(state, a.id, today, lines) < a.floorCents!);
   const thisPeriod = periodOf(today);
-  const openPast = [...new Set(lines.map((f) => f.period))].filter((p) => p < thisPeriod && state.periods[p]?.status !== 'locked').sort();
+  const closeFrom = state.settings.closeFrom ?? '';
+  const openPast = [...new Set(lines.map((f) => f.period))].filter((p) => p < thisPeriod && p >= closeFrom && state.periods[p]?.status !== 'locked').sort();
   const noDoc = vis.filter((t) => needsDocument(t, state, today));
   const seesBank = visible.has(state.stores.find((x) => x.kind === 'corporate')?.id ?? '');
   const idx = matchIndex(state);

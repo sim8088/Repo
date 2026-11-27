@@ -214,5 +214,7 @@ export function importStationBooks(snap: SBSnapshot): { state: BooksState; repor
 
   state.audit = [{ id: books.nextId('aud'), at: snap.exportedAt, userId: cfo.id, action: 'data', objectType: 'data', objectId: 'stationbooks', summary: `Loaded the StationBooks export of ${snap.exportedAt.slice(0, 10)}: ${report.posted} transactions ${report.from} – ${report.to}` }];
   state.source = { kind: 'stationbooks', exportedAt: snap.exportedAt, report };
+  // StationBooks never tracked month-end closes: the checklist starts with the month of the export.
+  state.settings.closeFrom = snap.exportedAt.slice(0, 7);
   return { state, report };
 }
