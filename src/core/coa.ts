@@ -29,6 +29,8 @@ const ROWS: Row[] = [
   ['2110', 'acct_payroll_tax', 'Payroll taxes payable', 'liability', 'accrued'],
   ['2200', 'acct_sales_tax', 'Sales tax payable', 'liability', 'accrued'],
   ['2300', 'acct_mortgages', 'Notes payable – mortgages', 'liability', 'loan'],
+  ['2310', 'acct_notes_equipment', 'Notes payable – equipment', 'liability', 'loan'],
+  ['2320', 'acct_loc', 'Line of credit', 'liability', 'loan'],
   ['2400', 'acct_due_related', 'Due to related parties (Dhunna / SKD)', 'liability', 'intercompany'],
   ['2900', SYS.dueTo, 'Due to related entities', 'liability', 'intercompany', undefined, true],
   // Equity
@@ -78,6 +80,7 @@ const ROWS: Row[] = [
   ['6330', 'acct_licenses', 'Licenses & permits', 'expense', 'general'],
   ['6340', 'acct_over_short', 'Cash over / short', 'expense', 'general'],
   ['6400', 'acct_depreciation', 'Depreciation', 'expense', 'general'],
+  ['6410', 'acct_disposal', 'Loss (gain) on asset disposals', 'expense', 'general'],
   ['6500', 'acct_interest', 'Interest expense', 'expense', 'general'],
   ['6900', 'acct_misc', 'Miscellaneous', 'expense', 'general'],
   ['6999', SYS.uncatExpense, 'Uncategorized expense', 'expense', 'uncategorized', undefined, true],

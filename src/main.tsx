@@ -25,6 +25,10 @@ import { DrawsPage, EliminationsPage, IntercompanyPage, PartyStatementPage, Rent
 import { ApAgingPage, BillDetailPage, BillsInboxPage, BillsPage, PaymentCalendarPage, Ten99Page, UtilitiesPage, VendorStatementsPage } from './app/pages/Payables';
 import { OtherReceivablesPage, RentRollPage } from './app/pages/Receivables';
 import { ApprovalsPage } from './app/pages/Approvals';
+import { CalendarPage, InsurancePage, LicensesPage, NoticesPage, VaultPage } from './app/pages/Compliance';
+import { DepreciationPage, FixedAssetsPage, MaintenancePage, PrepaidsPage } from './app/pages/Assets';
+import { LoanDetailPage, LoansPage } from './app/pages/Loans';
+import { AskPage } from './app/pages/Ask';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -89,6 +93,18 @@ function App() {
             <Route path="/payables/1099" element={<Ten99Page />} />
             <Route path="/receivables/rent" element={<RentRollPage />} />
             <Route path="/receivables/other" element={<OtherReceivablesPage />} />
+            <Route path="/compliance/calendar" element={<CalendarPage />} />
+            <Route path="/compliance/licenses" element={<LicensesPage />} />
+            <Route path="/compliance/insurance" element={<InsurancePage />} />
+            <Route path="/compliance/notices" element={<NoticesPage />} />
+            <Route path="/compliance/vault" element={<VaultPage />} />
+            <Route path="/assets" element={<FixedAssetsPage />} />
+            <Route path="/assets/depreciation" element={<DepreciationPage />} />
+            <Route path="/assets/loans" element={<LoansPage />} />
+            <Route path="/assets/loans/:id" element={<LoanDetailPage />} />
+            <Route path="/assets/maintenance" element={<MaintenancePage />} />
+            <Route path="/assets/prepaids" element={<PrepaidsPage />} />
+            <Route path="/ask" element={<AskPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

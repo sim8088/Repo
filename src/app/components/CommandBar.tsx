@@ -5,6 +5,7 @@ import { parseMoney, formatMoney } from '../../core/money';
 import { txnTotal } from '../../core/duplicates';
 import { NAV } from './nav';
 import { shortDate } from '../../core/dates';
+import { looksLikeQuestion } from '../../core/ask';
 
 interface Item { id: string; label: string; kind: string; to: string; }
 
@@ -59,6 +60,7 @@ export function CommandBar({ open, onClose }: { open: boolean; onClose: () => vo
         n += 1;
       }
     }
+    if (looksLikeQuestion(q)) out.unshift({ id: 'ask', label: `Ask: ${q.trim()}`, kind: 'Answer from the books', to: `/ask?q=${encodeURIComponent(q.trim())}` });
     if (amountLike) out.unshift({ id: 'amt', label: `All transactions for ${formatMoney(Math.abs(amount!), { dollarSign: true })}`, kind: 'Search', to: `/books/transactions?q=${encodeURIComponent(needle)}` });
     else if (needle.length > 1) out.push({ id: 'q', label: `Search transactions for “${q.trim()}”`, kind: 'Search', to: `/books/transactions?q=${encodeURIComponent(q.trim())}` });
     return out.slice(0, 40);

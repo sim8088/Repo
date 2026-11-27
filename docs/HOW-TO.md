@@ -197,3 +197,38 @@ Each tenant's monthly rent, due vs received. Deposits apply to the oldest open m
 
 ## Rebates & other income (`/receivables/other`)
 Tabs for rebates and programs, ATM income, insurance claims and refunds owed to us. Each item shows expected, received and outstanding. Record money as it arrives (posts money in to its income account), apply a deposit already in the books, or close an item with a reason.
+
+# Phase 9: Compliance, assets & ask
+
+## Compliance calendar (`/compliance/calendar`)
+Every return, payment and annual filing (sales tax, the UST fee report, payroll returns, income tax, property tax, annual reports) with its due date and the period it covers. Monthly, quarterly and annual items repeat on the first due date's day of the month. **Update** a row to set the status (not started, in prep, filed, paid, accepted), the filed date, the confirmation number, the payment date and amount (and the TX-ref of the payment), and attach the confirmation. Done means filed, plus paid when the item needs a payment, or accepted. Overdue items and anything due within 30 days are in the inbox. The tie-out checks every filed item has a confirmation or document and every linked payment agrees with the books.
+
+## Licenses & permits (`/compliance/licenses`)
+Beer, tobacco, food service, UST, business and lottery licenses per store, with issuer, number, expiry and documents. **Renew** enters the new expiry and keeps the old one in the history. Anything expiring within 30 days is in the inbox. The tie-out checks each operating store holds what its activity needs (beer where 4100 has sales this year, food service where there is a kitchen, tobacco, UST and business everywhere).
+
+## Insurance & leases (`/compliance/insurance`)
+Policies (carrier, number, stores, term, premium, deductible, limit, documents) and leases (we rent / we let, counterparty, term, rent, escalation, renewal options, notice). Tie-outs: prepaid premiums equal their prepaid schedule; leases we rent from related parties equal the rent pass-through; tenant leases equal the tenant rent schedule.
+
+## Notices (`/compliance/notices`)
+IRS and state letters: type, entity, period, received, deadline, amount, what it says, status (open, working on it, responded, closed), what we sent and the outcome. Closing needs the outcome; responded needs the response and its date. Open notices stay in the inbox.
+
+## Document vault (`/compliance/vault`)
+One index of every attachment: transactions, bills (and their payment confirmations), fuel invoices and notices, compliance records, assets, maintenance and loans, plus files uploaded straight to the vault. The same file on two records is one entry. Search by words or filter by type, store, month and tag. **Tag / link** sets the type and tags and links a document to a transaction (by TX-ref, which also attaches it there), a vendor or party, a store or a month. Upload a file on its own and link it later. The tie-out proves every attachment on transactions, bills and fuel invoices is in the index.
+
+## Fixed assets (`/assets`)
+The register by store: tag, class, cost, salvage, in-service date, life, accumulated depreciation, book value and monthly depreciation. Open an asset for its month-by-month schedule, documents, warranty and the disposal form. Add an asset (optionally posting the purchase from Trustmark). "Register vs the ledger" ties cost to 1500 + 1510 and accumulated depreciation to 1590, store by store.
+
+## Depreciation (`/assets/depreciation`)
+Book depreciation by month and store, straight line from the month placed in service. After a month ends, **Post** it: one entry on the month's last day with a line per asset (6400 → 1590). Posting is idempotent per asset and month. The tie-out compares 6400 with the register each month.
+
+## Loans (`/assets/loans`) and one loan (`/assets/loans/:id`)
+Company loans (on our books, paid from Trustmark) and store mortgages carried by Dhunna Development / SKD Properties (information only: we book the rent pass-through, not the mortgage). Each loan shows lender, amount, rate (fixed or variable with its index), term, amortization, payment, start, maturity and balloon, collateral, guarantor, prepayment penalty and covenants, and its amortization table (principal vs interest each month, payoff date). **Post** a due payment: principal to the loan account, interest to 6500, from Trustmark. A line of credit records draws and paydowns and charges interest on the daily balance. Tie-outs: each loan account (2310, 2320) equals its loans; 2300 holds nothing for the related-party mortgages; the rent pass-through covers each mortgage payment.
+
+## Maintenance (`/assets/maintenance`)
+The maintenance log (repairs, service, inspections, calibrations) with cost, the payment TX-ref and the next due date, plus warranty end dates. Items due within 30 days are in the inbox. The tie-out checks every logged cost linked to a payment agrees with it.
+
+## Prepaids (`/assets/prepaids`)
+Property tax, insurance and annual fees spread evenly over their months. Add a prepaid (optionally posting the payment to 1400 from Trustmark); after each month ends, post its amortization (1400 → the expense). The tie-out proves what is left on the schedules equals 1400.
+
+## Ask (`/ask`, or ⌘K "Ask: …")
+Type a question in plain English. Patterns understood: what did we pay *vendor* (for *store*) in *month*; outstanding *supplier* invoices as of *date*; gallons sold this/last month at *store* (including or excluding Comdata); *account* balance as of *date*; sales at *store* last week/month; who owes us; intercompany balances; bills due this week / past due. The answer shows how the question was read, then the proof rows (transactions, bills, invoices or statements) that add to it. Copy it as text or export the rows to CSV. There is no AI service: when a question isn't understood, or the data isn't in the books, it says exactly what's missing and suggests a phrasing.

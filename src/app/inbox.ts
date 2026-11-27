@@ -11,6 +11,25 @@ import { billTotal, dueWithin, pastDue, unscheduledDueSoon, utilityRows, vendorN
 import { lateRent } from '../core/receivables';
 import { overLimit } from '../core/intercompany';
 import { approvalQueue } from '../core/approvals';
+import { complianceInbox } from '../core/compliance';
+import { maintenanceDue, unpostedDepreciation } from '../core/assets';
+import { unpostedPrepaidMonths } from '../core/prepaids';
+import { loanStatus, loansOf } from '../core/loans';
+
+/** Phase 9: compliance deadlines, licenses, notices, maintenance and warranties, and month-end postings for assets and debt. */
+function phase9Inbox(state: BooksState, visible: Set<ID>, today: string, seesBank: boolean): InboxItem[] {
+  const code = (id: ID) => state.stores.find((s) => s.id === id)?.code ?? '';
+  const due = maintenanceDue(state, today).filter((d) => visible.has(d.storeId));
+  const dep = seesBank ? unpostedDepreciation(state, today) : [];
+  const pre = seesBank ? unpostedPrepaidMonths(state, today) : [];
+  const loans = seesBank ? loansOf(state).flatMap((l) => loanStatus(state, l, today).unposted.map((r) => `${l.name} ${r.date}`)) : [];
+  const posts = [...dep.map((p) => `depreciation ${p}`), ...pre.map((p) => `prepaid amortization ${p}`), ...loans.map((l) => `loan payment ${l}`)];
+  return [
+    ...complianceInbox(state, visible, today),
+    { key: 'maint', count: due.length, title: 'Maintenance or warranties due in 30 days', detail: due.length ? due.map((d) => `${code(d.storeId)} ${d.label} ${d.overdue ? (d.kind === 'warranty' ? 'ended' : 'was due') : 'due'} ${d.due}`).join('; ') : 'No service, inspection or warranty date in the next 30 days.', to: '/assets/maintenance', action: 'Schedule' },
+    ...(seesBank ? [{ key: 'assetpost', count: posts.length, title: 'Month-end postings for assets and debt', detail: posts.length ? posts.join('; ') : 'Depreciation, prepaid amortization and loan payments are posted.', to: dep.length ? '/assets/depreciation' : pre.length ? '/assets/prepaids' : '/assets/loans', action: 'Post' }] : []),
+  ];
+}
 
 export interface InboxItem {
   key: string;
@@ -96,6 +115,7 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     ...(seesBank ? payrollInbox(state, visible) : []),
     ...fuelInbox(state, visible, today),
     ...ap,
+    ...phase9Inbox(state, visible, today, seesBank),
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
     { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },

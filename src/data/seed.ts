@@ -15,6 +15,10 @@ import { generateRent } from '../core/intercompany';
 import { rentTemplates, seedIntercompany } from './seed-intercompany';
 import { seedPayables } from './seed-payables';
 import { seedReceivables } from './seed-receivables';
+import { emptyCompliance } from '../core/compliance';
+import { emptyAssets, postDepreciation } from '../core/assets';
+import { seedCompliance } from './seed-compliance';
+import { assetRegister, seedAssets } from './seed-assets';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -48,6 +52,7 @@ export interface SeedCtx {
 export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedPayroll,
   seedIntercompany, seedPayables, seedReceivables,
+  seedAssets, seedCompliance,
 ];
 
 function rng(seed: number) {
@@ -147,6 +152,8 @@ export function emptyState(): BooksState {
     intercompany: { limits: {}, rentTemplates: [] },
     payables: { bills: [], utilities: [], statements: [] },
     receivables: { rent: [], items: [] },
+    compliance: emptyCompliance(),
+    assets: emptyAssets(),
     seq: 0,
   };
 }
@@ -214,6 +221,7 @@ export function buildDemo(): BooksState {
   const craddockStores = PROFILES.filter((p) => p.supplier === 'pt_craddock').map((p) => p.store);
   const dashStores = PROFILES.filter((p) => p.supplier === 'pt_dash').map((p) => p.store);
   state.intercompany.rentTemplates = rentTemplates();
+  state.assets = assetRegister(); // month-end depreciation below posts from this register
 
   // Running subledger positions the generator needs.
   const fiserv = { bal: 0, monthCard: {} as Record<string, number> };
@@ -417,10 +425,9 @@ export function buildDemo(): BooksState {
       post({ date: d, kind: 'money_out', description: `DISPENSER REPAIR ${code(s)}`, partyId: 'pt_repair', lines: [dr('acct_repairs', s, rep), cr('acct_trustmark', 'st_corp', rep)] });
     }
     if (d === lastDayOfPeriod(d.slice(0, 7))) {
-      post({ date: d, kind: 'journal', description: `Depreciation ${d.slice(0, 7)}`, tags: ['depreciation'], lines: [
-        dr('acct_depreciation', 'st_hm11', c(2_600)), dr('acct_depreciation', 'st_hm13', c(2_100)), dr('acct_depreciation', 'st_hm15', c(2_950)),
-        cr('acct_accum_dep', 'st_hm11', c(2_600)), cr('acct_accum_dep', 'st_hm13', c(2_100)), cr('acct_accum_dep', 'st_hm15', c(2_950)),
-      ] });
+      // Book depreciation from the asset register (Assets & debt › Depreciation): HM11 $2,600, HM13 $2,100, HM15 $2,950 a month.
+      clockDate = d;
+      postDepreciation(books, cfo, d.slice(0, 7));
     }
   }
 

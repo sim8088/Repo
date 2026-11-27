@@ -15,6 +15,9 @@ const ROUTES = [
   '/intercompany/draws', '/intercompany/eliminations', '/intercompany/rent',
   '/payables/bills', '/payables/bills?status=all', '/payables/bills/BILL-0001', '/payables/inbox', '/payables/aging', '/payables/calendar', '/payables/utilities', '/payables/statements', '/payables/1099',
   '/receivables/rent', '/receivables/other', '/receivables/other?tab=atm', '/receivables/other?tab=insurance',
+  '/compliance/calendar', '/compliance/calendar?show=open', '/compliance/licenses', '/compliance/licenses?show=expiring', '/compliance/insurance', '/compliance/insurance?tab=leases',
+  '/compliance/notices', '/compliance/vault', '/compliance/vault?tag=permit', '/assets', '/assets?id=fa_hm15_truck', '/assets/depreciation', '/assets/loans', '/assets/loans/loan_hm15_equip',
+  '/assets/loans/loan_loc', '/assets/loans/loan_mtg_hm11', '/assets/maintenance', '/assets/prepaids', '/ask', '/ask?q=Outstanding%20Craddock%20invoices%20as%20of%20yesterday', '/ask?q=what%20is%20the%20weather',
 ];
 
 async function open(page: Page, route: string) {
@@ -343,4 +346,56 @@ test('intercompany: pay another business\'s bill from the shared account', async
   await page.getByRole('link', { name: /Open TX-/ }).click();
   await expect(page.locator('h1')).toContainText('Paid Bullseye propane for Bullseye');
   await expect(page.getByText('1920 · Due from related parties – bills paid for them')).toBeVisible();
+});
+
+test('ask: a question answered with proof transactions, from ⌘K; an unknown says what is missing', async ({ page }) => {
+  await open(page, '/');
+  await page.keyboard.press('Control+k');
+  await page.getByRole('combobox', { name: /Search pages/ }).fill('What did we pay Entergy for HM11 in October?');
+  await expect(page.locator('#cmd-list [role=option]').first()).toContainText('Ask: What did we pay Entergy');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('h1')).toHaveText('Ask');
+  await expect(page.getByRole('heading', { name: /We paid Entergy Mississippi \$[\d,.]+ for HM11 in October 2026/ })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'The proof rows add to the answer' })).toBeVisible();
+  const proof = page.locator('section', { has: page.getByRole('heading', { name: /We paid Entergy/ }) }).locator('tbody tr');
+  await expect(proof).toHaveCount(1);
+  await expect(proof.first()).toContainText('ENTERGY MS HM11');
+  await proof.first().getByRole('link').click();
+  await expect(page.locator('h1')).toContainText('ENTERGY MS HM11');
+  await open(page, '/ask');
+  await page.locator('#ask-q').fill('How many customers smiled at HM13?');
+  await page.getByRole('button', { name: 'Ask', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Not answered' })).toBeVisible();
+  await expect(page.getByText("What's missing:")).toBeVisible();
+  await page.getByRole('button', { name: 'Bills due this week' }).first().click();
+  await expect(page.getByRole('heading', { name: /due this week/ })).toBeVisible();
+});
+
+test('compliance: mark the overdue UST report filed and paid; the overdue count clears', async ({ page }) => {
+  await open(page, '/compliance/calendar');
+  await expect(page.locator('.figure', { hasText: 'Overdue' }).locator('.value')).toHaveText('1');
+  await page.getByRole('button', { name: /Update UST environmental fee report due 2026-10-31/ }).click();
+  await page.getByLabel('Status').selectOption('paid');
+  await page.getByLabel('Amount paid').fill('120.00');
+  await page.getByLabel('Confirmation #').fill('UST-Q3-0001');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('UST environmental fee report (Q3 2026): Paid');
+  await expect(page.locator('.figure', { hasText: 'Overdue' }).locator('.value')).toHaveText('0');
+  await expect(page.locator('.tie.ok', { hasText: 'Every filed or paid item has a confirmation or document' })).toBeVisible();
+});
+
+test('assets: register ties to the ledger, and a loan payment splits principal and interest', async ({ page }) => {
+  await open(page, '/assets');
+  await expect(page.locator('.tie.ok', { hasText: 'Register cost ties to 1500 Equipment + 1510 Buildings by store' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Accumulated depreciation ties to 1590 by store' })).toBeVisible();
+  await open(page, '/assets/prepaids');
+  await expect(page.locator('.tie.ok', { hasText: 'Remaining on the schedules ties to 1400 Prepaid expenses' })).toBeVisible();
+  await open(page, '/assets/loans');
+  await expect(page.locator('.tie.ok', { hasText: '2310 Notes payable – equipment ties to its loans' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'not double-booked' })).toBeVisible();
+  await page.getByRole('link', { name: 'HM15 truck-lane equipment note' }).click();
+  await expect(page.locator('.tie.ok', { hasText: 'Principal across the table repays the original amount' })).toBeVisible();
+  await page.locator('tr', { hasText: 'Nov 1, 2026' }).getByRole('link').click();
+  await expect(page.getByText('2310 · Notes payable – equipment')).toBeVisible();
+  await expect(page.getByText('6500 · Interest expense')).toBeVisible();
 });

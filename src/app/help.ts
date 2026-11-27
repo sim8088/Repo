@@ -324,6 +324,67 @@ export const HELP = {
     steps: ['Read the item and open it if you need the detail.', 'Approve (with an optional note) or reject with a reason.'],
     tips: ['Bills are here now. Rate changes, write-offs and adjusting entries join as their phases ship; amount limits by role come with controls.'],
   },
+  // Phase 9: compliance, assets & debt, ask.
+  complianceCalendar: {
+    purpose: 'Every return, payment and annual filing with its due date, status and confirmation. Anything overdue or due within 30 days is in the inbox.',
+    steps: ['Start with "Overdue & due in 30 days".', 'Press Update on a row: set the status, the filed date, the confirmation number and, for payments, the date and amount (and the TX-ref of the payment if it is in the books).', 'Attach the filing confirmation.', 'Add new obligations at the bottom; monthly, quarterly and annual ones repeat on the same day of the month.'],
+    tips: ['Done means filed, plus paid when the item needs a payment, or accepted.', 'The tie-out checks every filed item has a confirmation or document, and every linked payment agrees with the books.'],
+  },
+  licenses: {
+    purpose: 'Beer, tobacco, food service, UST and business licenses by store, with expiry dates and documents.',
+    steps: ['Read the expiring and expired figures first.', 'Renew: enter the new expiry; the old one stays in the license history.', 'Attach the permit itself.'],
+    tips: ['The tie-out checks each operating store holds what its activity needs: beer where 4100 has sales this year, food service where there is a kitchen, and tobacco, UST and business everywhere.'],
+  },
+  insurance: {
+    purpose: 'Insurance policies (carrier, terms, limits, expiry, documents) and leases, whether we rent the premises or let them.',
+    steps: ['Switch between policies and leases.', 'Attach declarations pages and signed leases.', 'Follow the links to the prepaid schedule, rent pass-through or tenant rent.'],
+    tips: ['Prepaid premiums must equal their prepaid schedule; leases we rent from related parties must equal the rent pass-through; tenant leases must equal the rent schedule.'],
+  },
+  notices: {
+    purpose: 'Letters from the IRS and the state: what each says, the deadline, what we sent and how it ended.',
+    steps: ['Record a notice the day it arrives, with the deadline printed on it.', 'Attach the letter.', 'Update it as you work it: responded (what and when), then closed with the outcome.'],
+    tips: ['Open notices stay in the inbox until they are closed.'],
+  },
+  vault: {
+    purpose: 'One searchable index of every document: transaction, bill and fuel invoice attachments, compliance and asset records, and files uploaded here.',
+    steps: ['Search by words, or filter by type, store, month or tag.', 'Tag / link a document: set its type and tags, or link it to a transaction (by TX-ref), a vendor, a store or a month.', 'Upload a file on its own and link it later.'],
+    tips: ['Linking to a transaction also attaches the file to it, so it leaves the "no document" queue.', 'Demo documents are records only; their files are not in the demo.'],
+  },
+  fixedAssets: {
+    purpose: 'The fixed asset register by store, with book depreciation, and its tie to the ledger.',
+    steps: ['Open an asset for its monthly schedule, documents and the disposal form.', 'Add an asset: cost, salvage, in-service date and life. Tick "post the purchase" to post it from Trustmark.', 'Check the register vs ledger table: cost ties to 1500 + 1510 and accumulated depreciation to 1590, store by store.'],
+    tips: ['Depreciation is straight line from the month placed in service (full-month convention).', 'Disposal posts in the month it happens; depreciation stops the month before.', 'Phase 11 adds tax depreciation alongside book.'],
+  },
+  depreciation: {
+    purpose: 'Monthly book depreciation by store, generated from the register.',
+    steps: ['After a month ends, press Post for it. One entry carries a line per asset.', 'Posting twice does nothing: each asset is posted once per month.'],
+    tips: ['Months before the register went live are in the opening balance.', 'The tie-out compares 6400 with the register month by month.'],
+  },
+  maintenance: {
+    purpose: 'The equipment maintenance log, what is due next, and warranty end dates.',
+    steps: ['Log each repair, service, inspection or calibration, with its cost, the payment TX-ref and when the next one is due.', 'Work the "Coming due" list; it reaches the inbox 30 days ahead.'],
+    tips: ['A logged cost linked to a payment must agree with that payment at the store.'],
+  },
+  prepaids: {
+    purpose: 'Property tax, insurance and annual fees paid up front and spread evenly over their months (SPEC §6.10).',
+    steps: ['Add a prepaid: amount, first month, months, and post the payment to 1400 if it came from Trustmark.', 'After each month ends, post its amortization: 1400 → the expense, one entry for every schedule.'],
+    tips: ['The cents always add back to the amount.', 'The tie-out proves what is left on the schedules equals 1400 in the ledger.'],
+  },
+  loans: {
+    purpose: 'Loans and mortgages: terms, balances, next payments and the tie to the liability accounts.',
+    steps: ['Post each payment when it goes out: principal to the loan account, interest to 6500, from Trustmark.', 'Open a loan for its amortization table, terms and covenants.'],
+    tips: ['Store mortgages carried by Dhunna / SKD are information only: we book the rent pass-through, not the mortgage, so nothing is counted twice.', 'Phase 12 adds the debt dashboard and covenant monitor.'],
+  },
+  loanDetail: {
+    purpose: 'One loan: terms, the amortization table (principal vs interest each month) and the payoff date.',
+    steps: ['Post a due payment from its row.', 'For a line of credit, record draws and paydowns; interest is actual days on the daily balance.', 'Export the table to CSV for the lender or CPA.'],
+    tips: ['The table ties: principal repays the original amount, and the balance ties to the ledger.'],
+  },
+  ask: {
+    purpose: 'Questions in plain English, answered from the books with the transactions as proof.',
+    steps: ['Type a question or pick an example. ⌘K also offers "Ask: …" when you type a question.', 'Read "How I read it" to check the filters used.', 'Open any proof row, copy the answer as text, or export the rows to CSV.'],
+    tips: ['There is no AI service behind this: questions are read with fixed patterns, and the answer is always the sum of its proof rows.', 'When a question is not understood or the data is not in the books, it says exactly what is missing and suggests a phrasing.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

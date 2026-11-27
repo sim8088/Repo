@@ -3,7 +3,7 @@ export interface NavGroup { title: string; items: NavItem[]; }
 
 /** Built screens. The full information architecture, phase by phase, is on /roadmap. */
 export const NAV: NavGroup[] = [
-  { title: 'Today', items: [{ label: 'My day', to: '/', badge: 'inbox' }, { label: 'Approvals', to: '/approvals' }] },
+  { title: 'Today', items: [{ label: 'My day', to: '/', badge: 'inbox' }, { label: 'Approvals', to: '/approvals' }, { label: 'Ask', to: '/ask' }] },
   {
     title: 'Bank & cash',
     items: [
@@ -74,6 +74,26 @@ export const NAV: NavGroup[] = [
     ],
   },
   { title: 'Close', items: [{ label: 'Periods', to: '/close/periods' }] },
+  {
+    title: 'Compliance',
+    items: [
+      { label: 'Calendar', to: '/compliance/calendar' },
+      { label: 'Licenses & permits', to: '/compliance/licenses' },
+      { label: 'Insurance & leases', to: '/compliance/insurance' },
+      { label: 'Notices', to: '/compliance/notices' },
+      { label: 'Document vault', to: '/compliance/vault' },
+    ],
+  },
+  {
+    title: 'Assets & debt',
+    items: [
+      { label: 'Fixed assets', to: '/assets' },
+      { label: 'Depreciation', to: '/assets/depreciation' },
+      { label: 'Loans', to: '/assets/loans' },
+      { label: 'Maintenance', to: '/assets/maintenance' },
+      { label: 'Prepaids', to: '/assets/prepaids' },
+    ],
+  },
   {
     title: 'Setup',
     items: [

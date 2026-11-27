@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 5 (Intercompany, payables & receivables) and 6 (People & payroll). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 5 (Intercompany, payables & receivables), 6 (People & payroll) and 9 (Compliance, assets & ask). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -52,6 +52,7 @@ src/data/      seed.ts (demo dataset), seed-payroll.ts (phase 6 demo), storage.t
 src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (IndexedDB persistence)
   intercompany.ts, payables.ts, receivables.ts, approvals.ts   phase 5
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
+  compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
 docs/          HOW-TO.md (one note per screen), DECISIONS.md
@@ -112,13 +113,25 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Receivables | Tenant rent roll (due vs received, late), rebates and programs, ATM income, insurance claims and refunds owed to us. |
 | Approvals | One queue under Today for everything waiting on a yes; bills now, other kinds plug in later. |
 
+## What Phase 9 adds
+
+| Area | What works |
+|---|---|
+| Compliance calendar | Sales tax, fuel/UST, payroll, income and property tax, annual reports: recurring due dates, status (not started → in prep → filed → paid → accepted), filed date, paid amount, confirmation # and documents. Overdue and due-in-30-days items reach the inbox. |
+| Licenses, insurance, leases | Licenses and permits per store with expiry and renewal history; insurance policies (tied to their prepaid schedules); leases we rent (tied to the rent pass-throughs) and let (tied to tenant rent). Expiring items reach the inbox. |
+| Notices | IRS and state letters: deadline, response, outcome, documents. Open ones stay in the inbox. |
+| Document vault | One searchable index of every attachment (transactions, bills, fuel invoices, compliance and asset records) plus standalone uploads, with type, tags and links to transactions, vendors, stores and months. |
+| Prepaids | Property tax, insurance and annual fees amortized monthly (1400 → expense), idempotently; ties to 1400. |
+| Fixed assets | Register by store, straight-line book depreciation posted from the register (idempotent per asset and month; it replaced the demo's hand-posted entries with the same amounts), disposals with gain/loss, maintenance log and warranties. Ties to 1500/1510/1590. |
+| Loans | Terms, covenants, amortization tables and payoff dates; payments split principal and interest through the ledger; a line of credit with draws and daily interest. Store mortgages carried by Dhunna / SKD are information only (no double-booking of the rent). Ties to 2310/2320. |
+| Ask | Plain-English questions answered from the books with the transactions as proof (⌘K offers "Ask: …"). Never invents a number: it says what's missing instead. Copy as text or export CSV. |
+
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
 - **Booked basis only.** Fuel cost in the ledger is fuel invoices on the date they're paid (netted on a Craddock notice, or out of Dash clearing on the due date). `fuelCostOfSales` computes accrual fuel COGS; the accrual P&L and the bridge come in Phase 4.
 - **CSV, not .xlsx.** Excel opens the CSV exports. Native .xlsx and the board-pack PDF come in Phase 4.
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
-- Inbox items for fuel notices, bills and compliance deadlines arrive with their phases.
-- Inbox items for bills, payroll and compliance deadlines arrive with their phases. Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
-- Inbox items for fuel notices, payroll and compliance deadlines arrive with their phases.
+- Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
 - Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).
+- Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation, the covenant monitor and the risk register come in phases 11, 12 and 14.

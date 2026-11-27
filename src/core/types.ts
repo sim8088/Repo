@@ -1,5 +1,9 @@
 import type { Cents } from './money';
 import type { FuelState } from './fuelTypes';
+import type { ComplianceState } from './complianceTypes';
+import type { AssetsState } from './assetTypes';
+export type * from './complianceTypes';
+export type * from './assetTypes';
 
 export type ID = string;
 
@@ -157,7 +161,7 @@ export interface AuditEntry {
   userId: ID;
   action: string;
   objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people' | 'fuel'
-    | 'bill' | 'intercompany' | 'receivable';
+    | 'bill' | 'intercompany' | 'receivable' | 'compliance' | 'document' | 'asset' | 'loan';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -455,6 +459,10 @@ export interface BooksState {
   seq: number;
   /** People & payroll (phase 6). Books saved before phase 6 lack it: read it through `peopleOf(state)`. */
   people: PeopleState;
+  /** Compliance & documents (phase 9). Books saved before phase 9 lack it: read it through `complianceOf(state)`. */
+  compliance?: ComplianceState;
+  /** Fixed assets, prepaids & loans (phase 9). Read it through `assetsOf(state)`. */
+  assets?: AssetsState;
 }
 
 // ── People & payroll (phase 6) ─────────────────────────────────────────
