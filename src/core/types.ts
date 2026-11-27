@@ -155,7 +155,7 @@ export interface AuditEntry {
   at: string;
   userId: ID;
   action: string;
-  objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast';
+  objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -314,4 +314,146 @@ export interface BooksState {
   /** Duplicate pairs the CFO marked "not a duplicate". */
   dismissedDuplicates: string[];
   seq: number;
+  /** People & payroll (phase 6). Books saved before phase 6 lack it: read it through `peopleOf(state)`. */
+  people: PeopleState;
+}
+
+// ── People & payroll (phase 6) ─────────────────────────────────────────
+export type Department = 'front' | 'kitchen' | 'office' | 'truck_lane';
+export type PayType = 'hourly' | 'salary';
+/** How the person is paid: through Gusto, cash, paper check, or a mix (Gusto plus some cash/check). */
+export type PayMethod = 'gusto' | 'cash' | 'check' | 'mixed';
+
+export interface Employee {
+  id: ID;
+  name: string;
+  storeId: ID;
+  department: Department;
+  payType: PayType;
+  /** Rate when added: per hour (hourly) or per week (salary), in cents. The current rate adds approved changes. */
+  rateCents: Cents;
+  status: 'active' | 'terminated';
+  hiredOn: string;
+  terminatedOn?: string;
+  gustoId?: string;
+  paidBy: PayMethod;
+  /** The CFO confirmed the new-hire paperwork and rate. New hires without it sit in the inbox. */
+  hireReviewed?: { by: ID; at: string };
+  notes?: string;
+}
+
+export interface RateChange {
+  id: ID;
+  employeeId: ID;
+  fromCents: Cents;
+  toCents: Cents;
+  effective: string;
+  reason: string;
+  requestedBy: ID;
+  requestedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  decidedBy?: ID;
+  decidedAt?: string;
+  decisionNote?: string;
+}
+
+/** One employee's line on a Gusto payroll run. Hours are decimal hours (e.g. 38.25). */
+export interface PayrollLine {
+  id: ID;
+  employeeId: ID;
+  storeId: ID;
+  department: Department;
+  hours: number;
+  otHours: number;
+  gross: Cents;
+  employeeTaxes: Cents;
+  employerTaxes: Cents;
+  net: Cents;
+  /** The part of the taxes owed to the state (withholding + unemployment); the rest is federal. */
+  stateTaxes: Cents;
+  /** Paid by paper check instead of direct deposit: Gusto does not debit this net pay. */
+  check?: { checkNo?: string };
+  /** Idempotency key: re-importing the same report never duplicates a line. */
+  hash: string;
+  /** The import batch this line arrived in. */
+  batchId: string;
+}
+
+export interface PayrollTotals {
+  gross: Cents;
+  employeeTaxes: Cents;
+  employerTaxes: Cents;
+  net: Cents;
+  /** What Gusto debits from the bank: direct-deposit net pay + all taxes. */
+  companyDebit: Cents;
+  /** Net pay on paper checks (not in the company debit). */
+  checkPaid: Cents;
+}
+
+export interface PayrollRun {
+  id: ID;
+  payDate: string;
+  periodStart?: string;
+  periodEnd?: string;
+  fileName: string;
+  batchId: string;
+  importedAt: string;
+  importedBy: ID;
+  lines: PayrollLine[];
+  /** Totals as printed on the report's totals row (or summed when it has none). */
+  reported: PayrollTotals;
+  status: 'imported' | 'posted';
+  /** Ledger entries carrying this run: one Gusto debit per store plus one per paper check. */
+  txnIds: ID[];
+  postedBy?: ID;
+  postedAt?: string;
+}
+
+/** Pay outside Gusto: HM11's cash crew, or extra cash/check pay for anyone else. One entry per employee and pay week. */
+export interface OffPayrollPay {
+  id: ID;
+  employeeId: ID;
+  /** The Friday pay date of the week it belongs to. */
+  payDate: string;
+  method: 'cash' | 'check';
+  amount: Cents;
+  hours?: number;
+  note?: string;
+  /** A cash-chain payroll payout this is part of (nothing new is posted when linked). */
+  payoutId?: ID;
+  /** Its own posting, when it isn't part of an existing payout. */
+  txnId?: ID;
+  checkNo?: string;
+  /** Someone confirmed this is extra pay on top of Gusto for the same week, not a duplicate. */
+  confirmed?: { by: ID; at: string; note: string };
+  by: ID;
+  at: string;
+}
+
+export type TaxAgency = 'federal' | 'state';
+
+export interface TaxDeposit {
+  id: ID;
+  date: string;
+  storeId: ID;
+  agency: TaxAgency;
+  /** Quarter the liability belongs to, e.g. 2026Q4. */
+  quarter: string;
+  amount: Cents;
+  note?: string;
+  by: ID;
+}
+
+export interface ChecklistMark { by: ID; at: string; confirmation?: string }
+
+export interface PeopleState {
+  employees: Employee[];
+  rateChanges: RateChange[];
+  runs: PayrollRun[];
+  offPayroll: OffPayrollPay[];
+  taxDeposits: TaxDeposit[];
+  /** Labor % of sales target per store, in basis points (1250 = 12.5%). */
+  laborTargets: Record<ID, number>;
+  /** Filing checklist marks, keyed e.g. "2026Q3:941" or "2026:w2:sent". */
+  checklist: Record<string, ChecklistMark>;
 }

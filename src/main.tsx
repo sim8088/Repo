@@ -17,6 +17,8 @@ import { BankPage, ChecksPage, DepositsPage } from './app/pages/Bank';
 import { CashPage } from './app/pages/Cash';
 import { ForecastPage } from './app/pages/Forecast';
 import { PageHead } from './app/components/ui';
+import { PayrollRunsPage, WeeklyReviewPage } from './app/pages/Payroll';
+import { CashPayPage, EmployeesPage, LaborPage, PayrollTaxPage } from './app/pages/People';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -53,6 +55,12 @@ function App() {
             <Route path="/bank/deposits" element={<DepositsPage />} />
             <Route path="/cash" element={<CashPage />} />
             <Route path="/cash/forecast" element={<ForecastPage />} />
+            <Route path="/people/runs" element={<PayrollRunsPage />} />
+            <Route path="/people/review" element={<WeeklyReviewPage />} />
+            <Route path="/people/employees" element={<EmployeesPage />} />
+            <Route path="/people/cash-pay" element={<CashPayPage />} />
+            <Route path="/people/labor" element={<LaborPage />} />
+            <Route path="/people/taxes" element={<PayrollTaxPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

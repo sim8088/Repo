@@ -5,6 +5,7 @@ import { addDays, periodOf, todayInChicago } from '../core/dates';
 import { checksRegister, isMatched, matchIndex } from '../core/bank';
 import { bagFlagged, bagOverdue } from '../core/cash';
 import { formatMoney } from '../core/money';
+import { newHiresToConfirm, payWeek, peopleOf, pendingRateChanges, runStores, weeklyReview } from '../core/payroll';
 
 export interface InboxItem {
   key: string;
@@ -24,6 +25,22 @@ export const DOC_WINDOW_DAYS = 30;
 export function needsDocument(t: Transaction, state: BooksState, today = todayInChicago()): boolean {
   return !t.deleted && t.kind === 'money_out' && t.attachments.length === 0 && !t.tags.includes('payroll') && txnTotal(t) >= DOC_THRESHOLD
     && t.date >= addDays(today, -DOC_WINDOW_DAYS) && state.periods[periodOf(t.date)]?.status !== 'locked';
+}
+
+/** People & payroll (phase 6): runs to review, rate changes to approve, new hires, and week-over-week moves over 15%. */
+function payrollInbox(state: BooksState, visible: Set<ID>): InboxItem[] {
+  const runs = peopleOf(state).runs.filter((r) => r.status === 'imported' && runStores(r).some((s) => visible.has(s)));
+  const weeks = [...new Set(runs.map((r) => payWeek(r.payDate)))].sort();
+  const pending = pendingRateChanges(state, visible);
+  const hires = newHiresToConfirm(state, visible);
+  const moved = weeks.flatMap((w) => weeklyReview(state, w, visible).stores.filter((s) => s.cost.flagged).map((s) => ({ w, s })));
+  const code = (id: ID) => state.stores.find((s) => s.id === id)?.code ?? id;
+  return [
+    { key: 'payroll', count: runs.length, title: 'Payroll to review', detail: runs.length ? `Gusto run${runs.length === 1 ? '' : 's'} for ${weeks.join(', ')} imported, not posted.` : 'Every Gusto run is reviewed and posted.', to: weeks[0] ? `/people/review?week=${weeks[0]}` : '/people/review', action: 'Review' },
+    { key: 'rates', count: pending.length, title: 'Rate changes awaiting approval', detail: pending.length ? 'A raise or rate change needs the CFO or an owner to approve it.' : 'No rate changes waiting.', to: '/people/employees?show=pending', action: 'Approve' },
+    { key: 'hires', count: hires.length, title: 'New hires to confirm', detail: hires.length ? hires.map((e) => `${e.name} (${code(e.storeId)})`).join(', ') + ': check the W-4, I-9 and rate.' : 'Every new hire is confirmed.', to: '/people/employees?show=new', action: 'Confirm' },
+    { key: 'wow', count: moved.length, title: 'Payroll moved more than 15% week to week', detail: moved.length ? moved.map(({ s }) => `${code(s.storeId)} ${s.cost.pct! > 0 ? '+' : ''}${(s.cost.pct! * 100).toFixed(0)}%`).join(', ') + ' vs last week.' : 'No store moved more than 15% in the weeks to review.', to: weeks[0] ? `/people/review?week=${weeks[0]}` : '/people/review', action: 'Review' },
+  ];
 }
 
 export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID>, today = todayInChicago()): InboxItem[] {
@@ -50,6 +67,7 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
   const mat = formatMoney(state.settings.materialityCents, { dollarSign: true });
   return [
     ...bank,
+    ...(seesBank ? payrollInbox(state, visible) : []),
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
     { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },

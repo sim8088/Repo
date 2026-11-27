@@ -7,6 +7,8 @@ import { addDays, dayOfWeek, lastDayOfPeriod } from '../core/dates';
 import type { DraftLine, TxnDraft } from '../core/ledger';
 import { SYS } from '../core/ledger';
 import type { BooksState, Entity, Party, Rule, Store, User } from '../core/types';
+import { emptyPeople } from '../core/payroll';
+import { seedPayroll } from './seed-payroll';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -38,6 +40,7 @@ export interface SeedCtx {
  * Periods are still open when they run.
  */
 export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
+  seedPayroll,
 ];
 
 function rng(seed: number) {
@@ -132,6 +135,7 @@ export function emptyState(): BooksState {
     bank: { lines: [], batches: [], reconciliations: [], openings: {} },
     cash: { bags: [], payouts: [] },
     forecastItems: [],
+    people: emptyPeople(),
     seq: 0,
   };
 }

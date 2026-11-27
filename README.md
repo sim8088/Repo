@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Phases 1 (Foundation) and 2 (Bank & cash) are built.** The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Phases 1 (Foundation), 2 (Bank & cash) and 6 (People & payroll) are built.** The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -45,7 +45,8 @@ src/core/      Accounting core: pure TypeScript, no UI. Most of the logic and th
   duplicates.ts  duplicate detection
   permissions.ts roles and the permission matrix
   coa.ts         chart of accounts for fuel retail
-src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
+  payroll.ts     employees, rate approvals, Gusto import and posting, cash/check pay, weekly review, labor %, payroll taxes
+src/data/      seed.ts (demo dataset), seed-payroll.ts (phase 6 demo), storage.ts (IndexedDB persistence)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
 docs/          HOW-TO.md (one note per screen), DECISIONS.md
@@ -64,10 +65,24 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Forecast | A 13-week rolling forecast against the $30k floor, built from recurring items found in the books plus items you add. 7/14/30-day projections and the lowest point also show on Today. |
 | Transfers | A Transfer mode for moving money between balance-sheet accounts. The ledger refuses a transfer that touches the P&L. |
 
+## What Phase 6 adds
+
+| Area | What works |
+|---|---|
+| Employees | Store, department (front, kitchen, office, truck lane), pay type, current rate, status, hire and termination dates, Gusto id, and how they're paid (Gusto, cash, check, mixed). New hires wait to be confirmed. |
+| Rate changes | Requested with a reason and effective date; they apply only when the CFO or an owner approves. Full history per employee. The weekly review warns when Gusto pays a rate nobody approved. |
+| Gusto runs | Import the payroll journal CSV. The preview ties every line and the Total row (gross, employee and employer taxes, net, company debit); re-importing adds nothing, and each line keeps its batch id. Per run: lines by employee and by store/department, check-paid amounts. |
+| Posting | SPEC §6.7: net pay to 6100, employee + employer taxes to 6110, by store, on the pay date, crediting Trustmark. The Gusto debit ties to the run's company debit; paper checks post on their own and show in the checks register. |
+| Cash & check pay | Per employee and week. Links to HM11's cash-chain payouts instead of posting twice. Gusto and cash/check pay for the same person and week are shown side by side and confirmed, never assumed to be duplicates. |
+| Weekly review | One screen: the run → this week vs last by store and employee (hours, headcount, hires, leavers, rate changes, overtime; >15% flagged) → approve rate changes → post. |
+| Labor % | Labor cost vs POS sales by store and week, against a per-store target, plus sales per labor hour. Ties to 6100 + 6110 for posted weeks. |
+| Payroll taxes | Liabilities vs deposits by quarter (federal and state), the 941 / state return checklist and the W-2 / 1099 season list. |
+| Inbox | Payroll to review, rate changes awaiting approval, new hires to confirm, payroll moved more than 15% week to week. |
+
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
 - **Booked basis only.** Fuel cost is the fuel invoices dated in the month. The cash and accrual P&L, and the bridge between them, come in Phase 4.
 - **CSV, not .xlsx.** Excel opens the CSV exports. Native .xlsx and the board-pack PDF come in Phase 4.
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
-- Inbox items for fuel notices, bills, payroll and compliance deadlines arrive with their phases.
+- Inbox items for fuel notices, bills and compliance deadlines arrive with their phases.

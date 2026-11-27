@@ -87,3 +87,37 @@ Starts from today's book balance for Trustmark. That balance already includes ch
 
 ## Transfers (`/books/new?kind=transfer`)
 Moves money between balance-sheet accounts (bank, cash, clearing, loans). The ledger refuses a transfer that touches the P&L.
+
+---
+
+# Phase 6: People & payroll
+
+Payroll screens need a role that reads reports (CFO, bookkeeper, owner, outside accountant). Importing, posting and recording pay need **payroll.edit** (CFO, bookkeeper). Approving a rate change needs **approve** (CFO, owner).
+
+## Payroll runs (`/people/runs`)
+1. **Import a Gusto report:** in Gusto, export the payroll journal for one pay date as CSV and upload it. Columns it reads: Pay date, Employee, Employee ID, Location (the store code, e.g. HM13), Department, Regular hours, Overtime hours, Gross pay, Employee taxes, Employer taxes, State taxes (optional), Net pay, Payment method (Direct deposit / Check), Check #, plus Gusto's **Total** row.
+2. The preview checks every line (gross = net + employee taxes) and ties the lines to the Total row for gross, both kinds of tax, net and company debit. It won't import until everything ties and every location is a known store.
+3. Importing the same report again adds nothing (each line has a key built from pay date, employee and amounts), and every line keeps its import batch id. People Gusto pays who aren't on file yet are added and wait in **New hires to confirm**.
+4. Open a run to see each employee, subtotals by store and department, and the tie-outs. **Post** (or post the whole week from the weekly review): per store, net pay goes to *6100 Payroll – net pay* and employee + employer taxes to *6110 Payroll taxes* on the pay date, crediting Trustmark (CORP) with the Gusto company debit. Each paper check posts separately with its check number, so it shows in the checks register.
+
+## Weekly review (`/people/review`)
+The Friday workflow on one screen, newest pay date first:
+1. **Gusto runs for the week** and whether each ties to its report.
+2. **This week vs last by store:** labor cost (gross + employer taxes + cash/check pay), hours, overtime, headcount, hires, leavers and rate changes. A change over **15%** either way is red. "Not in yet" means the store has no payroll for the week so far.
+3. **By employee:** only people with something to check (tick off the box to see everyone): new hire, terminated, rate change, *paid rate ≠ approved*, overtime, over 15%, paid after termination, paid by Gusto and cash/check.
+4. **Rate changes to approve**, with a warning when Gusto already pays a rate nobody has approved.
+5. **Post** every imported run for the week. The tie-out then proves the posted entries match the runs.
+
+## Employees (`/people/employees`)
+Filter by store, department and status, or search. Open a name for the details, rate history (starting rate, every request and decision) and the last six weeks of pay. **Change rate** sends a request with a reason and effective date; it applies only when the CFO or an owner approves it (the bookkeeper can request but not approve). **Confirm hire** after checking the W-4, I-9 and rate. **Terminate** records the last day worked and why. Editing an employee can't change their rate.
+
+## Cash & check pay (`/people/cash-pay`)
+- **Record pay outside Gusto** per employee and pay week. For cash already paid out in the cash chain (HM11's weekly crew payout), pick that payout: nothing new posts, and you can't assign more than the payout. New cash is posted as a cash payroll payout from the HQ pool or a store's registers; a check posts to 6100 and credits Trustmark with its check number.
+- **Gusto vs cash/check by employee and week** shows both side by side. Someone paid both ways in a week is marked **Both: confirm it is extra pay** until you say what it was for. It is never treated as a duplicate on its own.
+- **Payroll payouts in the cash chain** shows how much of each payout is split by employee; the tie-out is green when all of it is.
+
+## Labor % (`/people/labor`)
+Labor cost as a % of POS sales (fuel, inside, kitchen; not sales tax) for each store and Saturday–Friday pay week, against each store's target, with sales per labor hour. Red cells are over target; `*` marks a week with fewer than seven days of sales so far. The tie-out proves labor cost equals 6100 + 6110 in the books for every posted week. CFO and bookkeeper set the targets.
+
+## Payroll tax tracker (`/people/taxes`)
+Taxes owed (employee + employer taxes on every Gusto run, split federal and state) against deposits, by quarter. Federal taxes are deposited by Gusto on each pay date; state taxes monthly, so a state difference mid-quarter is normal. Record any other deposit with the form. Tick each quarterly return (941, state withholding, state unemployment; 940 with Q4) with its confirmation number, and work the W-2 / 1099 season list before 31 January. The tie-outs prove the liabilities add to the runs and that the year's posted Gusto payroll ties to the ledger.

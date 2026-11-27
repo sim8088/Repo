@@ -122,6 +122,66 @@ export const HELP = {
     steps: ['Read the weekly table: inflows, outflows and the ending balance. Weeks below the floor are red.', 'Switch off any detected recurring item that won\'t repeat.', 'Add one-off or recurring items the history can\'t know about: a tax payment, a loan, a new store opening.'],
     tips: ['It starts from the book balance, which already counts checks written but not cleared.', 'Fuel loads and supplier netting arrive with phase 3 and make the fuel side sharper.'],
   },
+  // ── People & payroll (phase 6)
+  payrollRuns: {
+    purpose: 'Every Gusto payroll run with its employee detail, tied to Gusto\'s own totals and, once posted, to the entries in the books.',
+    steps: [
+      'Import: in Gusto, export the payroll journal for one pay date as CSV and upload it. The preview checks every line (gross = net + employee taxes) and ties the lines to the report\'s Total row.',
+      'Fix anything the preview lists (a missing row, a store code it doesn\'t know) and upload again. Importing the same report twice never duplicates a line; every line keeps its batch id.',
+      'Open a run to see each employee, the totals by store and department, and whether it ties.',
+      'Post from the weekly review (or from the run): net pay goes to 6100 and employee + employer taxes to 6110 by store on the pay date; Trustmark is credited with the company debit, and each paper check posts on its own.',
+    ],
+    tips: ['People Gusto pays who aren\'t on file yet are added and wait in "New hires to confirm".', 'A posted run shows the entries it made; the tie-out proves they add to the run.'],
+  },
+  weeklyReview: {
+    purpose: 'The Friday payroll review on one screen: the run, this week vs last by store and by employee, rate changes, then post.',
+    steps: [
+      'Check step 1: every Gusto run for the pay date is in and ties to its report.',
+      'Read step 2: labor cost, hours and headcount by store against last week. Anything over 15% either way is red: know why before posting.',
+      'Read step 3: the people with something to check (new hire, leaver, rate change, overtime, a big change, paid in Gusto and cash).',
+      'Approve or reject rate changes in step 4. A red note means Gusto is already paying a rate nobody has approved.',
+      'Post in step 5. The tie-out shows the posted entries match the runs.',
+    ],
+    tips: ['"Not in yet" means that store has no payroll for the week so far (HM11 cash pay is recorded on Friday).', 'Use the pay date menu to look back at any earlier week.'],
+  },
+  employees: {
+    purpose: 'Everyone on payroll: store, department, how they are paid, current rate and the full rate history.',
+    steps: [
+      'Filter by store, department or status, or search by name. Open a name for the details, rate history and recent pay.',
+      'Change rate sends a rate change for approval with a reason and an effective date; it applies only once approved (CFO or owner).',
+      'Confirm new hires after checking the W-4, I-9 and starting rate.',
+      'Record a termination with the last day worked and why.',
+    ],
+    tips: ['The current rate is the starting rate plus every approved change effective by today.', 'A pending raise shows on the employee and in the weekly review until someone decides.'],
+  },
+  cashPay: {
+    purpose: 'Pay outside Gusto, by employee and week: HM11\'s cash crew and any extra cash or check pay elsewhere.',
+    steps: [
+      'Record each person\'s pay for the week. If the cash already went out as a payroll payout in the cash chain, pick that payout so nothing posts twice.',
+      'New cash comes from the HQ pool or a store\'s registers and posts as a cash payroll payout; a check posts as money out with its check number.',
+      'In the comparison, anyone paid by Gusto and in cash or check the same week is marked "Both". Find out what it was for and confirm it as extra pay; it is never assumed to be a duplicate.',
+    ],
+    tips: ['The payouts table shows how much of each weekly cash payout is split by employee; the tie-out goes green when all of it is.'],
+  },
+  labor: {
+    purpose: 'Labor cost as a % of POS sales by store and pay week, against each store\'s target, plus sales per labor hour.',
+    steps: [
+      'Read the grid: red weeks are over the store\'s target. Hover a cell for the dollars.',
+      'Check the detail for the latest full week, with hours and sales per labor hour.',
+      'Set each store\'s target (CFO or bookkeeper).',
+    ],
+    tips: ['Labor cost = gross pay + employer taxes + cash/check pay, which equals 6100 + 6110 in the books once the week is posted.', 'Weeks marked * have fewer than seven days of sales so far.'],
+  },
+  payrollTaxes: {
+    purpose: 'Payroll taxes owed vs deposited by quarter, the quarterly returns and the W-2 / 1099 season.',
+    steps: [
+      'Compare owed and deposited for each quarter. A difference is normal mid-quarter (state taxes are deposited monthly); at quarter end it should be zero.',
+      'Record any deposit Gusto did not make for you.',
+      'Tick each return when it is filed and add the confirmation number.',
+      'Work the W-2 / 1099 list before 31 January.',
+    ],
+    tips: ['Owed = employee + employer taxes on every Gusto run, split into federal and state.', 'HM11\'s cash pay is wages too: agree the reporting with the CPA before W-2s go out.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;
