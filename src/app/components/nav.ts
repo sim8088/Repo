@@ -126,6 +126,12 @@ export const NAV: NavGroup[] = [
       { label: 'Loans', to: '/assets/loans' },
       { label: 'Maintenance', to: '/assets/maintenance' },
       { label: 'Prepaids', to: '/assets/prepaids' },
+      { label: 'Debt dashboard', to: '/debt' },
+      { label: 'Covenants', to: '/debt/covenants' },
+      { label: 'Refinance analyzer', to: '/debt/refinance' },
+      { label: 'Paydown vs invest', to: '/debt/paydown' },
+      { label: 'Cash reserve', to: '/debt/reserve' },
+      { label: 'Related-party loans', to: '/debt/related-party' },
     ],
   },
   {

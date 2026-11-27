@@ -419,7 +419,7 @@ export const HELP = {
   loans: {
     purpose: 'Loans and mortgages: terms, balances, next payments and the tie to the liability accounts.',
     steps: ['Post each payment when it goes out: principal to the loan account, interest to 6500, from Trustmark.', 'Open a loan for its amortization table, terms and covenants.'],
-    tips: ['Store mortgages carried by Dhunna / SKD are information only: we book the rent pass-through, not the mortgage, so nothing is counted twice.', 'Phase 12 adds the debt dashboard and covenant monitor.'],
+    tips: ['Store mortgages carried by Dhunna / SKD are information only: we book the rent pass-through, not the mortgage, so nothing is counted twice.', 'The debt dashboard and covenant monitor (Assets & debt) build on these loans.'],
   },
   loanDetail: {
     purpose: 'One loan: terms, the amortization table (principal vs interest each month) and the payoff date.',
@@ -497,6 +497,41 @@ export const HELP = {
   kitchenPrices: {
     purpose: 'Supplier price changes on the items the kitchen buys most.',
     steps: ["Import the supplier's invoice detail. Each invoice is matched to its purchase in the books.", 'Read the alerts: a top item whose latest price moved more than the threshold from the price before.', 'Mark an alert reviewed once you have checked it with the supplier or re-priced the menu.'],
+  },
+  debtDashboard: {
+    purpose: 'Every loan in one place: balance, rate, payment, maturity, collateral, guarantor, prepayment penalty and covenants, with the weighted-average cost of debt and a maturity ladder.',
+    steps: ['Read the figures: company debt (tied to 2300–2320), WACD before and after tax, interest to date and projected, the next maturity.', 'Open a loan for its amortization table; open the covenants for the tests.', 'Use the maturity ladder to see what comes due each year, balloons included.'],
+    tips: ['Store mortgages carried by related parties are listed for information and never post.', 'Interest to date is the 6500 posted by each loan\'s payments; projected interest comes from the schedules.'],
+  },
+  covenants: {
+    purpose: 'DSCR, leverage, minimum liquidity and fixed-charge coverage each month from the statements, with headroom and a forecast breach date.',
+    steps: ['Read each covenant: limit, actual, headroom and status. Near = inside the headroom band or forecast to break within two quarters.', 'Check the monthly calculation and its tie-outs to the P&L, 6500 and the loan accounts.', 'Open the lender package to print the compliance certificate or export it to Excel.'],
+    tips: ['With fewer than 12 months on the books the ratios are annualized; the note above the table says by how much, and the settings below turn it off.', 'Liquidity breaches come from the 13-week cash forecast; ratio breaches from a straight-line trend once three complete months exist.', 'EBITDA = net income + interest + depreciation; debt service = scheduled principal and interest on our loans (balloons left out).'],
+  },
+  lenderPackage: {
+    purpose: 'The pack a lender asks for: compliance certificate, monthly ratios, debt schedule, EBITDA and the balance sheet.',
+    steps: ['Pick the loan.', 'Print to PDF for the lender, or export every sheet to one Excel workbook.'],
+    tips: ['Every number ties back to the statements: the tie-outs at the bottom say so.'],
+  },
+  refinance: {
+    purpose: 'The current loan against a proposed one: payment change, interest saved, break-even months, NPV, DSCR before and after and cash freed.',
+    steps: ['Pick a loan (it starts from the latest market quote) or a saved scenario.', 'Change the rate, term, amortization, fees, penalty or cash out; the results update as you type.', 'Save the scenario to come back to it. Triggers below list where refinancing may pay.'],
+    tips: ['Break-even = fees + penalty ÷ the monthly saving. NPV discounts both payment streams at the cost of capital.', 'Interest saved is shown over the months both loans run, because a longer new term adds interest at the end.', 'Record market rates and property values here; the triggers read them.'],
+  },
+  paydown: {
+    purpose: 'Pay down debt or invest? Each debt\'s after-tax cost against the after-tax return of the alternatives, ranked, with the effect on DSCR, liquidity and next-store timing.',
+    steps: ['Read the ranking: highest after-tax rate first (avalanche).', 'Enter an amount to see a different deployment; it defaults to the cash above the reserve.', 'Add the alternatives you are weighing, with their expected return.'],
+    tips: ['Paying down a line of credit cuts interest at once; prepaying an amortizing loan shortens its term, so the payment (and DSCR) stays the same.', 'Nothing is recommended while cash is below the reserve target.'],
+  },
+  reserve: {
+    purpose: 'How much cash to keep: N weeks of fixed costs plus one fuel load per store plus one payroll. Anything above is deployable.',
+    steps: ['Read the build-up: fixed costs from the P&L, the typical fuel load at each store, the average weekly payroll.', 'Check the month ends: two or more in a row above the target puts a line in the inbox.', 'Change the policy below if the owners want a bigger or smaller cushion.'],
+    tips: ['Fixed costs leave out card fees (they move with sales), payroll (counted once on its own) and depreciation (not cash).', 'Cash counts the bank, cash on hand and supplier / card clearing by default.'],
+  },
+  rpLoans: {
+    purpose: 'Loans to and from the related businesses: the written terms, the balance agreed each month, and a flag where the rate is below the AFR.',
+    steps: ['Record each loan\'s terms: rate, repayment schedule, start and maturity, and whether a signed note is on file.', 'At each month end, record the balance the other side confirmed. A difference needs a note.', 'Read the AFR flags with the CPA: imputed interest may be income to us (or a deduction) for tax.'],
+    tips: ['Balances come straight from 1910 and 2400 by party, so they tie to the party statements.'],
   },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 

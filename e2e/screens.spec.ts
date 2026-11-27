@@ -25,6 +25,8 @@ const ROUTES = [
   '/reports/scorecards', '/reports/board', '/reports/builder',
   '/inside', '/inside?tab=import', '/inside/purchases', '/inside/inventory', '/inside/budgets', '/inside/rebates', '/inside/lottery', '/inside/lottery?show=short', '/inside/age-checks',
   '/kitchen', '/kitchen?tab=import', '/kitchen/food-cost', '/kitchen/waste', '/kitchen/labor', '/kitchen/prices', '/kitchen/prices?tab=invoices', '/kitchen/prices?tab=import',
+  '/debt', '/debt/covenants', '/debt/lender-package', '/debt/lender-package?loan=loan_hm15_equip', '/debt/refinance', '/debt/refinance?loan=loan_hm15_equip',
+  '/debt/paydown', '/debt/reserve', '/debt/related-party',
 ];
 
 async function open(page: Page, route: string) {
@@ -496,4 +498,41 @@ test('inside store: enter a count that shows shrink, post it, and 1310 still tie
   await expect(page.locator('.tie.ok', { hasText: 'HM11 1310 ties to the latest counts' })).toBeVisible();
   await open(page, '/');
   await expect(page.getByText('Shrink over threshold')).toBeVisible();
+});
+
+test('debt: run a refinance scenario and see break-even; save it', async ({ page }) => {
+  await open(page, '/debt/refinance');
+  await page.getByLabel('Saved scenario').selectOption({ label: 'HM13 mortgage: 10-year fixed at 5.50%' });
+  const be = page.locator('.figure', { hasText: 'Break-even' });
+  await expect(be.locator('.value')).toHaveText(/^\d+ months$/);
+  await expect(page.locator('.tie.ok', { hasText: 'The new schedule repays its principal' })).toBeVisible();
+  // A lower rate pays back sooner.
+  const before = Number((await be.locator('.value').textContent())!.split(' ')[0]);
+  await page.getByLabel('Rate (%)', { exact: true }).fill('4.50');
+  await expect(be.locator('.value')).not.toHaveText(`${before} months`);
+  const after = Number((await be.locator('.value').textContent())!.split(' ')[0]);
+  expect(after).toBeLessThan(before);
+  await page.getByLabel('Scenario name').fill('HM13 at 4.50%');
+  await page.getByRole('button', { name: 'Save scenario' }).click();
+  await expect(page.getByRole('status')).toContainText('Saved HM13 at 4.50%');
+  await expect(page.getByLabel('Saved scenario')).toHaveValue(/refi/);
+});
+
+test('debt: the covenant monitor shows the liquidity near-breach from the forecast, and the dashboard ties', async ({ page }) => {
+  await open(page, '/debt/covenants');
+  const row = page.locator('tr', { hasText: 'Minimum liquidity' });
+  await expect(row.locator('.pill')).toHaveText('Near');
+  await expect(row).toContainText('13-week forecast reaches');
+  await expect(page.locator('.tie.ok', { hasText: 'EBITDA ties to the P&L' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Scheduled interest equals 6500 on the ledger' })).toBeVisible();
+  await expect(page.getByText('annualized (× 6.00)')).toBeVisible();
+  await open(page, '/');
+  await expect(page.locator('.inbox li', { hasText: 'Covenant breach forecast within 2 quarters' })).toBeVisible();
+  await open(page, '/debt');
+  await expect(page.locator('.tie.ok', { hasText: '2310 Notes payable – equipment ties to its loan schedules' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Interest to date adds to 6500 Interest expense' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'The ladder adds to company debt' })).toBeVisible();
+  await expect(page.locator('.pill', { hasText: 'Carried by SKD Properties' })).toBeVisible();
+  await open(page, '/debt/related-party');
+  await expect(page.locator('tr', { hasText: 'Southern Eagle' }).locator('.pill', { hasText: 'Below AFR' })).toBeVisible();
 });

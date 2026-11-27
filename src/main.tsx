@@ -28,6 +28,7 @@ import { ApprovalsPage } from './app/pages/Approvals';
 import { CalendarPage, InsurancePage, LicensesPage, NoticesPage, VaultPage } from './app/pages/Compliance';
 import { DepreciationPage, FixedAssetsPage, MaintenancePage, PrepaidsPage } from './app/pages/Assets';
 import { LoanDetailPage, LoansPage } from './app/pages/Loans';
+import { CovenantsPage, DebtDashboardPage, LenderPackagePage, PaydownPage, RefinancePage, RelatedPartyLoansPage, ReservePage } from './app/pages/Debt';
 import { AskPage } from './app/pages/Ask';
 import { BalanceSheetPage, CashFlowPage, CommandCenterPage, DrillPage } from './app/pages/Statements';
 import { BoardPackPage, ReportBuilderPage, ScorecardsPage } from './app/pages/ReportTools';
@@ -115,6 +116,13 @@ function App() {
             <Route path="/assets/loans/:id" element={<LoanDetailPage />} />
             <Route path="/assets/maintenance" element={<MaintenancePage />} />
             <Route path="/assets/prepaids" element={<PrepaidsPage />} />
+            <Route path="/debt" element={<DebtDashboardPage />} />
+            <Route path="/debt/covenants" element={<CovenantsPage />} />
+            <Route path="/debt/lender-package" element={<LenderPackagePage />} />
+            <Route path="/debt/refinance" element={<RefinancePage />} />
+            <Route path="/debt/paydown" element={<PaydownPage />} />
+            <Route path="/debt/reserve" element={<ReservePage />} />
+            <Route path="/debt/related-party" element={<RelatedPartyLoansPage />} />
             <Route path="/ask" element={<AskPage />} />
             <Route path="/inside" element={<DeptSalesPage />} />
             <Route path="/inside/purchases" element={<VendorPurchasesPage />} />

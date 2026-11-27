@@ -135,7 +135,7 @@ export function LoanDetailPage() {
             <dt>Collateral</dt><dd>{loan.collateral || '—'}</dd>
             <dt>Guarantor</dt><dd>{loan.guarantor || '—'}</dd>
             <dt>Prepayment penalty</dt><dd>{loan.prepaymentPenalty}</dd>
-            <dt>Covenants</dt><dd>{loan.covenants.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{loan.covenants.map((c) => <li key={c}>{c}</li>)}</ul> : 'None'}<div className="muted small">Phase 12 adds the covenant monitor.</div></dd>
+            <dt>Covenants</dt><dd>{loan.covenants.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{loan.covenants.map((c) => <li key={c}>{c}</li>)}</ul> : 'None'}<div className="muted small"><Link to="/debt/covenants">Covenant monitor</Link></div></dd>
             {loan.notes && <><dt>Notes</dt><dd>{loan.notes}</dd></>}
             <dt>Documents</dt><dd><DocList items={loan.attachments} say={say} />{can(user, 'assets.edit') && <AttachButton books={books} userId={user.id} label="Attach" say={say} onFile={(a) => { attachToAsset(books, user, { kind: 'loan', id: loan.id }, a); say(`Attached ${a.name}.`); }} />}</dd>
           </dl>
