@@ -405,6 +405,8 @@ test('assets: register ties to the ledger, and a loan payment splits principal a
   await page.locator('tr', { hasText: 'Nov 1, 2026' }).getByRole('link').click();
   await expect(page.getByText('2310 · Notes payable – equipment')).toBeVisible();
   await expect(page.getByText('6500 · Interest expense')).toBeVisible();
+});
+
 test('reports: command center → store P&L → its transactions; the accrual bridge ties', async ({ page }) => {
   await open(page, '/reports/command');
   await expect(page.locator('.page-head .lede')).toContainText('the latest month with sales');
