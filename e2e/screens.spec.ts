@@ -18,6 +18,13 @@ const ROUTES = [
   '/compliance/calendar', '/compliance/calendar?show=open', '/compliance/licenses', '/compliance/licenses?show=expiring', '/compliance/insurance', '/compliance/insurance?tab=leases',
   '/compliance/notices', '/compliance/vault', '/compliance/vault?tag=permit', '/assets', '/assets?id=fa_hm15_truck', '/assets/depreciation', '/assets/loans', '/assets/loans/loan_hm15_equip',
   '/assets/loans/loan_loc', '/assets/loans/loan_mtg_hm11', '/assets/maintenance', '/assets/prepaids', '/ask', '/ask?q=Outstanding%20Craddock%20invoices%20as%20of%20yesterday', '/ask?q=what%20is%20the%20weather',
+  '/reports/command', '/reports/command?basis=cash&month=2026-10', '/reports/pnl?basis=cash', '/reports/pnl?basis=accrual&view=month&from=2026-09&to=2026-11&pct=1',
+  '/reports/pnl?basis=compare', '/reports/pnl?basis=accrual&view=prior&store=st_hm15',
+  '/reports/drill?basis=accrual&account=acct_cogs_fuel&from=2026-11&to=2026-11', '/reports/drill?basis=bridge&reason=uncleared_check&from=2026-11&to=2026-11',
+  '/reports/balance-sheet', '/reports/balance-sheet?entity=ent_hm11&asOf=2026-10-31', '/reports/cash-flow', '/reports/cash-flow?from=2026-09&to=2026-11&entity=ent_corp',
+  '/reports/scorecards', '/reports/board', '/reports/builder',
+  '/inside', '/inside?tab=import', '/inside/purchases', '/inside/inventory', '/inside/budgets', '/inside/rebates', '/inside/lottery', '/inside/lottery?show=short', '/inside/age-checks',
+  '/kitchen', '/kitchen?tab=import', '/kitchen/food-cost', '/kitchen/waste', '/kitchen/labor', '/kitchen/prices', '/kitchen/prices?tab=invoices', '/kitchen/prices?tab=import',
 ];
 
 async function open(page: Page, route: string) {
@@ -398,4 +405,93 @@ test('assets: register ties to the ledger, and a loan payment splits principal a
   await page.locator('tr', { hasText: 'Nov 1, 2026' }).getByRole('link').click();
   await expect(page.getByText('2310 · Notes payable – equipment')).toBeVisible();
   await expect(page.getByText('6500 · Interest expense')).toBeVisible();
+test('reports: command center → store P&L → its transactions; the accrual bridge ties', async ({ page }) => {
+  await open(page, '/reports/command');
+  await expect(page.locator('.page-head .lede')).toContainText('the latest month with sales');
+  await expect(page.locator('.tie.ok', { hasText: 'Store rows add to the company total' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Ties to the accrual P&L' })).toBeVisible();
+  await page.getByRole('link', { name: /^HM11 net profit/ }).click();
+  await expect(page.locator('h1')).toHaveText('Profit & loss by store');
+  await expect(page.locator('#p-store')).toHaveValue('st_hm11');
+  await expect(page.locator('.tie.ok', { hasText: 'Cash + bridge = accrual, to the cent' })).toBeVisible();
+  await page.getByRole('link', { name: /^Utilities, HM11: .* see transactions/ }).click();
+  await expect(page.locator('h1')).toHaveText('Utilities · HM11');
+  await expect(page.locator('.tie.ok', { hasText: 'Entries add to the P&L figure' })).toBeVisible();
+  await page.locator('tbody a', { hasText: /^TX-/ }).first().click();
+  await expect(page.getByText('Debits equal credits')).toBeVisible();
+  await open(page, '/reports/pnl');
+  await page.getByRole('button', { name: 'Accrual', exact: true }).click();
+  await expect(page.locator('.tie.ok', { hasText: 'Accrual = booked + paid fuel − accrual fuel cost' })).toBeVisible();
+  await page.getByRole('button', { name: 'Compare', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Bridge: cash basis to accrual basis' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Cash + bridge = accrual, to the cent' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Line differences add to the bridge' })).toBeVisible();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export Excel' }).click()]);
+  expect(dl.suggestedFilename()).toMatch(/^pnl-compare-.*\.xlsx$/);
+});
+
+test('reports: balance sheet and cash flow tie; build and save a report', async ({ page }) => {
+  await open(page, '/reports/balance-sheet');
+  await expect(page.locator('.tie.ok', { hasText: 'Assets = liabilities + equity' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Agrees to the trial balance, account by account' })).toBeVisible();
+  await open(page, '/reports/cash-flow');
+  await expect(page.locator('.tie.ok', { hasText: 'Opening + net change = closing cash' })).toBeVisible();
+  await open(page, '/reports/builder');
+  await page.getByLabel('Name').fill('Kitchen by month');
+  await page.getByLabel('Columns').selectOption('month');
+  await page.getByLabel('Kitchen sales').check();
+  await page.getByLabel('Schedule').selectOption('monthly');
+  await expect(page.locator('.tie.ok', { hasText: 'Every row adds across to its total' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save report' }).click();
+  await expect(page.getByRole('status')).toContainText('Saved "Kitchen by month"');
+  await expect(page.locator('.inbox li', { hasText: 'Kitchen by month' })).toContainText('monthly');
+  await open(page, '/reports/scorecards');
+  await expect(page.locator('.tie.ok', { hasText: 'Net profit ties to the accrual P&L' })).toBeVisible();
+  await open(page, '/reports/board');
+  await expect(page.getByLabel('Letter (edit before printing)')).toHaveValue(/summary for the owners/);
+});
+
+test('inside store: import a POS department report that ties to the POS close, then re-import adds nothing', async ({ page }) => {
+  // HM13's 26 Nov close is in the books but its department detail is not imported yet.
+  const csv = [
+    'Department,Net Sales,Qty Sold',
+    'Cigarettes,792.82,94', 'Grocery,566.30,150', 'Packaged beverage,509.67,212', 'General merchandise,113.26,25', 'Beer & wine,849.45,87', 'Hot food,723.42,92',
+    'Customer count,,378',
+    'Total,3554.92,',
+  ].join('\n');
+  await open(page, '/inside?tab=import');
+  await page.locator('#pi-store').selectOption('st_hm13');
+  await page.locator('#pi-date').fill('2026-11-26');
+  await page.getByLabel('Paste the department report').fill(csv);
+  await page.getByRole('button', { name: 'Read report' }).click();
+  await expect(page.locator('.tie.ok', { hasText: 'Ties to the file total' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Ties to the POS daily close in the books' })).toBeVisible();
+  await axe(page, 'POS import preview');
+  await page.getByRole('button', { name: 'Import 6 new rows' }).click();
+  await expect(page.getByRole('status')).toContainText('Imported 6 rows');
+  await page.getByRole('button', { name: 'Read report' }).click();
+  await expect(page.getByText('0 new, 6 already imported or with a problem')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import 0 new rows' })).toBeDisabled();
+  await open(page, '/inside?month=2026-11&store=st_hm13');
+  await expect(page.locator('.tie.ok', { hasText: 'POS department import ties to the POS daily close' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Cost of goods ties to 5100–5200 in the ledger' })).toBeVisible();
+});
+
+test('inside store: enter a count that shows shrink, post it, and 1310 still ties', async ({ page }) => {
+  await open(page, '/inside/inventory?store=st_hm11');
+  await page.locator('#ce-date').fill('2026-11-26');
+  const entry = page.locator('section', { has: page.getByRole('heading', { name: 'Enter a count' }) });
+  const row = entry.locator('tr', { hasText: 'Tobacco' });
+  const book = (await row.locator('td').nth(4).textContent())!.replace(/[,$]/g, '');
+  await page.getByLabel('Tobacco counted at cost').fill((Number(book) - 1000).toFixed(2));
+  await expect(row.locator('.pill.bad')).toBeVisible();
+  await expect(row.locator('td').nth(6)).toContainText('1,000.00');
+  await axe(page, 'count entry');
+  await page.getByRole('button', { name: 'Post count' }).click();
+  await expect(page.getByRole('status')).toContainText('Posted the HM11 count');
+  const hist = page.locator('section', { has: page.getByRole('heading', { name: 'Shrink by department' }) });
+  await expect(hist.locator('tr', { hasText: 'Nov 26, 2026' }).first().locator('.pill.bad')).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'HM11 1310 ties to the latest counts' })).toBeVisible();
+  await open(page, '/');
+  await expect(page.getByText('Shrink over threshold')).toBeVisible();
 });

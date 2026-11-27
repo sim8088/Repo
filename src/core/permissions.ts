@@ -6,12 +6,13 @@ export type Permission =
   | 'setup.edit' | 'users.edit' | 'export' | 'approve' | 'view.all_stores' | 'view.reports'
   | 'bank.import' | 'bank.reconcile' | 'cash.count' | 'cash.handle'
   | 'payroll.edit' | 'fuel.edit' | 'fuel.post' | 'fuel.readings' | 'bills.enter' | 'bills.pay' | 'ar.edit'
+  | 'inside.edit' | 'inside.log'
   | 'compliance.edit' | 'assets.edit' | 'docs.upload';
 
 const MATRIX: Record<Role, Permission[]> = {
-  cfo: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'period.lock', 'period.unlock', 'setup.edit', 'users.edit', 'export', 'approve', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit', 'compliance.edit', 'assets.edit', 'docs.upload'],
-  bookkeeper: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'setup.edit', 'export', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit', 'compliance.edit', 'assets.edit', 'docs.upload'],
-  store_manager: ['txn.create', 'cash.count', 'fuel.readings', 'bills.enter', 'docs.upload'],
+  cfo: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'period.lock', 'period.unlock', 'setup.edit', 'users.edit', 'export', 'approve', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit', 'inside.edit', 'inside.log', 'compliance.edit', 'assets.edit', 'docs.upload'],
+  bookkeeper: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'setup.edit', 'export', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'payroll.edit', 'fuel.edit', 'fuel.post', 'fuel.readings', 'bills.enter', 'bills.pay', 'ar.edit', 'inside.edit', 'inside.log', 'compliance.edit', 'assets.edit', 'docs.upload'],
+  store_manager: ['txn.create', 'cash.count', 'fuel.readings', 'bills.enter', 'inside.log', 'docs.upload'],
   owner: ['approve', 'view.all_stores', 'view.reports', 'export'],
   reviewer: ['view.all_stores', 'view.reports', 'export'],
 };

@@ -96,7 +96,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="nav-group">
             <h2>Later phases</h2>
             <NavLink to="/roadmap" className="nav-link">Roadmap &amp; build status</NavLink>
-            <p className="nav-soon">Reports, inside store, kitchen and the rest arrive phase by phase.</p>
+            <p className="nav-soon">Budgets, close, tax and the rest arrive phase by phase.</p>
           </div>
         </nav>
         <div className="main">
@@ -127,7 +127,7 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       <nav className="tabbar" aria-label="Quick">
         <NavLink to="/" end aria-current={loc.pathname === '/' ? 'page' : undefined}><Icon d="M3 11 12 4l9 7v9H3z M9 20v-6h6v6" />Today</NavLink>
-        <NavLink to="/reports/pnl" aria-current={loc.pathname.startsWith('/reports') ? 'page' : undefined}><Icon d="M4 20V10m6 10V4m6 16v-7m4 7H2" />Reports</NavLink>
+        <NavLink to="/reports/command" aria-current={loc.pathname.startsWith('/reports') ? 'page' : undefined}><Icon d="M4 20V10m6 10V4m6 16v-7m4 7H2" />Reports</NavLink>
         <NavLink to="/bank" aria-current={loc.pathname.startsWith('/bank') || loc.pathname.startsWith('/cash') ? 'page' : undefined}><Icon d="M3 10 12 4l9 6M5 10v8m4-8v8m6-8v8m4-8v8M3 20h18" />Bank</NavLink>
         <NavLink to="/books/transactions" aria-current={loc.pathname.startsWith('/books') ? 'page' : undefined}><Icon d="M5 4h14v16H5z M8 8h8M8 12h8M8 16h5" />Books</NavLink>
         <button onClick={() => setDrawer(true)} aria-expanded={drawer}><Icon d="M5 12h.01M12 12h.01M19 12h.01" />More</button>

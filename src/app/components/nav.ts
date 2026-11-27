@@ -26,6 +26,28 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: 'Inside store',
+    items: [
+      { label: 'Department sales & margin', to: '/inside' },
+      { label: 'Vendor purchases', to: '/inside/purchases' },
+      { label: 'Inventory & shrink', to: '/inside/inventory' },
+      { label: 'Purchasing budgets', to: '/inside/budgets' },
+      { label: 'Scan-data & rebates', to: '/inside/rebates' },
+      { label: 'Lottery', to: '/inside/lottery' },
+      { label: 'Age-check audits', to: '/inside/age-checks' },
+    ],
+  },
+  {
+    title: 'Kitchen',
+    items: [
+      { label: 'Food sales & menu mix', to: '/kitchen' },
+      { label: 'Food cost', to: '/kitchen/food-cost' },
+      { label: 'Waste log', to: '/kitchen/waste' },
+      { label: 'Labor & prime cost', to: '/kitchen/labor' },
+      { label: 'Supplier prices', to: '/kitchen/prices' },
+    ],
+  },
+  {
     title: 'Intercompany',
     items: [
       { label: 'Related parties', to: '/intercompany/parties' },
@@ -53,7 +75,19 @@ export const NAV: NavGroup[] = [
       { label: 'Rebates & other income', to: '/receivables/other' },
     ],
   },
-  { title: 'Reports', items: [{ label: 'Profit & loss by store', to: '/reports/pnl' }, { label: 'Trial balance', to: '/reports/trial-balance' }] },
+  {
+    title: 'Reports',
+    items: [
+      { label: 'Command center', to: '/reports/command' },
+      { label: 'Profit & loss by store', to: '/reports/pnl' },
+      { label: 'Balance sheet', to: '/reports/balance-sheet' },
+      { label: 'Cash flow', to: '/reports/cash-flow' },
+      { label: 'Store scorecards', to: '/reports/scorecards' },
+      { label: 'Board pack', to: '/reports/board' },
+      { label: 'Report builder', to: '/reports/builder' },
+      { label: 'Trial balance', to: '/reports/trial-balance' },
+    ],
+  },
   {
     title: 'People',
     items: [

@@ -15,6 +15,8 @@ import { complianceInbox } from '../core/compliance';
 import { maintenanceDue, unpostedDepreciation } from '../core/assets';
 import { unpostedPrepaidMonths } from '../core/prepaids';
 import { loanStatus, loansOf } from '../core/loans';
+import { insideInbox } from '../core/inside';
+import { kitchenInbox } from '../core/kitchen';
 
 /** Phase 9: compliance deadlines, licenses, notices, maintenance and warranties, and month-end postings for assets and debt. */
 function phase9Inbox(state: BooksState, visible: Set<ID>, today: string, seesBank: boolean): InboxItem[] {
@@ -114,6 +116,8 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     ...bank,
     ...(seesBank ? payrollInbox(state, visible) : []),
     ...fuelInbox(state, visible, today),
+    ...insideInbox(state, visible, today),
+    ...kitchenInbox(state, visible),
     ...ap,
     ...phase9Inbox(state, visible, today, seesBank),
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },

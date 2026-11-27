@@ -4,6 +4,7 @@ import type { ComplianceState } from './complianceTypes';
 import type { AssetsState } from './assetTypes';
 export type * from './complianceTypes';
 export type * from './assetTypes';
+import type { InsideState, KitchenState } from './insideTypes';
 
 export type ID = string;
 
@@ -161,7 +162,7 @@ export interface AuditEntry {
   userId: ID;
   action: string;
   objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people' | 'fuel'
-    | 'bill' | 'intercompany' | 'receivable' | 'compliance' | 'document' | 'asset' | 'loan';
+    | 'bill' | 'intercompany' | 'receivable' | 'report' | 'inside' | 'kitchen' | 'compliance' | 'document' | 'asset' | 'loan';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -463,6 +464,53 @@ export interface BooksState {
   compliance?: ComplianceState;
   /** Fixed assets, prepaids & loans (phase 9). Read it through `assetsOf(state)`. */
   assets?: AssetsState;
+  /** Inside store (phase 7). Older books lack it: read it through `insideOf(state)`. */
+  inside: InsideState;
+  /** Kitchen (phase 7). Older books lack it: read it through `kitchenOf(state)`. */
+  kitchen: KitchenState;
+  /** Reports (phase 4): saved reports, scorecard thresholds and notes. Read it through `reportsOf(state)`. */
+  reports: ReportsState;
+}
+
+// ── Reports (phase 4) ──────────────────────────────────────────────────
+export type ReportBasis = 'booked' | 'cash' | 'accrual';
+export type ScheduleCadence = 'weekly' | 'monthly' | 'quarterly';
+
+/** A report-builder definition. Rows are accounts or account groups; columns are stores or months. */
+export interface SavedReport {
+  id: ID;
+  name: string;
+  /** `acct:<accountId>` or `group:<key>` (see GROUPS in statements.ts). */
+  rows: string[];
+  columns: 'store' | 'month';
+  basis: ReportBasis;
+  from: string;
+  to: string;
+  /** Empty = every store the viewer can see. */
+  storeIds: ID[];
+  /** A cadence kept for later sending; nothing is emailed yet. */
+  schedule?: { cadence: ScheduleCadence; note?: string };
+  createdBy: ID;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScorecardNote {
+  id: ID;
+  storeId: ID;
+  period: string;
+  text: string;
+  by: ID;
+  at: string;
+}
+
+export interface KpiThreshold { green: number; amber: number }
+
+export interface ReportsState {
+  saved: SavedReport[];
+  /** Overrides of DEFAULT_THRESHOLDS, keyed by KPI. */
+  thresholds: Record<string, KpiThreshold>;
+  notes: ScorecardNote[];
 }
 
 // ── People & payroll (phase 6) ─────────────────────────────────────────

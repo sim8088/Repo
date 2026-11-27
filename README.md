@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 5 (Intercompany, payables & receivables), 6 (People & payroll) and 9 (Compliance, assets & ask). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen) and 9 (Compliance, assets & ask). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -49,8 +49,12 @@ src/core/      Accounting core: pure TypeScript, no UI. Most of the logic and th
 src/data/      seed.ts (demo dataset), seed-payroll.ts (phase 6 demo), storage.ts (IndexedDB persistence)
   fuel.ts        fuel subledger: invoices, notices, Dash clearing, truck lane, margin, accrual COGS, tanks, pricing
   fuelio.ts      notice / invoice / Comdata file parsers
+  inside.ts      inside store: POS department import, vendor purchases → departments, counts and shrink, budgets, scan-data, lottery, age checks
+  kitchen.ts     kitchen: food sales, menu mix, food cost, waste, kitchen labor, supplier price alerts
 src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (IndexedDB persistence)
   intercompany.ts, payables.ts, receivables.ts, approvals.ts   phase 5
+  statements.ts  phase 4: booked / cash / accrual P&L and the bridge, balance sheet, cash flow, command center, scorecards, report builder
+  xlsx.ts        minimal .xlsx (OOXML) writer for Excel exports
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
@@ -84,6 +88,32 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Labor % | Labor cost vs POS sales by store and week, against a per-store target, plus sales per labor hour. Ties to 6100 + 6110 for posted weeks. |
 | Payroll taxes | Liabilities vs deposits by quarter (federal and state), the 941 / state return checklist and the W-2 / 1099 season list. |
 | Inbox | Payroll to review, rate changes awaiting approval, new hires to confirm, payroll moved more than 15% week to week. |
+## What Phase 4 adds
+
+| Area | What works |
+|---|---|
+| Command center | One tile and row per store with activity: sales, gross margin, labor % against target, net profit and the change on the prior month, plus the company total. Defaults to the latest month with sales and says so. |
+| P&L on two bases | Booked (ledger), **cash** (clear / settlement date; uncleared checks left out; bills when paid) and **accrual** (transaction date; accrual fuel COGS replaces paid fuel invoices). By store, by month (trend), vs prior period, % of sales, lines of business. Drill from any figure to its entries and transactions. |
+| Bridge | Cash → accrual, line by line (clear timing, uncleared checks, bills, paid fuel out, accrual fuel in), tying to the cent, with the fuel inventory change and fuel delivered-not-paid explained. |
+| Balance sheet | Any date, by entity or consolidated; intercompany by party; ties A = L + E and to the trial balance account by account. |
+| Cash flow | Indirect: net income → working capital → investing → financing = change in cash and equivalents. |
+| Scorecards | Fuel gallons and ¢/gal, inside GM %, food cost %, labor %, card fee %, cash over / short, net profit, break-even sales: green / amber / red against configurable thresholds, with notes. |
+| Board pack | One printable monthly page: an editable letter written from the numbers, P&L, balance sheet, cash, KPIs, intercompany positions, open issues. |
+| Report builder | Rows (accounts or groups) × columns (stores or months) on any basis; saved reports with a cadence (no email yet). |
+| Exports | CSV and real Excel (.xlsx) on every report, plus print to PDF; a tie-out footer on each. |
+## What Phase 7 adds
+
+| Area | What works |
+|---|---|
+| POS import | Daily department sales (PDI C-Store Essentials / CStorePro CSV). The preview ties to the file total and to the POS close in the books; idempotent, batch id on every row. Units, transactions per day and average ticket. |
+| Department margin | Configurable departments mapped to revenue and cost-of-goods accounts; vendor purchases (checks, EFT, cash, bills) mapped to departments; true margin with the inventory change. Ties to 5100–5200. |
+| Inventory & shrink | Counts by department at cost, book vs counted, shrink % by department. Posting a count moves 1310 through the ledger. |
+| Purchasing budgets | Monthly per store and department, spend to date, bills awaiting approval and a remaining bar. |
+| Scan-data | Programs per manufacturer: units × share × rate vs received, on the Phase 5 rebate items. Short-paid flagged. |
+| Lottery & age checks | Weekly lottery settlement per store with the shortage flag; commissions tie to 4140. Age-check audit log with follow-ups. |
+| Kitchen | Food sales by day, menu mix import, food cost % with counts and a target per store, waste log and its effect, kitchen labor and prime cost, supplier price alerts from item-level invoice detail. |
+| Inbox | Food cost outside target, shrink over threshold, purchasing budget exceeded, lottery shortage, scan-data short-paid, supplier price jump. |
+
 ## What Phase 3 adds
 
 | Area | What works |
@@ -129,8 +159,8 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
-- **Booked basis only.** Fuel cost in the ledger is fuel invoices on the date they're paid (netted on a Craddock notice, or out of Dash clearing on the due date). `fuelCostOfSales` computes accrual fuel COGS; the accrual P&L and the bridge come in Phase 4.
-- **CSV, not .xlsx.** Excel opens the CSV exports. Native .xlsx and the board-pack PDF come in Phase 4.
+- **Accrual adjustments aren't posted.** The accrual P&L and the bridge compute accrual fuel COGS, the fuel inventory change and fuel delivered-not-paid, but the ledger (and so the balance sheet) stays on the booked basis until month-end accrual entries arrive with the close (phases 8 and 10).
+- **PDF is the browser's print.** Scheduled reports keep a cadence, but nothing is emailed yet.
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
 - Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
 - Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).

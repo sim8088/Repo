@@ -37,7 +37,7 @@ Add accounts, or edit a name, number, line of business or floor. Inactive accoun
 General-ledger lines with a running balance for any date range, optionally for one store. The tie-out proves that opening + activity = closing, and that closing matches the trial balance.
 
 ## Profit & loss by store (`/reports/pnl`)
-With no month in the URL, it opens on the latest month with sales and says so. Lines are grouped by line of business: Fuel, Inside, Kitchen, Other. Each margin shows as a % of sales. Click any amount to open the transactions behind it. The tie-outs check the total against the ledger (summed independently) and the store columns against the total.
+With no month in the URL, it opens on the latest month with sales and says so. Lines are grouped by line of business: Fuel, Inside, Kitchen, Other. Each margin shows as a % of sales. Click any amount to open the transactions behind it. The tie-outs check the total against the ledger (summed independently) and the store columns against the total. Phase 4 adds the cash and accrual bases, the views and the bridge; see the Phase 4 section below.
 
 ## Trial balance (`/reports/trial-balance`)
 Shows one entity or all entities, as of any date. Each entity balances on its own. Prior-year profit rolls into retained earnings. Export it as CSV for the CPA.
@@ -197,6 +197,80 @@ Each tenant's monthly rent, due vs received. Deposits apply to the oldest open m
 
 ## Rebates & other income (`/receivables/other`)
 Tabs for rebates and programs, ATM income, insurance claims and refunds owed to us. Each item shows expected, received and outstanding. Record money as it arrives (posts money in to its income account), apply a deposit already in the books, or close an item with a reason.
+
+# Phase 4: Reports
+
+## Command center (`/reports/command`)
+The board. One tile and one table row per store with activity in the month: net sales, gross margin and GM %, labor % (pill: red when over the store's target), net profit and net margin, and the change on the month before, plus the company total. It opens on the latest month with sales and says so; pick another month or basis (accrual by default). Click a store's net profit for its P&L. Tie-outs: the stores add to the total, and the total equals the P&L on the same basis.
+
+## Profit & loss (`/reports/pnl`)
+- **Basis:** Booked (the ledger, the default), Cash, Accrual, or Compare (cash and accrual side by side with the bridge).
+  - *Cash:* each line on the date its cash moved. Bank items on the date their statement line cleared; an uncleared **check** is left out until it clears; other uncleared bank items (ACH, card, online) count on their book date; bills when paid (unpaid bills are left out). Cash on hand, cash in transit and supplier / card clearing are cash equivalents, so their items count on their book date.
+  - *Accrual:* each line on its transaction date; bills on their bill (invoice) date; paid fuel invoices (5000) taken out and replaced with accrual fuel cost of sales (`fuelCostOfSales`: gallons sold × the month's delivered cost per gallon, Plus blended 50/50), dated the month end.
+- **View:** by store, by month (the trend), or against the prior period of the same length. Tick **% of sales** to see every line as a share of sales.
+- **Drill-down:** on cash and accrual every amount opens `/reports/drill`, the entries behind it with their book and cash dates; on booked it opens the transactions list as before.
+- **Bridge:** cash-basis net profit → bank clear date vs book date → uncleared checks → bills on invoice date → paid fuel out → accrual fuel cost in → accrual net profit. It ties to the cent, and each line opens its entries. "Fuel, explained" splits the fuel lines into the change in fuel inventory at cost (delivered − sold) and fuel delivered but not paid (delivered − paid); neither is posted to the ledger yet.
+- **Budget:** "Budgets arrive in phase 8." The hook (`budgetCompare`) takes budget figures once they exist.
+
+## Drill-down (`/reports/drill`)
+Every entry behind a P&L figure or a bridge line, with the date the basis uses, the cash date ("not in cash" for an uncleared check or unpaid bill) and a link to each transaction. Accrual fuel cost rows show gallons × cost per gallon by grade. Tie-out: the entries add to the P&L figure.
+
+## Balance sheet (`/reports/balance-sheet`)
+As of any date, for one entity or consolidated: bank, cash on hand and in transit, supplier clearing, receivables, inventory, prepaid, intercompany broken out by party and group entity, fixed assets net of depreciation, accounts payable, accrued payroll / payroll taxes / sales tax, loans, intercompany payables, owner capital, owner draws, retained earnings and current-year earnings. Tie-outs: assets = liabilities + equity; every balance agrees with the trial balance account by account; consolidated, due-from and due-to group entities eliminate.
+
+## Cash flow (`/reports/cash-flow`)
+Indirect method for any months and entity: booked net income, depreciation added back, working-capital changes, investing (fixed assets, loans and bills paid for related parties), financing (mortgages, related-party payables, group entities, owner capital and draws). Cash and cash equivalents = bank + cash + supplier clearing. Tie-outs: opening + net change = closing, and the change equals the cash accounts' own movement in the ledger. The 13-week forecast is linked for the months ahead.
+
+## Store scorecards (`/reports/scorecards`)
+For each operating store and month (accrual basis): fuel gallons, fuel margin ¢/gal, inside GM %, food cost % (purchases ÷ food sales until counts arrive in phase 7), labor % against the store's target, card fee %, cash over / short, net profit and break-even sales (fixed costs ÷ contribution margin, rated on the margin of safety). Each is green, amber or red against thresholds the CFO or bookkeeper can change. Add notes per store and month. Tie-out: net profit equals the accrual P&L.
+
+## Board pack (`/reports/board`)
+One printable page per month: a summary letter written from the numbers (edit it before printing; edits aren't saved to the books), P&L by store, balance sheet, cash, KPIs, intercompany positions and the open inbox items. **Print / PDF** uses the browser's print.
+
+## Report builder (`/reports/builder`)
+Pick row groups (net sales, sales by line of business, cost of goods, gross profit, labor, operating expenses, net profit) and account rows, columns by store or month, a basis, months and stores. Save it, and open saved reports from the list. A schedule (weekly, monthly, quarterly) is kept with the report, but **nothing is emailed yet**: sending needs the hosted back end. Tie-outs: every row adds across; net profit agrees with the P&L.
+
+## Exports
+Every report has **Export CSV**, **Export Excel** (a real .xlsx workbook) and **Print / PDF**. Exports are logged in the audit log.
+# Phase 7 — Inside store and kitchen
+
+## Department sales & margin (`/inside`)
+Sales by department for a month and store, from the POS daily close (4100–4150, 4200), with units and customer counts from the POS department import, purchases mapped to departments and the inventory change from counts. Cost of goods = purchases − the increase in counted inventory, so margin is true department margin once a month is counted. Figures: inside sales, inside gross margin, average ticket, transactions a day, the thinnest margin. Tie-outs: cost of goods = 5100–5200 in the ledger; the POS import = the POS close day by day; every purchase has a department.
+
+**Import POS department sales** (tab): pick the store and business day, upload or paste the PDI C-Store Essentials or CStorePro department report (Department and Sales; Units/Qty and a Customer count or Total row are read when present). The preview must tie to the file total and, department by department, to the POS close already in the books. POS department names map to ours through each department's POS names; map a new one from the preview. Re-importing adds nothing; a corrected report needs the earlier batch undone first. Nothing posts: the close already did.
+
+## Vendor purchases (`/inside/purchases`)
+Every merchandise and food purchase in the books (checks, EFT, cash and approved bills), by vendor, with how it was paid and its departments. Vendor mappings say which department(s) a vendor's purchases belong to; a vendor shipping several departments (the grocery wholesaler) is split by that store's sales of them that month. Unmapped purchases follow their account (5100 beer, 5110 tobacco, 5120 grocery / beverages / other by sales, 5200 kitchen).
+
+## Inventory & shrink (`/inside/inventory`)
+Enter a count at cost by department for a store and date. Book = last count + purchases − sales × the department's expected cost %; shrink = book − counted, as a % of the department's sales, red over the department's threshold (1.5% inside, 5% kitchen). **Post count** moves 1310 Merchandise inventory to the counted value against each department's cost-of-goods account (an "inventory count" journal). Store managers save counts for their store; the CFO or bookkeeper posts. Counts post in date order and never into a locked month; only the latest posted count can be voided. The tie-out proves 1310 at each store equals the latest counts.
+
+## Purchasing budgets (`/inside/budgets`)
+A monthly buying budget per store and department against purchases to date and bills awaiting approval, with a remaining bar. Over budget goes to the inbox. This is purchasing control, separate from the profit-and-loss budget of Phase 8.
+
+## Scan-data & rebates (`/inside/rebates`)
+Manufacturer programs: department, share of its units that qualify, cents per unit, monthly or quarterly. Expected = units sold (from the POS import) × share × rate. **Claim** an ended period to put that amount on the rebate in Receivables (or update the linked one); the payment is applied there, and a payment below the scan-data figure shows short-paid and goes to the inbox.
+
+## Lottery (`/inside/lottery`)
+Each store's lottery week: instant and online sales, cashes and payouts, commission, the settlement swept and the register's lottery net. Settlement must equal sales − payouts − commission; a register short of the lottery report (by $5 or more) is a lottery shortage until someone signs it off. Commissions tie to 4140 in the ledger month by month. Nothing posts.
+
+## Age-check audits (`/inside/age-checks`)
+Date, store, product, pass/fail, who ran it and the clerk. A failure needs a follow-up and due date; close it when done. License expiry lives with Compliance (Phase 9).
+
+## Food sales & menu mix (`/kitchen`)
+Food sales by store and day from 4200 on the POS close, and the menu mix from the POS item report (Item, Qty, Sales, for a store and period). The item import ties to food sales in the books and is idempotent.
+
+## Food cost (`/kitchen/food-cost`)
+Food cost % = (kitchen purchases ± the change in counted kitchen inventory) ÷ food sales, by store and month, with a target per store (±2 points) and the trend. A month is measured once a kitchen count is posted on or after the 25th; before that it shows purchases only (*). Food cost always equals 5200 in the ledger. Waste % and the cost % without waste show alongside.
+
+## Waste log (`/kitchen/waste`)
+Item, qty, cost and reason. Waste is not posted (it was bought, so it is inside food cost); the screen shows how many points of food cost it is.
+
+## Labor & prime cost (`/kitchen/labor`)
+Kitchen labor from payroll's Kitchen department (gross + employer taxes + cash/check pay, for pay weeks paid in the month) and prime cost (food cost + kitchen labor) as a % of food sales.
+
+## Supplier prices (`/kitchen/prices`)
+Import item-level invoice detail (Sysco etc.). Each invoice is matched to its purchase in the books (vendor, store, total, within 7 days). The top items by spend alert when the latest price moved more than 5% from the price before; mark an alert reviewed once dealt with. Lines without an item code (freight, surcharges) are kept but not price-tracked.
 
 # Phase 9: Compliance, assets & ask
 
