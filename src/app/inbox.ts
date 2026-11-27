@@ -5,6 +5,7 @@ import { addDays, periodOf, todayInChicago } from '../core/dates';
 import { checksRegister, isMatched, matchIndex } from '../core/bank';
 import { bagFlagged, bagOverdue } from '../core/cash';
 import { formatMoney } from '../core/money';
+import { fuelInbox } from '../core/fuel';
 
 export interface InboxItem {
   key: string;
@@ -50,6 +51,7 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
   const mat = formatMoney(state.settings.materialityCents, { dollarSign: true });
   return [
     ...bank,
+    ...fuelInbox(state, visible, today),
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
     { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },

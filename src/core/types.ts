@@ -1,4 +1,5 @@
 import type { Cents } from './money';
+import type { FuelState } from './fuelTypes';
 
 export type ID = string;
 
@@ -155,7 +156,7 @@ export interface AuditEntry {
   at: string;
   userId: ID;
   action: string;
-  objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast';
+  objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'fuel';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -311,6 +312,8 @@ export interface BooksState {
   bank: BankState;
   cash: CashState;
   forecastItems: ForecastItem[];
+  /** Phase 3: fuel subledger (invoices, notices, sales, tanks, prices). */
+  fuel: FuelState;
   /** Duplicate pairs the CFO marked "not a duplicate". */
   dismissedDuplicates: string[];
   seq: number;

@@ -7,6 +7,8 @@ import { addDays, dayOfWeek, lastDayOfPeriod } from '../core/dates';
 import type { DraftLine, TxnDraft } from '../core/ledger';
 import { SYS } from '../core/ledger';
 import type { BooksState, Entity, Party, Rule, Store, User } from '../core/types';
+import { emptyFuel } from '../core/fuel';
+import { FuelDemo, addUnpostedNoticeBankLines } from './seed-fuel';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -132,6 +134,7 @@ export function emptyState(): BooksState {
     bank: { lines: [], batches: [], reconciliations: [], openings: {} },
     cash: { bags: [], payouts: [] },
     forecastItems: [],
+    fuel: emptyFuel(),
     seq: 0,
   };
 }
@@ -159,9 +162,6 @@ const PROFILES: Profile[] = [
   { store: 'st_hm17', gallons: 1050, diesel: 60, inside: 1500, kitchen: 0, alcohol: true, clearing: 'acct_dash', supplier: 'pt_dash', opened: '2026-11-01' },
 ];
 
-const PRICE = { regular: 2.89, plus: 3.29, premium: 3.59, diesel: 3.49 };
-const COST = { regular: 2.62, premium: 3.24, diesel: 3.19 };
-
 export function buildDemo(): BooksState {
   const state = emptyState();
   let clockDate = '2026-08-31';
@@ -173,8 +173,6 @@ export function buildDemo(): BooksState {
     clockDate = d.date;
     return books.createTransaction(cfo, d, { source: 'demo', batchId: 'demo-2026Q4' });
   };
-  let invoiceNo = 5800;
-  let noticeNo = 41200;
 
   // Opening balances, one per entity so each entity balances on its own.
   post({ date: '2026-08-31', kind: 'opening', description: 'Opening balances – Corporate', lines: [
@@ -197,17 +195,16 @@ export function buildDemo(): BooksState {
     cr('acct_owner_capital', 'st_hm17', c(322_000)),
   ] });
 
+  // Fuel: tanks, prices, deliveries, notices and settlements go through the fuel subledger (seed-fuel.ts).
+  const setClock = (d: string) => { clockDate = d; };
+  const fuelDemo = new FuelDemo(state, books, cfo, rand, setClock, Object.fromEntries(PROFILES.map((p) => [p.store, p.opened])));
+  fuelDemo.init();
+  const craddockStores = PROFILES.filter((p) => p.supplier === 'pt_craddock').map((p) => p.store);
+  const dashStores = PROFILES.filter((p) => p.supplier === 'pt_dash').map((p) => p.store);
   // Running subledger positions the generator needs.
-  const clearing: Record<string, number> = {};
-  const galsSinceLoad: Record<string, number> = {};
-  const cardWeek: Record<string, number> = {};
   const fiserv = { bal: 0, monthCard: {} as Record<string, number> };
   const deptWeek: Record<string, { tobacco: number; grocery: number; beer: number; kitchen: number }> = {};
   for (const p of PROFILES) {
-    clearing[p.store] = p.opened > DEMO_START ? 0 : c(14_000);
-    // Stagger the first load so September's cash-basis fuel cost isn't artificially light.
-    galsSinceLoad[p.store] = p.opened > DEMO_START ? 0 : 3_800 + Math.round(rand() * 3_400);
-    cardWeek[p.store] = 0;
     deptWeek[p.store] = { tobacco: 0, grocery: 0, beer: 0, kitchen: 0 };
   }
   const code = (id: string) => state.stores.find((s) => s.id === id)!.code;
@@ -221,13 +218,15 @@ export function buildDemo(): BooksState {
     for (const p of PROFILES) {
       if (d < p.opened) continue;
       const ramp = p.store === 'st_hm17' ? 0.6 + 0.4 * Math.min(1, (Number(d.slice(8, 10)) || 1) / 26) : 1;
+      fuelDemo.morning(p.store, d, { regular: p.gallons * 0.815, premium: p.gallons * 0.185, diesel: p.diesel });
       const gal = p.gallons * wk * ramp * jitter(0.08);
-      const g = { regular: gal * 0.78, plus: gal * 0.07, premium: gal * 0.15 };
-      const diesel = p.diesel * wk * jitter(0.15);
+      const g = { regular: Math.round(gal * 0.78), plus: Math.round(gal * 0.07), premium: Math.round(gal * 0.15) };
+      const diesel = Math.round(p.diesel * wk * jitter(0.15));
+      const price = (grade: 'regular' | 'plus' | 'premium' | 'diesel') => fuelDemo.price(p.store, grade, d);
       const fuel = {
-        regular: c(g.regular * PRICE.regular), plus: c(g.plus * PRICE.plus), premium: c(g.premium * PRICE.premium),
+        regular: Math.round(g.regular * price('regular')), plus: Math.round(g.plus * price('plus')), premium: Math.round(g.premium * price('premium')),
       };
-      const dieselRetail = c(diesel * PRICE.diesel);
+      const dieselRetail = Math.round(diesel * price('diesel'));
       const inside = p.inside * wk * ramp * jitter(0.1);
       const dept = {
         beer: p.alcohol ? c(inside * 0.3) : 0,
@@ -249,10 +248,10 @@ export function buildDemo(): BooksState {
       const lines: DraftLine[] = [
         dr(p.clearing, p.store, card, 'Card sales'),
         dr('acct_cash_registers', p.store, cash, 'Register cash'),
-        cr('acct_fuel_regular', p.store, fuel.regular, `${Math.round(g.regular)} gal`),
-        cr('acct_fuel_plus', p.store, fuel.plus, `${Math.round(g.plus)} gal`),
-        cr('acct_fuel_premium', p.store, fuel.premium, `${Math.round(g.premium)} gal`),
-        cr('acct_fuel_diesel', p.store, dieselRetail, `${Math.round(diesel)} gal${truck ? ' (truck lane)' : ''}`),
+        cr('acct_fuel_regular', p.store, fuel.regular, `${g.regular} gal`),
+        cr('acct_fuel_plus', p.store, fuel.plus, `${g.plus} gal`),
+        cr('acct_fuel_premium', p.store, fuel.premium, `${g.premium} gal`),
+        cr('acct_fuel_diesel', p.store, dieselRetail, `${diesel} gal${truck ? ' (truck lane)' : ''}`),
         cr('acct_sales_tobacco', p.store, dept.tobacco),
         cr('acct_sales_grocery', p.store, dept.grocery),
         cr('acct_sales_bev', p.store, dept.bev),
@@ -262,10 +261,13 @@ export function buildDemo(): BooksState {
       if (truckCard) lines.splice(1, 0, dr('acct_fiserv', p.store, truckCard, 'Truck lane cards'));
       if (dept.beer) lines.push(cr('acct_sales_beer', p.store, dept.beer));
       if (kitchen) lines.push(cr('acct_sales_kitchen', p.store, kitchen));
-      post({ date: d, kind: 'journal', description: `POS daily close ${code(p.store)}`, tags: ['pos'], lines });
-
-      clearing[p.store] += card;
-      cardWeek[p.store] += card;
+      const pos = post({ date: d, kind: 'journal', description: `POS daily close ${code(p.store)}`, tags: ['pos'], lines });
+      fuelDemo.recordDay(p.store, d, {
+        txnId: pos.id, card,
+        sales: [{ grade: 'regular', gallons: g.regular, retail: fuel.regular }, { grade: 'plus', gallons: g.plus, retail: fuel.plus }, { grade: 'premium', gallons: g.premium, retail: fuel.premium },
+          ...(truck ? [] : [{ grade: 'diesel' as const, gallons: diesel, retail: dieselRetail }])],
+        truck: truck ? { gallons: diesel, sales: dieselRetail } : undefined,
+      });
       clockDate = d;
       {
         const r = rand();
@@ -273,31 +275,14 @@ export function buildDemo(): BooksState {
         const expected = posExpectedCash(state, p.store, d) ?? cash;
         recordCashStep(books, cfo, { storeId: p.store, businessDate: d, stage: 'count', amount: expected + variance, person: `${code(p.store)} manager` });
       }
-      galsSinceLoad[p.store] += gal + (truck ? 0 : diesel);
       if (truck) {
         fiserv.bal += truckCard;
         fiserv.monthCard[d.slice(0, 7)] = (fiserv.monthCard[d.slice(0, 7)] ?? 0) + truckCard;
-        galsSinceLoad[p.store] += diesel;
       }
       deptWeek[p.store].tobacco += dept.tobacco;
       deptWeek[p.store].grocery += dept.grocery + dept.bev + dept.other;
       deptWeek[p.store].beer += dept.beer;
       deptWeek[p.store].kitchen += kitchen;
-
-      // Fuel load once roughly 7,600 gallons have sold since the last one.
-      if (galsSinceLoad[p.store] >= 7600) {
-        const loadGal = Math.round(galsSinceLoad[p.store] / 100) * 100;
-        const reg = Math.round(loadGal * 0.82);
-        const prem = loadGal - reg;
-        const amt = c(reg * COST.regular * jitter(0.01)) + c(prem * COST.premium * jitter(0.01));
-        invoiceNo += 1;
-        post({ date: d, kind: 'money_out', description: `${p.supplier === 'pt_craddock' ? 'Craddock' : 'Dash Oil'} fuel invoice INV-00${invoiceNo}`, docNo: `INV-00${invoiceNo}`, partyId: p.supplier, tags: ['fuel'], lines: [
-          dr('acct_cogs_fuel', p.store, amt, `${reg} gal regular, ${prem} gal premium`),
-          cr(p.clearing, p.store, amt, p.supplier === 'pt_craddock' ? 'Nets on next EFT notice' : 'Paid from Dash clearing on due date'),
-        ] });
-        clearing[p.store] -= amt;
-        galsSinceLoad[p.store] = 0;
-      }
     }
 
     // ── Cash chain. Yesterday's bags are picked up and recounted at HQ this morning;
@@ -324,28 +309,9 @@ export function buildDemo(): BooksState {
       if (ready.length && amount > 0) depositBags(books, cfo, { bagIds: ready.map((b) => b.id), date: d, amount, person: 'HQ clerk', slipNo: `DS-${d.replace(/-/g, '').slice(2)}` });
     }
 
-    // ── Weekly supplier settlement on Tuesdays.
-    if (dow === 2) {
-      for (const p of PROFILES) {
-        if (d < p.opened || cardWeek[p.store] === 0) continue;
-        const rate = p.supplier === 'pt_craddock' ? 0.0215 : 0.0198;
-        const fee = Math.round(cardWeek[p.store] * rate);
-        const network = p.supplier === 'pt_craddock' ? c(86.5) : c(42);
-        clearing[p.store] -= fee + network;
-        const net = clearing[p.store] - c(6_000); // leave a working balance on the clearing account
-        noticeNo += 1;
-        const lines: DraftLine[] = [
-          dr('acct_card_fees', p.store, fee, `${(rate * 100).toFixed(2)}% of card proceeds`),
-          dr('acct_network_fees', p.store, network, p.supplier === 'pt_craddock' ? 'Cybera / POS' : 'Network fee'),
-          cr(p.clearing, p.store, fee + network),
-        ];
-        if (net > 0) lines.push(dr('acct_trustmark', 'st_corp', net, 'Deposit'), cr(p.clearing, p.store, net));
-        else if (net < 0) lines.push(cr('acct_trustmark', 'st_corp', -net, 'Draft'), dr(p.clearing, p.store, -net));
-        clearing[p.store] -= net;
-        post({ date: d, kind: 'journal', description: p.supplier === 'pt_craddock' ? `Craddock EFT notice #${noticeNo} ${code(p.store)}` : `Dash Oil settlement ${code(p.store)}`, partyId: p.supplier, docNo: String(noticeNo), tags: ['fuel', 'settlement'], lines });
-        cardWeek[p.store] = 0;
-      }
-    }
+    // ── Supplier settlement: Craddock EFT notices (Mondays), Dash invoices on their due dates, Dash statements (Tuesdays).
+    fuelDemo.settle(d, craddockStores, dashStores);
+    fiserv.bal -= fuelDemo.mudflap(d);
 
     // ── Fiserv truck-lane deposits every other day; fees the following month.
     if (dow === 2 || dow === 4) {
@@ -488,8 +454,10 @@ export function buildDemo(): BooksState {
   ];
   for (const r of rules) state.rules.push({ id: books.nextId('rule'), ...r });
 
-  for (const seed of MODULE_SEEDS) seed({ state, books, cfo, rand, setClock: (d) => { clockDate = d; } });
+  fuelDemo.finish(DEMO_END);
+  for (const seed of MODULE_SEEDS) seed({ state, books, cfo, rand, setClock });
   buildBankFeed(state, books, cfo, rand);
+  addUnpostedNoticeBankLines(state, books, FEED_END);
   // Older flagged variances were looked into at the weekly cash review; recent ones are still open.
   for (const b of state.cash.bags) if (b.businessDate < '2026-11-12' && bagFlagged(state, b)) b.reviewed = { by: cfo.id, at: addDays(b.businessDate, 4) + 'T15:00:00.000Z', note: 'Recounted with the store manager; cashier short, written up.' };
   for (const t of state.transactions) if (!t.batchId) { t.source = 'demo'; t.batchId = 'demo-2026Q4'; }

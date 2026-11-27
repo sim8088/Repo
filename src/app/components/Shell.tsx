@@ -70,7 +70,7 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => { window.clearTimeout(id); window.removeEventListener('resize', mark); };
   });
 
-  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : to === '/bank' || to === '/cash' ? loc.pathname === to : loc.pathname.startsWith(to));
+  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : to === '/bank' || to === '/cash' || to === '/fuel' ? loc.pathname === to : loc.pathname.startsWith(to));
 
   return (
     <>
@@ -96,7 +96,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="nav-group">
             <h2>Later phases</h2>
             <NavLink to="/roadmap" className="nav-link">Roadmap &amp; build status</NavLink>
-            <p className="nav-soon">Fuel, intercompany, payroll and the rest arrive phase by phase.</p>
+            <p className="nav-soon">Reports, intercompany, payroll and the rest arrive phase by phase.</p>
           </div>
         </nav>
         <div className="main">

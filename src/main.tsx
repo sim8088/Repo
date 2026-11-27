@@ -16,6 +16,8 @@ import { Roadmap } from './app/pages/Roadmap';
 import { BankPage, ChecksPage, DepositsPage } from './app/pages/Bank';
 import { CashPage } from './app/pages/Cash';
 import { ForecastPage } from './app/pages/Forecast';
+import { FuelMarginPage, PricingPage, TanksPage } from './app/pages/Fuel';
+import { FuelInvoicesPage, SettlementPage, TruckLanePage } from './app/pages/FuelSettlement';
 import { PageHead } from './app/components/ui';
 
 function ScrollTop() {
@@ -53,6 +55,12 @@ function App() {
             <Route path="/bank/deposits" element={<DepositsPage />} />
             <Route path="/cash" element={<CashPage />} />
             <Route path="/cash/forecast" element={<ForecastPage />} />
+            <Route path="/fuel" element={<FuelMarginPage />} />
+            <Route path="/fuel/invoices" element={<FuelInvoicesPage />} />
+            <Route path="/fuel/settlement" element={<SettlementPage />} />
+            <Route path="/fuel/truck" element={<TruckLanePage />} />
+            <Route path="/fuel/tanks" element={<TanksPage />} />
+            <Route path="/fuel/pricing" element={<PricingPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>
