@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { importStationBooks, isSnapshot, type SBSnapshot } from './stationbooks';
 import { pnl, trialBalance, balanceAsOf } from '../core/reports';
 import { fuelOf } from '../core/fuel';
+import { findDuplicates } from '../core/duplicates';
+import { matchIndex } from '../core/bank';
+import { checkSequenceSignals } from '../core/controls';
+import { forecast } from '../core/forecast';
 
 /** A tiny, made-up export in the StationBooks shape (no real data). */
 function snap(): SBSnapshot {
@@ -100,5 +104,58 @@ describe('StationBooks import', () => {
     expect(inv[0].lines.reduce((a, l) => a + l.netGallons, 0)).toBe(3500);
     expect(inv[0].lines.reduce((a, l) => a + l.cost, 0)).toBe(900_000);
     expect(inv[0].lines[0].netGallons).toBe(3000);
+  });
+
+  it('bank lines post against settlement clearing, feed the bank screen matched, and complete months reconcile', () => {
+    const base = snap();
+    const { state, report } = importStationBooks({
+      ...base,
+      bank: {
+        name: 'Operating',
+        lines: [
+          { date: '2026-09-29', description: 'DEPOSIT', amountCents: 200_000, balanceCents: 1_200_000, store: 'HM11', bucket: 'Store sales settlement' },
+          { date: '2026-09-30', description: 'CHECK', checkNo: '101', amountCents: -50_000, balanceCents: 1_150_000, bucket: 'Store operating' },
+          { date: '2026-10-01', description: 'ZERO NOTICE', amountCents: 0, balanceCents: 1_150_000 },
+          { date: '2026-10-02', description: 'MERCHANT BANKCD DEPOSIT', amountCents: 30_000, balanceCents: 1_180_000, store: 'HM11' },
+        ],
+      },
+    });
+    expect(report.bankFeed).toMatchObject({ lines: 3, skipped: 1, opening: 1_000_000, closing: 1_180_000, reconciledThrough: '2026-09-30' });
+    // The bank lines replace the balance snapshot: Trustmark follows the statement.
+    expect(balanceAsOf(state, 'acct_trustmark', '2026-09-28')).toBe(1_000_000);
+    expect(balanceAsOf(state, 'acct_trustmark', '2026-10-02')).toBe(1_180_000);
+    expect(state.bank.lines).toHaveLength(3);
+    expect(state.bank.lines.every((b) => b.matchedLineIds.length === 1)).toBe(true);
+    expect(state.bank.lines[1].checkNo).toBe('101');
+    expect(state.bank.reconciliations.map((r) => [r.statementDate, r.statementBalance])).toEqual([['2026-09-30', 1_150_000]]);
+    expect(state.transactions.find((t) => t.checkNo === '101')?.memo).toBe('Store operating');
+    let tb = 0;
+    for (const t of state.transactions) for (const l of t.lines) tb += l.debit - l.credit;
+    expect(tb).toBe(0);
+  });
+
+  it('real-feed rules: separately cleared twins are not duplicates, check signals stay in their window, the forecast follows the trend', () => {
+    const lines: NonNullable<SBSnapshot['bank']>['lines'] = [];
+    let bal = 5_000_000;
+    const push = (date: string, description: string, amountCents: number, checkNo?: string) => { bal += amountCents; lines.push({ date, description, amountCents, balanceCents: bal, checkNo }); };
+    push('2026-03-02', 'CHECK', -10_000, '500'); // same number months earlier: outside the signal window
+    for (let w = 0; w < 13; w++) {
+      const d = new Date(Date.UTC(2026, 7, 3 + w * 7)).toISOString().slice(0, 10);
+      push(d, 'PREAUTHORIZED CREDIT CARD SETTLEMENT', 300_000);
+      push(d, 'OVERDRAFT FEE', -3_600);
+      push(d, 'OVERDRAFT FEE', -3_600);
+      push(d, 'CHECK', -(400_000 + w * 1_000), String(900 + w)); // one-off checks: no payee, no pattern
+    }
+    push('2026-10-27', 'CHECK', -10_000, '500');
+    const { state } = importStationBooks({ ...snap(), bank: { lines } });
+    expect(findDuplicates(state.transactions, new Set(), 3, matchIndex(state)).filter((p) => /OVERDRAFT/.test(p.a.description))).toHaveLength(0);
+    expect(findDuplicates(state.transactions).filter((p) => /OVERDRAFT/.test(p.a.description)).length).toBeGreaterThan(0);
+    expect(checkSequenceSignals(state, { today: '2026-11-27' }).some((x) => x.key === 'check_sequence:dup:500')).toBe(false);
+    // The feed ends 27 Oct; the forecast reads the trend from there, with the unexplained checks as one line.
+    const f = forecast(state, 'acct_trustmark', '2026-11-27');
+    const rest = f.patterns.find((p) => p.key === 'residual');
+    expect(rest).toBeDefined();
+    expect(rest!.amount).toBeLessThan(-300_000);
+    expect(f.weeks.at(-1)!.ending).toBeLessThan(f.opening);
   });
 });

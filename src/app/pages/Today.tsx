@@ -25,7 +25,8 @@ export function Today() {
   const bankBal = bank ? balanceAsOf(state, bank.id, today, lines) : 0;
   const floor = bank?.floorCents ?? 0;
   const cashIds = state.accounts.filter((a) => a.subtype === 'cash').map((a) => a.id);
-  const clearIds = state.accounts.filter((a) => a.subtype === 'clearing').map((a) => a.id);
+  // Supplier and card clearing only: the StationBooks settlement account is the import's P&L-vs-cash bridge, not money owed.
+  const clearIds = state.accounts.filter((a) => a.subtype === 'clearing' && a.id !== 'acct_sb_settlement').map((a) => a.id);
   const cash = cashIds.reduce((a, id) => a + balanceAsOf(state, id, today, lines), 0);
   const clearing = clearIds.reduce((a, id) => a + balanceAsOf(state, id, today, lines), 0);
   const canSeeBank = visible.has('st_corp');

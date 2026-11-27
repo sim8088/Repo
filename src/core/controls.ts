@@ -722,7 +722,9 @@ export function rateSpikeSignals(state: BooksState, _o: SignalOpts): FraudSignal
 
 export const OUT_OF_ORDER_DAYS = 30;
 export function checkSequenceSignals(state: BooksState, o: SignalOpts): FraudSignal[] {
-  const rows = checksRegister(state, o.today).filter((r) => r.status !== 'not_in_books' && /^\d+$/.test(r.checkNo));
+  // Like every other signal, only the signal window: older breaks were seen (or not) when they happened.
+  const from = fromOf(o);
+  const rows = checksRegister(state, o.today).filter((r) => r.status !== 'not_in_books' && /^\d+$/.test(r.checkNo) && r.date >= from);
   const nums = [...rows].sort((a, b) => Number(a.checkNo) - Number(b.checkNo) || a.date.localeCompare(b.date));
   const out: FraudSignal[] = [];
   const row = (r: (typeof rows)[number], note?: string): EvidenceRow => ({ id: r.txnId ?? r.checkNo, label: `Check #${r.checkNo} · ${r.payee}${r.status === 'void' ? ' (void)' : ''}`, date: r.date, amount: r.status === 'void' ? 0 : r.amount, to: r.txnId ? `/books/transactions/${r.txnId}` : '/bank/checks', detail: note });

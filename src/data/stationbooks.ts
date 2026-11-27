@@ -12,7 +12,10 @@
  * - Fuel cost stays exactly as booked (its own account), so the accrual basis doesn't swap it out
  *   for an accrual fuel cost the fuel subledger can't compute without invoices and tank data.
  * - Gallons on fuel sales feed the fuel module (Diesel – COMDATA as the truck lane).
- * - The latest bank balance snapshot sets the Trustmark balance on its date.
+ * - Bank: when the export carries the operating account's bank lines (`bank`), each line posts as a
+ *   Trustmark movement against settlement clearing at its store, is stored as a bank-feed line matched
+ *   to that posting, and every complete month whose running balance ties is reconciled. Without bank
+ *   lines, the latest bank balance snapshot sets the Trustmark balance on its date.
  *
  * No real data lives in the repo: the snapshot is supplied at runtime (a file the CFO loads, or a
  * private preview build).
@@ -21,6 +24,8 @@ import { Books } from '../core/books';
 import type { Account, AccountType, BooksState, LineOfBusiness, Party, PartyType } from '../core/types';
 import type { FuelGrade, FuelInvoice, FuelInvoiceLine } from '../core/fuelTypes';
 import { fuelOf } from '../core/fuel';
+import { guessDepositSource, saveReconciliation } from '../core/bank';
+import type { BankLine, DepositSource, ImportBatch, User } from '../core/types';
 import { emptyState, CFO_ID } from './seed';
 
 export interface SBTxn {
@@ -56,6 +61,23 @@ export interface SBSnapshot {
   accounts?: { items: { id: string; kind: string; name: string }[] };
   balances?: { items: { accountId: string; balanceCents: number; date: string; notes?: string }[] };
   parties?: { items: { id: string; name: string; kind: string; notes?: string | null }[] };
+  /** The operating bank account's statement lines, oldest first (same-day order as on the statement). */
+  bank?: { name?: string; lines: SBBankLine[] };
+}
+
+/** One bank statement line. Amount is signed from the bank's view: + in, − out. */
+export interface SBBankLine {
+  date: string;
+  description: string;
+  amountCents: number;
+  checkNo?: string;
+  /** Running balance after this line, when the statement shows one. */
+  balanceCents?: number;
+  /** How the bookkeeper classified it (e.g. "Store operating", "Owner / family"). */
+  bucket?: string;
+  /** Store code it belongs to; anything else posts at CORP. */
+  store?: string;
+  counterparty?: string;
 }
 
 export interface ImportReport {
@@ -69,6 +91,7 @@ export interface ImportReport {
   fuelSaleRows: number;
   fuelInvoices: number;
   bankBalance?: { date: string; cents: number };
+  bankFeed?: { lines: number; from: string; to: string; opening: number; closing: number; reconciledThrough?: string; skipped: number };
 }
 
 const STD: [RegExp, string][] = [
@@ -245,16 +268,19 @@ export function importStationBooks(snap: SBSnapshot): { state: BooksState; repor
   report.skippedOtherBusinesses = [...skippedBiz].map(([code, txns]) => ({ code, txns }));
   report.accountsCreated = created;
 
-  // Bank: the latest balance snapshot on the operating account sets Trustmark on that date.
-  const bankAcct = snap.accounts?.items.find((a) => a.kind === 'BANK');
-  const snapBal = (snap.balances?.items ?? []).filter((b) => b.accountId === bankAcct?.id).sort((a, b) => b.date.localeCompare(a.date))[0];
-  if (snapBal) {
-    clock.at = `${snapBal.date}T12:00:00.000Z`;
-    books.createTransaction(cfo, {
-      date: snapBal.date, kind: 'opening', description: 'Trustmark balance per StationBooks bank snapshot', memo: snapBal.notes ?? undefined, tags: ['stationbooks'],
-      lines: [{ accountId: 'acct_trustmark', storeId: 'st_corp', debit: Math.max(snapBal.balanceCents, 0), credit: Math.max(-snapBal.balanceCents, 0) }, { accountId: 'acct_owner_capital', storeId: 'st_corp', debit: Math.max(-snapBal.balanceCents, 0), credit: Math.max(snapBal.balanceCents, 0) }],
-    }, { source: 'import' });
-    report.bankBalance = { date: snapBal.date, cents: snapBal.balanceCents };
+  if (snap.bank?.lines.length) importBank(books, cfo, snap, ourByCode, report);
+  else {
+    // Bank: the latest balance snapshot on the operating account sets Trustmark on that date.
+    const bankAcct = snap.accounts?.items.find((a) => a.kind === 'BANK');
+    const snapBal = (snap.balances?.items ?? []).filter((b) => b.accountId === bankAcct?.id).sort((a, b) => b.date.localeCompare(a.date))[0];
+    if (snapBal) {
+      clock.at = `${snapBal.date}T12:00:00.000Z`;
+      books.createTransaction(cfo, {
+        date: snapBal.date, kind: 'opening', description: 'Trustmark balance per StationBooks bank snapshot', memo: snapBal.notes ?? undefined, tags: ['stationbooks'],
+        lines: [{ accountId: 'acct_trustmark', storeId: 'st_corp', debit: Math.max(snapBal.balanceCents, 0), credit: Math.max(-snapBal.balanceCents, 0) }, { accountId: 'acct_owner_capital', storeId: 'st_corp', debit: Math.max(-snapBal.balanceCents, 0), credit: Math.max(snapBal.balanceCents, 0) }],
+      }, { source: 'import' });
+      report.bankBalance = { date: snapBal.date, cents: snapBal.balanceCents };
+    }
   }
 
   state.audit = [{ id: books.nextId('aud'), at: snap.exportedAt, userId: cfo.id, action: 'data', objectType: 'data', objectId: 'stationbooks', summary: `Loaded the StationBooks export of ${snap.exportedAt.slice(0, 10)}: ${report.posted} transactions ${report.from} – ${report.to}` }];
@@ -262,4 +288,93 @@ export function importStationBooks(snap: SBSnapshot): { state: BooksState; repor
   // StationBooks never tracked month-end closes: the checklist starts with the month of the export.
   state.settings.closeFrom = snap.exportedAt.slice(0, 7);
   return { state, report };
+}
+
+const dayBefore = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+const monthEnd = (m: string) => new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)).toISOString().slice(0, 10);
+
+/**
+ * Post the bank lines: opening balance the day before the first line, then one Trustmark movement per line
+ * against settlement clearing at its store, each stored as a matched bank-feed line. Complete months whose
+ * running balance ties are reconciled at their month-end balance.
+ */
+function importBank(books: Books, cfo: User, snap: SBSnapshot, byCode: Map<string, string>, report: ImportReport) {
+  const state = books.state;
+  const acct = 'acct_trustmark';
+  const src = snap.bank!.lines.map((l, i) => ({ l, i })).filter(({ l }) => Number.isSafeInteger(l.amountCents) && l.amountCents !== 0 && /^\d{4}-\d{2}-\d{2}$/.test(l.date));
+  src.sort((a, b) => a.l.date.localeCompare(b.l.date) || a.i - b.i);
+  const lines = src.map((x) => x.l);
+  const first = lines[0];
+  const opening = first.balanceCents !== undefined ? first.balanceCents - first.amountCents : 0;
+  const openDate = dayBefore(first.date);
+  const at = (d: string) => { books.clock = () => `${d}T12:00:00.000Z`; };
+  at(openDate);
+  if (opening) {
+    books.createTransaction(cfo, {
+      date: openDate, kind: 'opening', description: `${snap.bank!.name ?? 'Trustmark'} opening balance per bank statement`, tags: ['stationbooks', 'bank'],
+      lines: [{ accountId: acct, storeId: 'st_corp', debit: Math.max(opening, 0), credit: Math.max(-opening, 0) }, { accountId: 'acct_owner_capital', storeId: 'st_corp', debit: Math.max(-opening, 0), credit: Math.max(opening, 0) }],
+    }, { source: 'import' });
+  }
+  state.bank.openings[acct] = { date: openDate, balance: opening };
+  const batches = new Map<string, ImportBatch>();
+  const feed: BankLine[] = [];
+  let running = opening;
+  const monthBal = new Map<string, { computed: number; stated?: number }>();
+  for (const l of lines) {
+    const m = l.date.slice(0, 7);
+    let batch = batches.get(m);
+    if (!batch) {
+      batch = { id: books.nextId('imp'), accountId: acct, fileName: `${snap.bank!.name ?? 'Trustmark'} ${m} (bank bookkeeping)`, format: 'csv', importedAt: snap.exportedAt, by: cfo.id, added: 0, skipped: 0, totalIn: 0, totalOut: 0, from: l.date, to: l.date };
+      batches.set(m, batch);
+    }
+    at(l.date);
+    const storeId = (l.store && byCode.get(l.store)) || 'st_corp';
+    const inflow = l.amountCents > 0;
+    const amt = Math.abs(l.amountCents);
+    const memo = [l.bucket, l.counterparty && !/^see /i.test(l.counterparty) ? l.counterparty : ''].filter(Boolean).join(' · ') || undefined;
+    const tx = books.createTransaction(cfo, {
+      date: l.date, kind: inflow ? 'money_in' : 'money_out', description: l.checkNo ? `CHECK ${l.checkNo}` : l.description.trim() || 'Bank line', memo, checkNo: l.checkNo || undefined,
+      tags: ['stationbooks', 'bank'],
+      lines: inflow
+        ? [{ accountId: acct, storeId: 'st_corp', debit: amt, credit: 0 }, { accountId: 'acct_sb_settlement', storeId, debit: 0, credit: amt }]
+        : [{ accountId: 'acct_sb_settlement', storeId, debit: amt, credit: 0 }, { accountId: acct, storeId: 'st_corp', debit: 0, credit: amt }],
+    }, { source: 'import', batchId: batch.id });
+    const bankSide = tx.lines.find((x) => x.accountId === acct && !x.system)!;
+    feed.push({
+      id: books.nextId('bl'), accountId: acct, date: l.date, description: l.description.trim(), amount: l.amountCents, checkNo: l.checkNo || undefined,
+      hash: `sb:${l.date}:${l.amountCents}:${l.checkNo ?? ''}:${feed.length}`, batchId: batch.id, source: inflow ? guessDepositSource(l.description) ?? sourceFromBucket(l.bucket) : undefined, matchedLineIds: [bankSide.id],
+    });
+    batch.added += 1;
+    if (inflow) batch.totalIn += amt; else batch.totalOut += amt;
+    batch.to = l.date;
+    running += l.amountCents;
+    monthBal.set(m, { computed: running, stated: l.balanceCents });
+  }
+  state.bank.lines.push(...feed);
+  state.bank.batches.push(...batches.values());
+  for (const b of batches.values()) b.statementBalance = monthBal.get(b.from.slice(0, 7))?.stated;
+  // Reconcile each complete month whose last stated balance agrees with the lines (same-day order can
+  // differ from the bank's, so only the month-end balance is compared).
+  const lastMonth = lines.at(-1)!.date.slice(0, 7);
+  let through: string | undefined;
+  for (const [m, b] of monthBal) {
+    if (m >= lastMonth || (b.stated !== undefined && b.stated !== b.computed)) continue;
+    const date = monthEnd(m);
+    at(date);
+    try { saveReconciliation(books, cfo, acct, date, b.computed); through = date; } catch { break; }
+  }
+  report.bankFeed = { lines: feed.length, from: first.date, to: lines.at(-1)!.date, opening, closing: running, reconciledThrough: through, skipped: snap.bank!.lines.length - lines.length };
+  report.bankBalance = { date: lines.at(-1)!.date, cents: running };
+}
+
+/** Where a deposit came from, from the bookkeeper's bucket when the bank description doesn't say. */
+function sourceFromBucket(bucket?: string): DepositSource {
+  const b = bucket ?? '';
+  if (/sales settlement/i.test(b)) return 'card_settlement';
+  if (/^deposit/i.test(b)) return 'store_cash';
+  if (/between own|transfer/i.test(b)) return 'transfer';
+  if (/owner|family/i.test(b)) return 'owner_contribution';
+  if (/bounced|money back|refund/i.test(b)) return 'refund';
+  if (/dhunna|non-store|related/i.test(b)) return 'related_repayment';
+  return 'other';
 }

@@ -97,7 +97,7 @@ function payrollInbox(state: BooksState, visible: Set<ID>): InboxItem[] {
 export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID>, today = todayInChicago()): InboxItem[] {
   const uncat = uncategorized(state, lines);
   const vis = state.transactions.filter((t) => t.lines.some((l) => visible.has(l.storeId)));
-  const dups = findDuplicates(vis, new Set(state.dismissedDuplicates));
+  const dups = findDuplicates(vis, new Set(state.dismissedDuplicates), 3, matchIndex(state));
   const floors = state.accounts.filter((a) => a.floorCents !== undefined && a.active);
   const below = floors.filter((a) => balanceAsOf(state, a.id, today, lines) < a.floorCents!);
   const thisPeriod = periodOf(today);

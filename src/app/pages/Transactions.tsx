@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useBooks } from '../store';
 import { AccountOptions, Empty, Help, Money, PageHead, csvMoney, useExport, useIsPhone, useToast } from '../components/ui';
 import { txnTotal, findDuplicates } from '../../core/duplicates';
+import { matchIndex } from '../../core/bank';
 import { parseMoney, formatMoney } from '../../core/money';
 import { shortDate, periodOf } from '../../core/dates';
 import { categoryLabel, categoryLines, signedAmount, storeLabel } from '../txnview';
@@ -242,7 +243,7 @@ function DupQueue() {
   const { state, books, user, visible } = useBooks();
   const [toast, say] = useToast();
   const acc = useMemo(() => new Map(state.accounts.map((a) => [a.id, a])), [state.accounts]);
-  const pairs = useMemo(() => findDuplicates(state.transactions.filter((t) => t.lines.some((l) => visible.has(l.storeId))), new Set(state.dismissedDuplicates)), [state.transactions, state.dismissedDuplicates, visible]);
+  const pairs = useMemo(() => findDuplicates(state.transactions.filter((t) => t.lines.some((l) => visible.has(l.storeId))), new Set(state.dismissedDuplicates), 3, matchIndex(state)), [state.transactions, state.dismissedDuplicates, visible]);
   if (!pairs.length) return <div className="note">No possible duplicates. Anything with the same amount and payee within three days will show here.</div>;
   return (
     <div className="stack">

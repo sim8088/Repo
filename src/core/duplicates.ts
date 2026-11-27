@@ -20,7 +20,12 @@ export interface DuplicatePair {
 /** Clusters larger than this are recurring charges, not double entries. */
 export const MAX_CLUSTER = 3;
 
-export function findDuplicates(txns: Transaction[], dismissed: Set<string> = new Set(), windowDays = 3): DuplicatePair[] {
+/**
+ * `cleared` (ledger line id → the bank line it matched, see matchIndex) rules out pairs that each cleared the bank
+ * on a line of their own: the money moved twice, so neither is a double entry.
+ */
+export function findDuplicates(txns: Transaction[], dismissed: Set<string> = new Set(), windowDays = 3, cleared?: Map<ID, { id: ID }>): DuplicatePair[] {
+  const bankLineOf = (t: Transaction) => { for (const l of t.lines) { const b = cleared?.get(l.id); if (b) return b.id; } return undefined; };
   const live = txns.filter((t) => !t.deleted && t.kind !== 'opening');
   const buckets = new Map<string, Transaction[]>();
   for (const t of live) {
@@ -50,6 +55,8 @@ export function findDuplicates(txns: Transaction[], dismissed: Set<string> = new
       for (let i = 0; i < c.length; i++) {
         for (let j = i + 1; j < c.length; j++) {
           if (dismissed.has(pairKey(c[i].id, c[j].id))) continue;
+          const bi = bankLineOf(c[i]), bj = bankLineOf(c[j]);
+          if (bi && bj && bi !== bj) continue;
           out.push({ a: c[i], b: c[j], days: daysBetween(c[i].date, c[j].date) });
         }
       }

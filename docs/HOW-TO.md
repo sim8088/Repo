@@ -53,6 +53,7 @@ Lock a month when it's reconciled. Since phase 8 the Lock button goes through th
 - **Users & roles:** the role and the permission matrix. Store managers are limited to their stores.
 - **Audit log:** every change, with before/after and the reason.
 - **Settings:** fiscal year start, materiality ($5), owner-withdrawal policy, and resetting to demo data.
+- **Load real books:** Settings › Data on this device › "Load a StationBooks export…". Build the file with `node scripts/stationbooks-snapshot.mjs <dump-dir> <out.stationbooks.json> --bank "<account name>" <values.json>…`; the `--bank` part adds the operating account's statement lines from the bank bookkeeping sheet, so the bank feed, reconciliations and forecast run on real cash. Keep the file off GitHub (`*.stationbooks.json` is ignored).
 
 ## Keyboard
 `⌘K` / `Ctrl+K` or `/` opens search · `N` starts a new entry · `↑ ↓ Enter Esc` work inside search.
@@ -83,7 +84,7 @@ Every bank deposit gets a source: store cash, card settlement, Fiserv, Mudflap, 
 - **Variances to review:** sign each flagged variance off with what you found.
 
 ## 13-week cash forecast (`/cash/forecast`)
-Starts from today's book balance for Trustmark. That balance already includes checks written but not yet cleared. Recurring items are detected from the last 13 weeks of the books: weekly (payroll, supplier settlements), monthly (rent, utilities, insurance), or several times a week (store-cash deposits, projected as a weekly total). Switch off anything that won't repeat. Add one-off or recurring items the history can't know about. Weeks that end below the $30,000 floor are red, and the tie-out proves opening + inflows − outflows = ending.
+Starts from today's book balance for Trustmark. That balance already includes checks written but not yet cleared. Recurring items are detected from the last 13 weeks of the books: weekly (payroll, supplier settlements), monthly (rent, utilities, insurance), or several times a week (store-cash deposits, projected as a weekly total). When the feed stops short of today, the history is read up to the last day it has. Cash no pattern explains (one-off checks with no payee) shows as "Everything else (13-week average)". Switch off anything that won't repeat. Add one-off or recurring items the history can't know about. Weeks that end below the $30,000 floor are red, and the tie-out proves opening + inflows − outflows = ending.
 
 ## Transfers (`/books/new?kind=transfer`)
 Moves money between balance-sheet accounts (bank, cash, clearing, loans). The ledger refuses a transfer that touches the P&L.

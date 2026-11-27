@@ -34,7 +34,16 @@ function mode(xs: number[]): number {
  * weekly (gaps of 6–8 days), monthly (27–32 days), or frequent (gaps ≤ 4: projected as a weekly total).
  */
 export function detectRecurring(state: BooksState, accountId: ID, asOf: string, lookbackDays = 91): RecurringPattern[] {
+  // Measure from the last day the account moved: a feed that stops short of today must not read as weeks of no cash.
+  let dataEnd = '';
+  for (const t of state.transactions) {
+    if (t.deleted || t.kind === 'opening' || t.date > asOf || t.date <= dataEnd) continue;
+    if (t.lines.some((l) => l.accountId === accountId && !l.system)) dataEnd = t.date;
+  }
+  if (!dataEnd) return [];
+  asOf = dataEnd;
   const from = addDays(asOf, -lookbackDays);
+  let windowNet = 0;
   const groups = new Map<string, { label: string; byDate: Map<string, number> }>();
   for (const t of state.transactions) {
     if (t.deleted || t.kind === 'opening' || t.date <= from || t.date > asOf) continue;
@@ -42,6 +51,7 @@ export function detectRecurring(state: BooksState, accountId: ID, asOf: string, 
       if (l.accountId !== accountId || l.system) continue;
       const amt = l.debit - l.credit;
       if (!amt) continue;
+      windowNet += amt;
       const party = t.partyId ? state.parties.find((p) => p.id === t.partyId) : undefined;
       const base = party ? `p:${party.id}` : `d:${ruleKey(t.description) || t.description.toUpperCase()}`;
       const key = `${base}|${amt > 0 ? 'in' : 'out'}`;
@@ -74,8 +84,20 @@ export function detectRecurring(state: BooksState, accountId: ID, asOf: string, 
       out.push({ key, label: g.label, cadence: 'weekly_total', amount: Math.round(weeks.reduce((a, b) => a + b, 0) / 4), anchor: 3, occurrences: dates.length, lastDate: last });
     }
   }
+  // Whatever no pattern explains (one-off checks, irregular payees) still moved cash: carry its weekly
+  // average forward as one line, so the forecast follows the account's actual trend. Material only.
+  const weeks = lookbackDays / 7;
+  const explained = out.reduce((a, p) => a + (p.cadence === 'monthly' ? (p.amount * 12) / 52 : p.amount), 0);
+  const residual = Math.round(windowNet / weeks - explained);
+  const scale = out.reduce((a, p) => a + Math.abs(p.cadence === 'monthly' ? (p.amount * 12) / 52 : p.amount), 0);
+  if (Math.abs(residual) >= Math.max(100_000, scale * RESIDUAL_SHARE)) {
+    out.push({ key: 'residual', label: 'Everything else (13-week average)', cadence: 'weekly_total', amount: residual, anchor: 5, occurrences: 0, lastDate: asOf });
+  }
   return out.sort((a, b) => Math.abs(b.amount) * (b.cadence === 'monthly' ? 1 : 4) - Math.abs(a.amount) * (a.cadence === 'monthly' ? 1 : 4));
 }
+
+/** The unexplained weekly net must be at least this share of the detected weekly flows to get its own line. */
+const RESIDUAL_SHARE = 0.1;
 
 export interface ForecastEvent {
   date: string;

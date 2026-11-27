@@ -2,6 +2,16 @@
 
 This file records the context and decisions behind the portal so they don't get lost between sessions. Add new entries at the top.
 
+## 2026-11-27 — Real bank feed from the bank bookkeeping sheet
+- **Bank lines ride along in the StationBooks export** (`bank: { name, lines }`). `scripts/stationbooks-snapshot.mjs … --bank <name> <values.json>…` reads the operating account's bank-ledger spreadsheet (Sheets "values" exports: Date, Description, Check #, Money out, Money in, Bank balance, Bucket, Store, Counterparty). The data stays out of the repo.
+- **Each bank line posts Trustmark (CORP) against settlement clearing (1095) at its store.** The P&L still comes from StationBooks only, so nothing is counted twice: clearing 1095 is the bridge between the P&L side and the cash side, and its balance is P&L activity not yet seen in this bank account (other accounts, store cash, timing). The Today "Supplier clearing" figure leaves it out.
+- **Opening balance** = the first line's running balance less its amount, the day before. With bank lines the StationBooks balance snapshot is not used. $0.00 lines (ACH notices) are left out and counted in the report.
+- **Every line is stored as a bank-feed line matched to its posting**, and each complete month whose stated month-end balance agrees with the lines is reconciled at that balance. Same-day order can differ from the bank's, so only month-ends are compared.
+- **Deposit source** comes from the description when it says (Fiserv, Mudflap, …), else from the bookkeeper's bucket.
+- **Forecast:** patterns are measured from the last day the account moved (a feed that stops short of today no longer reads as weeks of zero cash), and flow no pattern explains (one-off checks with no payee) is carried forward as one switchable line, "Everything else (13-week average)", when it is at least 10% of the detected weekly flow and $1,000 a week.
+- **Check-sequence signals** compare only checks inside the 90-day signal window, like every other signal.
+- **Possible duplicates** skip a pair whose two entries each cleared the bank on a line of their own: the money moved twice.
+
 ## 2026-11-27 — Forecourt design
 The CFO asked for "a nice and entertaining design". The generic "Ledger" look (warm paper, serif, vermilion) is replaced by **Forecourt**, the CFO's house direction for the fuel-station portals, with a few playful touches. Class names and DOM structure are unchanged, so every screen and test followed.
 
