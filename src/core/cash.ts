@@ -6,6 +6,7 @@ import type { DraftLine } from './ledger';
 import { addDays, daysBetween } from './dates';
 import { formatMoney } from './money';
 import { bankStoreId } from './bank';
+import { dualCountErrors } from './limits';
 
 export const STAGES: CashStage[] = ['count', 'pickup', 'hq_receipt', 'deposit'];
 export const STAGE_LABEL: Record<CashStage, string> = { count: 'Store count', pickup: 'Operator pickup', hq_receipt: 'HQ receipt', deposit: 'Deposited' };
@@ -84,7 +85,7 @@ function post(books: Books, actor: User, date: string, description: string, line
  * - hq_receipt: HQ recount; any difference to the pickup posts to over/short.
  * Deposits are pooled across bags: see depositBags.
  */
-export function recordCashStep(books: Books, actor: User, input: { storeId: ID; businessDate: string; stage: Exclude<CashStage, 'deposit'>; amount: number; person: string; date?: string; note?: string }): CashBag {
+export function recordCashStep(books: Books, actor: User, input: { storeId: ID; businessDate: string; stage: Exclude<CashStage, 'deposit'>; amount: number; person: string; date?: string; note?: string; second?: { person: string; amount: number } }): CashBag {
   const { storeId, businessDate, stage, amount } = input;
   if (stage === 'count') {
     books.require(actor, 'cash.count', 'record cash counts');
@@ -95,6 +96,7 @@ export function recordCashStep(books: Books, actor: User, input: { storeId: ID; 
   if (!input.person.trim()) errs.push('Say who handled the cash.');
   const store = books.store(storeId);
   if (!store) errs.push('Choose a store.');
+  errs.push(...dualCountErrors(books.state, { stage, amount, businessDate, person: input.person, second: input.second }));
   if (errs.length) throw new ValidationError(errs);
   let bag = findBag(books.state, storeId, businessDate);
   const idx = STAGES.indexOf(stage);
@@ -134,6 +136,7 @@ export function recordCashStep(books: Books, actor: User, input: { storeId: ID; 
     }
   }
   const ev: CashEvent = { id: books.nextId('ce'), stage, amount, person: input.person.trim(), at: date + books.clock().slice(10), note: input.note?.trim() || undefined, txnId: txn?.id };
+  if (input.second) ev.second = { person: input.second.person.trim(), amount: input.second.amount, at: books.clock(), by: actor.id };
   bag.events.push(ev);
   books.audit(actor, { action: stage, objectType: 'cash', objectId: bag.id, summary: `${STAGE_LABEL[stage]} ${label}: ${formatMoney(amount, { dollarSign: true })} by ${ev.person}`, after: ev });
   books.changed();

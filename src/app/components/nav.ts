@@ -160,6 +160,19 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: 'Controls',
+    items: [
+      { label: 'Overview', to: '/controls' },
+      { label: 'Approval limits', to: '/controls/limits' },
+      { label: 'Segregation of duties', to: '/controls/sod' },
+      { label: 'Cash controls', to: '/controls/cash' },
+      { label: 'Fraud signals', to: '/controls/fraud' },
+      { label: 'Risk & insurance', to: '/controls/risk' },
+      { label: 'UST compliance', to: '/controls/ust' },
+      { label: 'Security & backups', to: '/controls/security' },
+    ],
+  },
+  {
     title: 'Setup',
     items: [
       { label: 'Stores', to: '/setup/stores' },

@@ -33,6 +33,8 @@ import { emptyGl } from '../core/journals';
 import { emptyQbo } from '../core/qbo';
 import { seedJournals } from './seed-journals';
 import { seedQbo } from './seed-qbo';
+import { emptyControls } from '../core/controls';
+import { seedControls } from './seed-controls';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -70,6 +72,8 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedReports,
   seedInside, seedKitchen,
   seedBudgets, seedClose,
+  // Phase 14: limits, risk register, UST tests and the control exceptions the demo should show.
+  seedControls,
   // Phase 10 last: account recs are signed off against the October balances, and QBO pushes cover every entry.
   seedJournals, seedQbo,
 ];
@@ -180,6 +184,7 @@ export function emptyState(): BooksState {
     close: emptyClose(),
     gl: emptyGl(),
     qbo: emptyQbo(),
+    controls: emptyControls(),
     seq: 0,
   };
 }

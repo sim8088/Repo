@@ -72,7 +72,7 @@ export interface License {
   history: { expiresOn: string; renewedOn: string; by: ID }[];
 }
 
-export type PolicyKind = 'property' | 'general_liability' | 'pollution' | 'workers_comp' | 'auto' | 'umbrella' | 'liquor' | 'other';
+export type PolicyKind = 'property' | 'general_liability' | 'pollution' | 'workers_comp' | 'auto' | 'umbrella' | 'liquor' | 'cyber' | 'other';
 
 export interface InsurancePolicy {
   id: ID;

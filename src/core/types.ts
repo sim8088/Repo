@@ -4,6 +4,8 @@ import type { ComplianceState } from './complianceTypes';
 import type { AssetsState } from './assetTypes';
 export type * from './complianceTypes';
 export type * from './assetTypes';
+import type { ControlsState } from './controlsTypes';
+export type * from './controlsTypes';
 import type { InsideState, KitchenState } from './insideTypes';
 
 export type ID = string;
@@ -72,6 +74,9 @@ export interface Party {
   defaultStoreId?: ID;
   is1099?: boolean;
   notes?: string;
+  /** Phase 14: where we pay them, for duplicate-vendor and bank-change checks. Illustrative values only. */
+  bankAccount?: string;
+  address?: string;
   deleted?: boolean;
 }
 
@@ -162,7 +167,7 @@ export interface AuditEntry {
   userId: ID;
   action: string;
   objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people' | 'fuel'
-    | 'bill' | 'intercompany' | 'receivable' | 'report' | 'inside' | 'kitchen' | 'compliance' | 'document' | 'asset' | 'loan' | 'budget' | 'close' | 'journal' | 'recon' | 'qbo';
+    | 'bill' | 'intercompany' | 'receivable' | 'report' | 'inside' | 'kitchen' | 'compliance' | 'document' | 'asset' | 'loan' | 'budget' | 'close' | 'journal' | 'recon' | 'qbo' | 'controls';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -235,6 +240,8 @@ export interface CashEvent {
   note?: string;
   /** The ledger transaction this step posted, if any. */
   txnId?: ID;
+  /** Phase 14 dual count: a second person counted the same cash. */
+  second?: { person: string; amount: Cents; at: string; by: ID };
 }
 
 /** One store's register cash for one business day, followed from count to bank. */
@@ -478,6 +485,8 @@ export interface BooksState {
   gl: GlState;
   /** QuickBooks Online sync (phase 10). Read it through `qboOf(state)`. */
   qbo: QboState;
+  /** Controls & risk (phase 14). Older books lack it: read it through `controlsOf(state)`. */
+  controls?: ControlsState;
 }
 
 // ── Reports (phase 4) ──────────────────────────────────────────────────
@@ -542,6 +551,9 @@ export interface Employee {
   paidBy: EmployeePayMethod;
   /** The CFO confirmed the new-hire paperwork and rate. New hires without it sit in the inbox. */
   hireReviewed?: { by: ID; at: string };
+  /** Phase 14 ghost-employee check: false = known to be missing (undefined = not recorded). */
+  addressOnFile?: boolean;
+  w4OnFile?: boolean;
   notes?: string;
 }
 

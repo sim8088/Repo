@@ -10,6 +10,7 @@ import {
 import { allocate, formatMoney, parseMoney } from '../../core/money';
 import { addDays, daysBetween, periodOf, shortDate, todayInChicago } from '../../core/dates';
 import { can } from '../../core/permissions';
+import { canApproveKind } from '../../core/limits';
 import { ValidationError } from '../../core/books';
 import { getFile, putFile } from '../../data/storage';
 import { bankStoreId } from '../../core/bank';
@@ -175,12 +176,12 @@ export function BillDetailPage() {
           </section>
           <section className="panel panel-pad" aria-labelledby="nx-h">
             <h2 id="nx-h" style={{ marginBottom: 8 }}>{b.status === 'paid' ? 'Payment' : b.status === 'void' ? 'Void' : 'Next step'}</h2>
-            {b.status === 'draft' && (can(user, 'approve') ? (
+            {b.status === 'draft' && (canApproveKind(state, user, 'bill') ? (
               <>
                 <div className="field" style={{ maxWidth: 520 }}><label htmlFor="bd-note">Approval note (optional)</label><input id="bd-note" value={note} onChange={(e) => setNote(e.target.value)} /></div>
                 <div className="actions" style={{ marginTop: 10 }}>
                   <button className="btn primary" onClick={() => run(() => { const t = approveBill(books, user, b.id, note); return `Approved. Posted ${t.ref} to Accounts payable.`; })}>Approve bill</button>
-                  <button className="btn ghost" onClick={() => setMode(mode === 'reject' ? null : 'reject')} aria-expanded={mode === 'reject'}>Reject…</button>
+                  {can(user, 'approve') && <button className="btn ghost" onClick={() => setMode(mode === 'reject' ? null : 'reject')} aria-expanded={mode === 'reject'}>Reject…</button>}
                 </div>
                 {mode === 'reject' && <div className="actions" style={{ marginTop: 10, alignItems: 'flex-end' }}><div className="field" style={{ width: 320 }}><label htmlFor="bd-rr">Why reject?</label><input id="bd-rr" value={reason} onChange={(e) => setReason(e.target.value)} /></div><button className="btn danger sm" onClick={() => run(() => { rejectBill(books, user, b.id, reason); return 'Rejected.'; })}>Reject bill</button></div>}
               </>

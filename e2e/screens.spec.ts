@@ -36,6 +36,10 @@ const ROUTES = [
   '/books/consolidation', '/books/consolidation?asOf=2026-10-31',
   '/qbo', '/qbo/mapping', '/qbo/mapping?tab=classes', '/qbo/mapping?tab=parties&show=unmapped', '/qbo/sync', '/qbo/sync?tab=pull', '/qbo/sync?tab=tb&entity=ent_hm11&period=2026-10',
   '/qbo/differences', '/qbo/differences?entity=ent_hm11&period=2026-10&all=1', '/qbo/log',
+  // Phase 14: Controls & risk
+  '/controls', '/controls/limits', '/controls/sod', '/controls/sod?tab=all', '/controls/cash', '/controls/fraud', '/controls/fraud?show=all&kind=check_sequence',
+  '/controls/fraud?tab=pos', '/controls/fraud?tab=driveoffs', '/controls/risk', '/controls/risk?tab=coverage', '/controls/risk?tab=claims',
+  '/controls/ust', '/controls/ust?tab=release', '/controls/ust?tab=documents', '/controls/security',
 ];
 
 async function open(page: Page, route: string) {
@@ -631,7 +635,7 @@ test('account reconciliations: review one, prepare one with its document, and a 
   await page.getByRole('button', { name: 'Sign as reviewer' }).click();
   await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Signed off');
   await open(page, '/books/recons/acct_owner_capital?period=2026-10');
-  await page.getByLabel('Balance per support').fill('1,750,400.00');
+  await page.getByLabel('Balance per support').fill('1,690,214.06'); // opening capital less the Phase 9 HM15 equipment-note opening
   await page.getByLabel('What it is').fill('Capital account statement');
   await page.locator('input[type=file]').setInputFiles({ name: 'capital.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 demo') });
   await expect(page.getByText('capital.pdf')).toBeVisible();
@@ -679,4 +683,79 @@ test('QuickBooks: differences are explained; push the held entry; import a QBO t
   await expect(page.locator('td', { hasText: 'Not explained' }).first()).toBeVisible();
   await open(page, '/qbo/log');
   await expect(page.locator('td', { hasText: 'Imported the QBO trial balance for HM13 2026-10' })).toBeVisible();
+});
+
+test('controls: a bookkeeper approving a bill above their limit is refused, and the message names who can', async ({ page }) => {
+  await open(page, '/controls/limits');
+  await page.getByLabel('Bookkeeper limit for bills').fill('1,000');
+  await page.getByRole('button', { name: 'Save limits' }).click();
+  await expect(page.getByText('Approval limits saved.')).toBeVisible();
+  await page.locator('#acting-as').selectOption('usr_bk');
+  await open(page, '/approvals');
+  await page.getByRole('button', { name: 'Approve Kitchen equipment service (demo) · invoice KS-3318' }).click();
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('over your $1,000.00 limit for bills');
+  await expect(alert).toContainText('CFO (CFO / admin)');
+  await expect(alert).toContainText('Owner (demo) (Owner)');
+  await expect(page.getByRole('link', { name: 'Kitchen equipment service (demo) · invoice KS-3318' })).toBeVisible();
+  await axe(page, 'approval refused');
+  await page.locator('#acting-as').selectOption('usr_owner');
+  await open(page, '/approvals');
+  await page.getByRole('button', { name: 'Approve Kitchen equipment service (demo) · invoice KS-3318' }).click();
+  await expect(page.getByText(/Approved Kitchen equipment service/)).toBeVisible();
+});
+
+test('controls: dismiss a fraud signal with a reason; it leaves the open list and the reason is kept', async ({ page }) => {
+  await open(page, '/controls/fraud?kind=round_dollar');
+  const title = 'Outside CPA firm: 3 round-dollar payments';
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await expect(page.locator('section', { has: page.getByRole('heading', { name: title }) }).locator('.tie.ok', { hasText: 'Evidence rows add to the stated amount' })).toBeVisible();
+  await page.getByRole('button', { name: `Dismiss ${title}` }).click();
+  await page.getByLabel('What did you find?').fill('Monthly bookkeeping retainer per the engagement letter');
+  await page.getByRole('button', { name: 'Confirm dismiss' }).click();
+  await expect(page.getByText('Dismissed. The reason is in the audit log.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: title })).toHaveCount(0);
+  await open(page, '/controls/fraud?kind=round_dollar&show=dismissed');
+  await expect(page.getByText(/Monthly bookkeeping retainer per the engagement letter/)).toBeVisible();
+  await axe(page, 'dismissed signal');
+  await open(page, '/setup/audit');
+  await expect(page.getByText(/Dismissed fraud signal round_dollar:pt_cpa/).first()).toBeVisible();
+});
+
+test('controls: download a backup, see it in the export log, and restore it after a preview', async ({ page }) => {
+  await open(page, '/controls/security');
+  await expect(page.getByText('Requires hosted back end').first()).toBeVisible();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download backup' }).click()]);
+  expect(dl.suggestedFilename()).toMatch(/^cfo-portal-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  const path = await dl.path();
+  const fs = await import('node:fs');
+  const text = fs.readFileSync(path!, 'utf8');
+  expect(JSON.parse(text).format).toBe('cfo-portal-backup');
+  await expect(page.locator('td', { hasText: /full books backup \(JSON\)/ }).first()).toBeVisible();
+  await page.locator('#bk-file').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(text) });
+  await expect(page.getByRole('heading', { name: 'Preview: backup.json' })).toBeVisible();
+  await axe(page, 'restore preview');
+  await page.getByRole('button', { name: 'Replace the books with this backup' }).click();
+  await expect(page.getByRole('alert')).toContainText('Type RESTORE to confirm');
+  await page.getByLabel('Type RESTORE to confirm').fill('RESTORE');
+  await page.getByRole('button', { name: 'Replace the books with this backup' }).click();
+  await expect(page.getByText(/Books restored from the backup/)).toBeVisible();
+});
+
+test('controls: blind HQ count hides the pickup amount until HQ records what it counted', async ({ page }) => {
+  await open(page, '/controls/cash');
+  await page.getByLabel(/Blind HQ counts/).check();
+  await page.getByRole('button', { name: 'Save cash controls' }).click();
+  await expect(page.getByText('Cash controls saved.')).toBeVisible();
+  await open(page, '/cash?date=2026-11-26');
+  const row = page.locator('tr', { hasText: 'HM13' }).first();
+  await row.getByLabel('Operator pickup amount').fill('100.00');
+  await row.getByRole('button', { name: 'Record' }).click();
+  await expect(row.getByText('Sealed bag · amount hidden for the blind HQ count')).toBeVisible();
+  await row.getByRole('button', { name: 'Record' }).click();
+  await expect(page.getByText(/Blind count: enter what you counted/)).toBeVisible();
+  await row.getByLabel('HQ receipt amount').fill('100.00');
+  await row.getByRole('button', { name: 'Record' }).click();
+  await expect(row.getByText('Sealed bag · amount hidden for the blind HQ count')).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: /Deposit HM13 2026-11-26/ })).toBeVisible();
 });

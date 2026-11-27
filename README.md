@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask) and 10 (GL toolkit & QuickBooks). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask), 10 (GL toolkit & QuickBooks) and 14 (Controls & risk). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -62,6 +62,7 @@ src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (Ind
   recons.ts      phase 10: monthly account reconciliations with subledger support and sign-offs
   consolidation.ts  phase 10: consolidated trial balance with elimination entries
   qbo.ts         phase 10: QuickBooks connector interface, file connector, mapping, pull, push, differences
+  limits.ts, controls.ts   phase 14: approval limits (one central check), segregation of duties, cash controls, fraud signals, risk & insurance, UST, backup / restore (seed-controls.ts)
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
@@ -188,6 +189,19 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | QuickBooks | Pluggable connector with a working file connector (the live API needs the hosted back end): connections per entity, mapping with suggestions, pull with de-dupe and batch ids, push of approved entries and monthly summaries as a QBO journal CSV with QBO ids (never into a locked month), differences report with causes and a $5 alert, sync log. |
 | Inbox | Journal entries awaiting approval, recurring entries and reversals due, account recs not signed off after month end, QBO differences over $5, unmapped accounts. |
 
+## What Phase 14 adds
+
+| Area | What works |
+|---|---|
+| Approval limits | Limits by role and amount for bills, journal entries, write-offs and rate changes, enforced on every approval through one central check; a refusal names who can approve. The journal-entry threshold still decides what needs approval. |
+| Segregation of duties | Enter / approve / pay matrix from roles and limits; conflicts in configuration and in activity (same person entered and approved, approved and paid, counted and received); acknowledgments with a compensating control, which can cover a role's activity. |
+| Cash controls | Second counts above an amount (recorded on the step, optionally enforced), blind HQ counts on the cash chain, deposit timeliness, variance by person and by store with repeated small shortages flagged as a pattern. |
+| Fraud signals | Duplicate vendors, round-dollar payments, just under a limit, voids / refunds by cashier (POS exception CSV import), drive-offs and tank shortfalls, lottery shortages, pay after termination, ghost employees, rate spikes, check gaps, vendor bank changes; each with evidence rows that tie, dismissal with a reason (audited) or escalation with a note. |
+| Risk & insurance | Risk register (likelihood × impact, owner, mitigation, review date), coverage checklist by policy type against the Phase 9 policies with gaps flagged, claims history tied to receivables. |
+| UST compliance | Tightness, line leak detector, cathodic protection and spill tests per tank, inspections and financial responsibility per site, overdue flags, monthly release detection from the tank readings, documents. |
+| Security & backups | Honest status of 2FA / encryption / daily backups (hosted back end), a working local backup and restore (CFO, previewed, audited), the export log and an access review by user. |
+| Inbox | New fraud signals, duty conflicts not acknowledged, UST items overdue, risk reviews due, coverage gaps. |
+
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
@@ -195,6 +209,6 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 - **PDF is the browser's print.** Scheduled reports keep a cadence, but nothing is emailed yet.
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
 - Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
-- Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).
-- Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation, the covenant monitor and the risk register come in phases 11, 12 and 14.
+- Bills: one payment per bill (no partial payments) and no OCR. Approval limits (phase 14) apply to approving; rejecting still needs the approve permission.
+- Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation and the covenant monitor come in phases 11 and 12.
 - QuickBooks syncs by file: the live QBO API (OAuth, webhooks, real ids) needs the hosted back end. Recurring entries and reversals are generated when someone presses the button (the inbox says when), not on a timer.

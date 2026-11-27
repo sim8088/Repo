@@ -11,6 +11,7 @@ import { formatMoney, parseMoney } from '../../core/money';
 import { can } from '../../core/permissions';
 import { ValidationError } from '../../core/books';
 import { bankStoreId } from '../../core/bank';
+import { blindHidden } from '../../core/controls';
 import type { CashBag, CashStage, ID, PayoutKind } from '../../core/types';
 
 const errText = (e: unknown) => (e instanceof ValidationError ? e.errors.join(' ') : (e as Error).message);
@@ -102,9 +103,12 @@ function StageCell({ bag, storeId, date, stage, expected, onMsg }: { bag?: CashB
   const e = bag ? event(bag, stage) : undefined;
   const idx = STAGES.indexOf(stage);
   const prev = idx === 0 ? null : bag ? event(bag, STAGES[idx - 1]) : undefined;
-  const prefill = idx === 0 ? expected : prev?.amount ?? null;
+  // Phase 14 blind HQ count: the pickup amount stays hidden until HQ records what it counted.
+  const blind = stage === 'hq_receipt' && blindHidden(state, bag);
+  const prefill = blind ? null : idx === 0 ? expected : prev?.amount ?? null;
   const [amt, setAmt] = useState('');
   const [person, setPerson] = useState(user.name);
+  if (e && stage === 'pickup' && blindHidden(state, bag)) return <div><span className="muted small">Sealed bag · amount hidden for the blind HQ count</span><div className="muted small">{e.person} · {shortDate(e.at.slice(0, 10))}</div></div>;
   if (e) {
     const v = bag ? bagVariances(state, bag).find((x) => x.stage === stage) : undefined;
     return (
@@ -121,7 +125,7 @@ function StageCell({ bag, storeId, date, stage, expected, onMsg }: { bag?: CashB
   const id = `${stage}-${storeId}-${date}`;
   const submit = () => {
     const v = amt.trim() ? parseMoney(amt) : prefill;
-    if (v === null) { onMsg('Enter the amount counted.'); return; }
+    if (v === null) { onMsg(blind ? 'Blind count: enter what you counted. The pickup amount shows once it is recorded.' : 'Enter the amount counted.'); return; }
     try {
       recordCashStep(books, user, { storeId, businessDate: date, stage: stage as Exclude<CashStage, 'deposit'>, amount: v, person, date: stage === 'count' ? date : todayInChicago() < date ? date : todayInChicago() });
       onMsg(`${STAGE_LABEL[stage]} recorded.`);

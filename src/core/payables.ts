@@ -8,6 +8,7 @@ import { formatMoney } from './money';
 import { bankStoreId } from './bank';
 import { balanceAsOf } from './reports';
 import { addForecastSource, forecast, type ForecastEvent } from './forecast';
+import { requireApproval } from './limits';
 
 export const AP = 'acct_ap';
 export const BILL_STATUS_LABEL: Record<Bill['status'], string> = { draft: 'Awaiting approval', approved: 'Approved', scheduled: 'Scheduled', paid: 'Paid', void: 'Void' };
@@ -127,8 +128,9 @@ export function saveBill(books: Books, actor: User, d: BillDraft, id?: ID): Bill
  * journals, otherwise under the person who entered the bill.
  */
 export function approveBill(books: Books, actor: User, id: ID, note?: string): Transaction {
-  books.require(actor, 'approve', 'approve bills');
   const b = getBill(books, id);
+  // Phase 14: approval limits by role and amount (one central check; names who can approve when refused).
+  requireApproval(books, actor, 'bill', billTotal(b), b.ref);
   if (b.status !== 'draft') throw new ValidationError([`${b.ref} is already ${BILL_STATUS_LABEL[b.status].toLowerCase()}.`]);
   const errs = validateBill(books.state, { ...b }, b.id);
   if (errs.length) throw new ValidationError(errs);

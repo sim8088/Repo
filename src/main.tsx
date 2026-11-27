@@ -39,6 +39,7 @@ import { JournalDetailPage, JournalFormPage, JournalsPage } from './app/pages/Jo
 import { ReconDetailPage, ReconsPage } from './app/pages/Recons';
 import { ConsolidationPage } from './app/pages/Consolidation';
 import { QboDifferencesPage, QboLogPage, QboMappingPage, QboStatusPage, QboSyncPage } from './app/pages/Qbo';
+import { ApprovalLimitsPage, CashControlsPage, ControlsOverviewPage, FraudSignalsPage, RiskPage, SecurityPage, SodPage, UstPage } from './app/pages/Controls';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -153,6 +154,14 @@ function App() {
             <Route path="/qbo/sync" element={<QboSyncPage />} />
             <Route path="/qbo/differences" element={<QboDifferencesPage />} />
             <Route path="/qbo/log" element={<QboLogPage />} />
+            <Route path="/controls" element={<ControlsOverviewPage />} />
+            <Route path="/controls/limits" element={<ApprovalLimitsPage />} />
+            <Route path="/controls/sod" element={<SodPage />} />
+            <Route path="/controls/cash" element={<CashControlsPage />} />
+            <Route path="/controls/fraud" element={<FraudSignalsPage />} />
+            <Route path="/controls/risk" element={<RiskPage />} />
+            <Route path="/controls/ust" element={<UstPage />} />
+            <Route path="/controls/security" element={<SecurityPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

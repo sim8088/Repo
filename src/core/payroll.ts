@@ -10,6 +10,7 @@ import { formatMoney, parseMoney } from './money';
 import { bankStoreId } from './bank';
 import { parseDate, splitCsv } from './bankio';
 import { recordPayout } from './cash';
+import { requireApproval } from './limits';
 
 export const ACCT = { wages: 'acct_wages', taxes: 'acct_payroll_taxes', bank: 'acct_trustmark' } as const;
 export const WOW_THRESHOLD = 0.15;
@@ -149,6 +150,11 @@ export function confirmHire(books: Books, actor: User, id: ID): void {
   books.changed();
 }
 
+/** Phase 14: a rate change's yearly cost: per hour × 2,080 hours, or per week × 52. */
+export function rateChangeAnnual(r: Pick<RateChange, 'fromCents' | 'toCents'>, e?: Pick<Employee, 'payType'>): number {
+  return Math.abs(r.toCents - r.fromCents) * (e?.payType === 'salary' ? 52 : 2080);
+}
+
 /** Ask for a raise or rate change. It doesn't apply until someone with approval rights approves it. */
 export function requestRateChange(books: Books, actor: User, input: { employeeId: ID; toCents: number; effective: string; reason: string }): RateChange {
   books.require(actor, 'payroll.edit', 'request rate changes');
@@ -172,9 +178,11 @@ export function requestRateChange(books: Books, actor: User, input: { employeeId
 
 /** Approve or reject a pending rate change. Needs the approve permission (CFO or owner). */
 export function decideRateChange(books: Books, actor: User, id: ID, decision: 'approved' | 'rejected', note?: string): RateChange {
-  books.require(actor, 'approve', 'approve rate changes');
   const r = ensure(books).rateChanges.find((x) => x.id === id);
   if (!r) throw new ValidationError(['That rate change no longer exists.']);
+  // Phase 14: approval limits by role and amount (a rate change counts at its yearly cost).
+  const emp = employee(books.state, r.employeeId);
+  requireApproval(books, actor, 'rate_change', rateChangeAnnual(r, emp), `This rate change for ${emp?.name ?? 'the employee'} (a year's cost)`);
   if (r.status !== 'pending') throw new ValidationError([`This rate change was already ${r.status}.`]);
   if (decision === 'rejected' && !note?.trim()) throw new ValidationError(['Say why you are rejecting it, so the requester knows what to change.']);
   const before = structuredClone(r);
