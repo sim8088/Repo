@@ -9,7 +9,7 @@ import type { Books } from './books';
 import { ValidationError } from './books';
 import type {
   Acquisition, AddBack, Attachment, BooksState, CapitalProject, DdItem, DdStatus, Distribution, FixPlan, GrowthSettings, GrowthState, ID, PriorDistributions,
-  ProForma, ProFormaInputs, Rag, RampPlan, Risk, ScoreRecord, SiteFactor, SiteProfile, User, ValuationSnapshot, Financing,
+  ProForma, ProFormaInputs, Rag, RampPlan, RiskLevel, ScoreRecord, SiteFactor, SiteProfile, User, ValuationSnapshot, Financing,
 } from './types';
 import { formatMoney, type Cents } from './money';
 import { addDays, isValidDate, lastDayOfPeriod, periodLabel, periodOf, periodsBetween } from './dates';
@@ -76,7 +76,7 @@ export function ensureGrowth(books: Books): GrowthState {
 export const MODE_LABEL = { buy: 'Buy an existing site', build: 'Build new', lease: 'Lease' } as const;
 export const RAG_LABEL: Record<Rag, string> = { green: 'Green', amber: 'Amber', red: 'Red', na: 'Not enough history' };
 export const RAG_PILL: Record<Rag, string> = { green: 'ok', amber: 'warn', red: 'bad', na: '' };
-export const RISK_FACTOR: Record<Risk, number> = { low: 1, medium: 0.75, high: 0.5 };
+export const RISK_FACTOR: Record<RiskLevel, number> = { low: 1, medium: 0.75, high: 0.5 };
 export const PROJECT_KIND_LABEL: Record<CapitalProject['kind'], string> = { next_store: 'Next store', remodel: 'Remodel', kitchen: 'Kitchen upgrade', ev: 'EV charging', car_wash: 'Car wash', other: 'Other' };
 export const DD_AREA_LABEL: Record<DdItem['area'], string> = { phase1: 'Phase I environmental', phase2: 'Phase II environmental', ust: 'UST compliance', title: 'Title & survey', permits: 'Permits & licenses', supply: 'Supply contract', other: 'Other' };
 export const DD_STATUS_LABEL: Record<DdStatus, string> = { not_started: 'Not started', in_progress: 'In progress', done: 'Done', issue: 'Issue found', na: 'Not needed' };
@@ -910,7 +910,7 @@ export interface CapitalUse {
   amount: Cents;
   /** Expected annual return as a fraction (null: not a return, e.g. a distribution). */
   expectedReturn: number | null;
-  risk: Risk;
+  risk: RiskLevel;
   riskAdjusted: number;
   paybackYears: number | null;
   strategic: number;

@@ -156,16 +156,6 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    title: 'QuickBooks',
-    items: [
-      { label: 'Sync status', to: '/qbo' },
-      { label: 'Mapping', to: '/qbo/mapping' },
-      { label: 'Pull & push', to: '/qbo/sync' },
-      { label: 'Differences report', to: '/qbo/differences' },
-      { label: 'Sync log', to: '/qbo/log' },
-    ],
-  },
-  {
     title: 'Tax',
     items: [
       { label: 'Entity map', to: '/tax' },
@@ -193,6 +183,29 @@ export const NAV: NavGroup[] = [
       { label: 'Owner returns & distributions', to: '/growth/owners' },
       { label: 'Quarterly CFO review', to: '/growth/review' },
       { label: 'Evaluate a deal', to: '/growth/evaluate' },
+    ],
+  },
+  {
+    title: 'QuickBooks',
+    items: [
+      { label: 'Sync status', to: '/qbo' },
+      { label: 'Mapping', to: '/qbo/mapping' },
+      { label: 'Pull & push', to: '/qbo/sync' },
+      { label: 'Differences report', to: '/qbo/differences' },
+      { label: 'Sync log', to: '/qbo/log' },
+    ],
+  },
+  {
+    title: 'Controls',
+    items: [
+      { label: 'Overview', to: '/controls' },
+      { label: 'Approval limits', to: '/controls/limits' },
+      { label: 'Segregation of duties', to: '/controls/sod' },
+      { label: 'Cash controls', to: '/controls/cash' },
+      { label: 'Fraud signals', to: '/controls/fraud' },
+      { label: 'Risk & insurance', to: '/controls/risk' },
+      { label: 'UST compliance', to: '/controls/ust' },
+      { label: 'Security & backups', to: '/controls/security' },
     ],
   },
   {

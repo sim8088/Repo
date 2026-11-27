@@ -6,6 +6,7 @@ import { can } from './permissions';
 import { addDays, isValidDate, lastDayOfPeriod, periodOf, periodsBetween } from './dates';
 import { formatMoney, type Cents } from './money';
 import { flatLines, trialBalance, type FlatLine } from './reports';
+import { requireApproval } from './limits';
 
 // ── State ────────────────────────────────────────────────────────────────
 export function emptyGl(): GlState {
@@ -147,9 +148,10 @@ export function createJournal(books: Books, actor: User, d: JeDraft, opts: { sou
 
 /** Approve a pending entry: it posts on its own date. The approver can't be the preparer. */
 export function approveJournal(books: Books, actor: User, id: ID, note?: string): JournalEntry {
-  books.require(actor, 'approve', 'approve journal entries');
   const je = getJournal(books.state, id);
   if (!je) throw new ValidationError(['That journal entry no longer exists.']);
+  // Phase 14: approval limits by role and amount; write-off templates have their own limit.
+  requireApproval(books, actor, jeLimitKind(je), jeTotal(je.lines), je.ref, [je.preparedBy]);
   if (je.status !== 'pending') throw new ValidationError([`${je.ref} is already ${JE_STATUS_LABEL[je.status].toLowerCase()}.`]);
   if (je.preparedBy === actor.id) throw new ValidationError([`You prepared ${je.ref}, so someone else has to approve it. Ask the CFO or an owner.`]);
   const errs = validateJe(books.state, je);
@@ -421,6 +423,11 @@ export const JE_TEMPLATES: JeTemplate[] = [
 
 export function template(key: string): JeTemplate | undefined {
   return JE_TEMPLATES.find((t) => t.key === key);
+}
+
+/** Phase 14: which approval limit an entry falls under. */
+export function jeLimitKind(je: Pick<JournalEntry, 'templateKey'>): 'journal' | 'writeoff' {
+  return je.templateKey && template(je.templateKey)?.group === 'writeoff' ? 'writeoff' : 'journal';
 }
 
 export function corpStoreId(state: BooksState): ID {

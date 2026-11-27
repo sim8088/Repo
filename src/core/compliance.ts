@@ -16,7 +16,7 @@ export const LICENSE_LABEL: Record<LicenseKind, string> = {
   beer: 'Beer & light wine', tobacco: 'Tobacco', food_service: 'Food service', ust: 'UST / environmental', business: 'Business license', lottery: 'Lottery retailer', other: 'Other',
 };
 export const POLICY_LABEL: Record<PolicyKind, string> = {
-  property: 'Property', general_liability: 'General liability', pollution: 'Pollution / UST liability', workers_comp: "Workers' comp", auto: 'Auto', umbrella: 'Umbrella', liquor: 'Liquor liability', other: 'Other',
+  property: 'Property', general_liability: 'General liability', pollution: 'Pollution / UST liability', workers_comp: "Workers' comp", auto: 'Auto', umbrella: 'Umbrella', liquor: 'Liquor liability', cyber: 'Cyber', other: 'Other',
 };
 export const NOTICE_STATUS_LABEL: Record<NoticeStatus, string> = { open: 'Open', in_progress: 'Working on it', responded: 'Responded', closed: 'Closed' };
 /** Reminders reach the inbox this many days before the due date. */

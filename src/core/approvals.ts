@@ -1,5 +1,5 @@
 import type { Books } from './books';
-import type { BooksState, ID, User } from './types';
+import type { BooksState, ID, LimitKind, User } from './types';
 import type { Cents } from './money';
 import type { Permission } from './permissions';
 import { approveBill, awaitingApproval, billTotal, rejectBill, vendorName } from './payables';
@@ -27,6 +27,8 @@ export interface ApprovalProvider {
   kind: string;
   label: string;
   permission: Permission;
+  /** Phase 14: the approval limit this kind falls under (who may approve, and how much). */
+  limitKind?: LimitKind;
   list: (state: BooksState) => ApprovalItem[];
   approve: (books: Books, actor: User, id: ID, note?: string) => void;
   reject: (books: Books, actor: User, id: ID, reason: string) => void;
@@ -36,6 +38,7 @@ const bills: ApprovalProvider = {
   kind: 'bill',
   label: 'Bills',
   permission: 'approve',
+  limitKind: 'bill',
   list: (state) => awaitingApproval(state).map((b) => ({
     kind: 'bill', id: b.id, title: `${vendorName(state, b.vendorId)} · invoice ${b.invoiceNo}`,
     detail: `${state.stores.find((s) => s.id === b.storeId)?.code ?? ''} · billed ${b.billDate} · due ${b.dueDate}${b.autopay ? ' · autopay' : ''}${b.lines.length > 1 ? ` · ${b.lines.length} lines` : ''}`,
@@ -50,6 +53,7 @@ const journals: ApprovalProvider = {
   kind: 'journal',
   label: 'Journal entries',
   permission: 'approve',
+  limitKind: 'journal',
   list: (state) => pendingJournals(state).map((j) => ({
     kind: 'journal', id: j.id, title: `${j.ref} · ${j.description}`,
     detail: `${j.date}${j.adjusting ? ' · adjusting' : ''}${j.reverseOn ? ` · reverses ${j.reverseOn}` : ''} · ${j.lines.length} lines · over the ${(state.settings.jeApprovalLimitCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} limit`,

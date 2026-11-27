@@ -42,6 +42,7 @@ import { ConsolidationPage } from './app/pages/Consolidation';
 import { QboDifferencesPage, QboLogPage, QboMappingPage, QboStatusPage, QboSyncPage } from './app/pages/Qbo';
 import { AcquisitionsPage, CapitalPage, ComparePage, EvaluateDealPage, OwnersPage, ProFormaPage, QuarterlyReviewPage, ReadinessPage, SitesPage, ValuationPage } from './app/pages/Growth';
 import { BookToTaxPage, CpaPackagePage, SalesTaxPage, TaxCalendarPage, TaxDepreciationPage, TaxEntitiesPage, TaxEstimatesPage, TaxMethodsPage, TaxOwnersPage, TaxPlanningPage } from './app/pages/Tax';
+import { ApprovalLimitsPage, CashControlsPage, ControlsOverviewPage, FraudSignalsPage, RiskPage, SecurityPage, SodPage, UstPage } from './app/pages/Controls';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -184,6 +185,14 @@ function App() {
             <Route path="/growth/owners" element={<OwnersPage />} />
             <Route path="/growth/review" element={<QuarterlyReviewPage />} />
             <Route path="/growth/evaluate" element={<EvaluateDealPage />} />
+            <Route path="/controls" element={<ControlsOverviewPage />} />
+            <Route path="/controls/limits" element={<ApprovalLimitsPage />} />
+            <Route path="/controls/sod" element={<SodPage />} />
+            <Route path="/controls/cash" element={<CashControlsPage />} />
+            <Route path="/controls/fraud" element={<FraudSignalsPage />} />
+            <Route path="/controls/risk" element={<RiskPage />} />
+            <Route path="/controls/ust" element={<UstPage />} />
+            <Route path="/controls/security" element={<SecurityPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

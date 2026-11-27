@@ -172,7 +172,7 @@ export interface Acquisition {
 
 // ── Capital allocation ──────────────────────────────────────────────────
 export type ProjectKind = 'next_store' | 'remodel' | 'kitchen' | 'ev' | 'car_wash' | 'other';
-export type Risk = 'low' | 'medium' | 'high';
+export type RiskLevel = 'low' | 'medium' | 'high';
 export interface CapitalProject {
   id: ID;
   name: string;
@@ -181,7 +181,7 @@ export interface CapitalProject {
   cost: Cents;
   /** Added cash flow a year once running. */
   annualReturn: Cents;
-  risk: Risk;
+  risk: RiskLevel;
   /** 1 (nice to have) – 5 (core to the plan). */
   strategic: number;
   /** When the spend starts (near-term capex for the safe distribution). */

@@ -751,6 +751,47 @@ export const HELP = {
     steps: ['Pick the deal.', 'Try other financing; the tests re-run as you type.', 'Read the reasons: a failed critical test is a no-go, a failed other test makes it conditional.'],
     tips: ['Thresholds (DSCR and leverage targets, hurdle rate) are the growth settings.'],
   },
+  // Phase 14: controls & risk.
+  controlsOverview: {
+    purpose: 'One line per control: approval limits, segregation of duties, cash, fraud signals, insurance, the tanks and backups, each green, amber or red, with the screen that fixes it.',
+    steps: ['Start with the red lines.', 'Click a line to open its screen.', 'Export the table for the owners\' monthly review.'],
+    tips: ['Counts follow your store access: a store manager sees only their stores.', 'Fraud signals look back 90 days; cash patterns use the window set under Cash controls.'],
+  },
+  controlsLimits: {
+    purpose: 'Who may approve how much, by role, for bills, journal entries, write-offs and rate changes. An approval over the limit is refused and the message names who can approve it.',
+    steps: ['Enter a dollar limit per role and kind. Leave it blank for no limit, or 0 for "can\'t approve".', 'Save. Somebody active must keep no limit for each kind (the CFO or the owner).', 'Check "Approvals given" for anything approved over today\'s limits or by the person who entered it.'],
+    tips: ['The journal-entry threshold under Setup › Settings still decides which entries need approval at all; the limits decide who may give it.', 'Write-offs are journal entries made from a write-off template.', 'A rate change counts at its yearly cost: the change per hour × 2,080 hours, or per week × 52.', 'Store managers and outside accountants never approve.'],
+  },
+  controlsSod: {
+    purpose: 'Segregation of duties: who can enter, approve and pay in each area (from the roles and limits), and who actually did, with conflicts flagged in both.',
+    steps: ['Read the matrix: "All steps" means one role could carry an area from start to finish alone.', 'Work the open conflicts: activity first (one person entered and approved, approved and paid, or counted and received the same bag).', 'Acknowledge a conflict only with the compensating control that covers it. For a role conflict, tick "Also covers this role\'s activity" when the control reviews everything that role does.'],
+    tips: ['A small team will always have some conflicts; the point is that each one has a named control.', 'Acknowledgments are kept with who and when, and written to the audit log.'],
+  },
+  controlsCash: {
+    purpose: 'Cash controls on top of the cash chain: second counts over a set amount, blind HQ counts, deposits within the allowed days, and variance by person and by store.',
+    steps: ['Set the second-count amount and the date it starts; tick "Refuse…" to make the cash chain demand the second counter.', 'Record second counts that are missing from the dual-count list.', 'Turn on blind HQ counts: HQ then sees a sealed bag on the cash chain and enters what it counted before the pickup amount shows.', 'Read the patterns: repeated shortages under $5 by one person are flagged even though each one alone is ignored (SPEC §6.8).'],
+    tips: ['Variance by person and by store add to the same net variance as every handoff (tie-out).', 'Persons are the names typed on each step of the cash chain.'],
+  },
+  controlsFraud: {
+    purpose: 'Fraud signals: duplicate vendors, round-dollar payments, amounts just under a limit, voids and refunds by cashier, drive-offs and tank shortfalls, lottery shortages, pay after termination, ghost employees, sudden rate changes, check gaps and vendor bank changes. Each lists the rows that raised it.',
+    steps: ['Filter by signal or status.', 'Open the evidence rows: each links to the bill, payment, run, bag or tank behind it, and the rows add to the signal\'s amount.', 'Dismiss with what you found (kept in the audit log), or escalate with a note for follow-up.', 'Import a POS exception report (CSV) to turn on voids and refunds by cashier; log drive-offs on the third tab.'],
+    tips: ['A signal that gains a new row (another payment, another week) comes back as a new signal even if the old one was dismissed.', 'There is no cashier-level data in the POS daily close, so the cashier signal needs the import.'],
+  },
+  controlsRisk: {
+    purpose: 'The risk register (likelihood × impact, owner, mitigation, review date), the coverage checklist by policy type against the policies on file, and the claims history.',
+    steps: ['Add or edit risks; review each by its date. Due and overdue reviews reach the inbox.', 'Coverage checklist: property, general liability, liquor, pollution / UST, workers\' comp, umbrella, cyber and auto. A gap is a required cover with no policy in force, a site left out, or a limit under the minimum.', 'Claims: record each loss and follow it to payment; open claims tie to their insurance receivable.'],
+    tips: ['Policies themselves (carrier, terms, premiums, documents) live under Compliance › Insurance & leases; this screen reads them.', 'A package policy can satisfy another line (e.g. general liability) when the checklist lists it.'],
+  },
+  controlsUst: {
+    purpose: 'Environmental / UST compliance per tank and site: tightness tests, line leak detectors, cathodic protection, spill and overfill, inspections and financial responsibility, plus monthly release detection from the tank readings.',
+    steps: ['Work the rows that need attention: overdue, failed or with no record.', 'Record each test with its result and attach the report.', 'Check release detection each month: a failing tank means investigate for a leak and report on the state\'s timeline.', 'Documents: financial responsibility comes from the pollution / UST policy; permits and the UST fee report are under Compliance.'],
+    tips: ['Intervals are illustrative standard ones (line tests and detectors yearly, cathodic protection and spill tests every 3 years, tank tightness every 5); set your state\'s rules if they differ.', 'Release detection uses the same book-to-physical as Fuel › Tanks.'],
+  },
+  controlsSecurity: {
+    purpose: 'Security & safety (SPEC §10), honest about this single-device phase: what is in place, what needs the hosted back end, backup and restore, the export log and an access review by user.',
+    steps: ['Download a backup at least weekly and keep it off this device.', 'To restore (CFO only): choose the file, read the preview of what changes, type RESTORE and confirm. The restore is written to the audit log.', 'Review the access table: who sees which stores, who approves how much, and anything flagged.'],
+    tips: ['2FA, encryption at rest and daily automatic backups need the hosted back end; the plan for each is listed.', 'Every export, including the backup itself, is in the export log.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

@@ -22,7 +22,7 @@ import { formatMoney, parseMoney } from '../../core/money';
 import { can } from '../../core/permissions';
 import { ValidationError } from '../../core/books';
 import { xlsx } from '../../core/xlsx';
-import type { Acquisition, CapitalLine, CapitalProject, DdStatus, Financing, ID, ProForma, ProFormaInputs, Rag, Risk, SiteFactor, SiteProfile } from '../../core/types';
+import type { Acquisition, CapitalLine, CapitalProject, DdStatus, Financing, ID, ProForma, ProFormaInputs, Rag, RiskLevel, SiteFactor, SiteProfile } from '../../core/types';
 
 const errList = (e: unknown) => (e instanceof ValidationError ? e.errors : [(e as Error).message]);
 const usd = (c: number) => formatMoney(c, { dollarSign: true, whole: true });
@@ -629,7 +629,7 @@ export function AcquisitionsPage() {
 }
 
 // ── Capital allocation ──────────────────────────────────────────────────
-const BLANK_PROJECT = { name: '', kind: 'remodel' as CapitalProject['kind'], storeId: '', cost: '', ret: '', risk: 'medium' as Risk, strategic: '3', start: '', status: 'idea' as CapitalProject['status'] };
+const BLANK_PROJECT = { name: '', kind: 'remodel' as CapitalProject['kind'], storeId: '', cost: '', ret: '', risk: 'medium' as RiskLevel, strategic: '3', start: '', status: 'idea' as CapitalProject['status'] };
 export function CapitalPage() {
   const { state, books, user, version, entries, today, ok, edit, code } = useGrowth();
   const [toast, say] = useToast();
@@ -679,7 +679,7 @@ export function CapitalPage() {
             <div className="field"><label htmlFor="cp-store">Store</label><select id="cp-store" value={f.storeId} onChange={(e) => setF({ ...f, storeId: e.target.value })}><option value="">Company</option>{state.stores.filter((s) => s.kind === 'operating').map((s) => <option key={s.id} value={s.id}>{code(s.id)}</option>)}</select></div>
             <Field id="cp-cost" label="Cost" value={f.cost} onChange={(v) => setF({ ...f, cost: v })} />
             <Field id="cp-ret" label="Added cash flow a year" value={f.ret} onChange={(v) => setF({ ...f, ret: v })} />
-            <div className="field"><label htmlFor="cp-risk">Risk</label><select id="cp-risk" value={f.risk} onChange={(e) => setF({ ...f, risk: e.target.value as Risk })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+            <div className="field"><label htmlFor="cp-risk">Risk</label><select id="cp-risk" value={f.risk} onChange={(e) => setF({ ...f, risk: e.target.value as RiskLevel })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
             <Field id="cp-str" label="Strategic value (1–5)" value={f.strategic} onChange={(v) => setF({ ...f, strategic: v })} />
             <Field id="cp-start" label="Spend starts (YYYY-MM-DD)" num={false} value={f.start} onChange={(v) => setF({ ...f, start: v })} />
             <div className="field"><label htmlFor="cp-status">Status</label><select id="cp-status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value as CapitalProject['status'] })}><option value="idea">Idea</option><option value="approved">Approved</option><option value="in_progress">In progress</option><option value="done">Done</option><option value="declined">Declined</option></select></div>

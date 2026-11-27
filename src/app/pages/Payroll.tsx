@@ -9,6 +9,7 @@ import {
 import { addDays, shortDate } from '../../core/dates';
 import { formatMoney } from '../../core/money';
 import { can } from '../../core/permissions';
+import { canApproveKind } from '../../core/limits';
 import { ValidationError } from '../../core/books';
 import type { BooksState, ID, PayrollRun, RateChange } from '../../core/types';
 
@@ -345,7 +346,7 @@ export function RateApprovals({ list, onMsg }: { list: RateChange[]; onMsg: (m: 
   const { state, books, user } = useBooks();
   const [notes, setNotes] = useState<Record<ID, string>>({});
   if (!list.length) return <p className="panel-pad muted">No rate changes waiting for approval.</p>;
-  const canApprove = can(user, 'approve');
+  const canApprove = canApproveKind(state, user, 'rate_change');
   return (
     <ul className="inbox">{list.map((r) => {
       const e = employee(state, r.employeeId);
