@@ -171,6 +171,21 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: 'Growth',
+    items: [
+      { label: 'Expansion readiness', to: '/growth/readiness' },
+      { label: 'Sites', to: '/growth/sites' },
+      { label: 'Pro forma', to: '/growth/pro-forma' },
+      { label: 'Buy / build / lease', to: '/growth/compare' },
+      { label: 'Acquisitions', to: '/growth/acquisitions' },
+      { label: 'Capital allocation', to: '/growth/capital' },
+      { label: 'Valuation', to: '/growth/valuation' },
+      { label: 'Owner returns & distributions', to: '/growth/owners' },
+      { label: 'Quarterly CFO review', to: '/growth/review' },
+      { label: 'Evaluate a deal', to: '/growth/evaluate' },
+    ],
+  },
+  {
     title: 'QuickBooks',
     items: [
       { label: 'Sync status', to: '/qbo' },

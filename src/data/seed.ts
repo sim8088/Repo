@@ -37,6 +37,8 @@ import { seedDebt } from './seed-debt';
 import { emptyDebt } from '../core/debt';
 import { seedTax } from './seed-tax';
 import { emptyTax } from '../core/tax';
+import { seedGrowth } from './seed-growth';
+import { emptyGrowth } from '../core/growth';
 import { emptyControls } from '../core/controls';
 import { seedControls } from './seed-controls';
 
@@ -78,6 +80,7 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedInside, seedKitchen,
   seedBudgets, seedClose,
   seedDebt,
+  seedGrowth,
   // Phase 14: limits, risk register, UST tests and the control exceptions the demo should show.
   seedControls,
   // Phase 10 last: account recs are signed off against the October balances, and QBO pushes cover every entry.
@@ -185,6 +188,7 @@ export function emptyState(): BooksState {
     assets: emptyAssets(),
     debt: emptyDebt(),
     tax: emptyTax(),
+    growth: emptyGrowth(),
     reports: emptyReports(),
     inside: emptyInside(),
     kitchen: emptyKitchen(),

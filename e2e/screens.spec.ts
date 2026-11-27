@@ -40,6 +40,9 @@ const ROUTES = [
   '/debt/paydown', '/debt/reserve', '/debt/related-party',
   '/tax', '/tax/calendar', '/tax/calendar?show=open', '/tax/sales-tax', '/tax/sales-tax?period=2026-10', '/tax/book-to-tax', '/tax/book-to-tax?entity=ent_hm14', '/tax/depreciation',
   '/tax/methods', '/tax/estimates', '/tax/owners', '/tax/planning', '/tax/planning?entity=ent_hm14', '/tax/cpa',
+  // Phase 13: growth & owners
+  '/growth/readiness', '/growth/sites', '/growth/pro-forma', '/growth/compare', '/growth/acquisitions', '/growth/capital', '/growth/valuation',
+  '/growth/owners', '/growth/review', '/growth/evaluate', '/growth/compare?site=none', '/growth',
   // Phase 14: Controls & risk
   '/controls', '/controls/limits', '/controls/sod', '/controls/sod?tab=all', '/controls/cash', '/controls/fraud', '/controls/fraud?show=all&kind=check_sequence',
   '/controls/fraud?tab=pos', '/controls/fraud?tab=driveoffs', '/controls/risk', '/controls/risk?tab=coverage', '/controls/risk?tab=claims',
@@ -758,6 +761,57 @@ test('tax: record the Corporate estimate due within 14 days; it posts through th
   await expect(page.locator('.tie.ok', { hasText: 'Payments made by an entity agree with their entries in the books (2)' })).toBeVisible();
   await card.getByRole('link', { name: /^TX-/ }).last().click();
   await expect(page.getByText('6250 · Income & franchise taxes (entity level)')).toBeVisible();
+});
+
+test('growth: evaluate a deal end to end: pro forma → financing → company impact → go / no-go', async ({ page }) => {
+  await open(page, '/growth/readiness');
+  await expect(page.locator('.tie.ok', { hasText: 'Overall follows the rule' })).toBeVisible();
+  await expect(page.locator('tr', { hasText: '3 quarters of stable or growing same-store profit' })).toContainText('Not enough history');
+  await open(page, '/growth/pro-forma');
+  await expect(page.locator('.tie.ok', { hasText: 'Every annual total = the sum of its 12 months' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'NPV of the levered flows at the levered IRR is zero' })).toBeVisible();
+  await open(page, '/growth/evaluate');
+  await page.getByLabel('Deal', { exact: true }).selectOption({ label: 'HM19 build – Prospect A (build)' });
+  const decision = page.locator('.figure', { hasText: 'Decision' }).locator('.value');
+  await expect(decision).toHaveText('Go, with conditions');
+  await expect(page.locator('tr', { hasText: 'Equity available above the reserve' }).locator('.pill')).toHaveText('Fail');
+  await expect(page.locator('.tie.ok', { hasText: 'DSCR after = (EBITDA + deal year 1)' })).toBeVisible();
+  // Expensive money breaks the hurdle: no go.
+  await page.getByLabel('Rate %').fill('16');
+  await expect(decision).toHaveText('No go');
+  await expect(page.locator('tr', { hasText: 'Levered IRR at or above' }).locator('.pill')).toHaveText('Fail');
+  await page.getByLabel('Rate %').fill('7');
+  await expect(decision).toHaveText('Go, with conditions');
+  // The acquisition, from its own screen.
+  await open(page, '/growth/acquisitions');
+  await expect(page.locator('.tie.ok', { hasText: 'Normalized = reported + add-backs + perks − normalizations' })).toBeVisible();
+  await page.getByRole('link', { name: 'Evaluate this deal' }).click();
+  await expect(page.locator('h1')).toHaveText('Evaluate a deal');
+  await expect(page.locator('tr', { hasText: 'Fuel volume verified against supplier statements' }).locator('.pill')).toHaveText('Fail');
+  await expect(page.locator('tr', { hasText: 'No open due-diligence issue' }).locator('.pill')).toHaveText('Pass');
+});
+
+test('growth: record an owner distribution and see it tie to the ledger', async ({ page }) => {
+  await open(page, '/growth/owners');
+  await expect(page.locator('.tie.ok', { hasText: 'Cash − reserve − capex − tax − cushion = safe distribution' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Every recorded distribution is posted to 3100 for its amount' })).toBeVisible();
+  const ytd = page.locator('tr', { hasText: 'Owner B' }).first().locator('td').nth(2);
+  await expect(ytd).toHaveText('8,000.00');
+  await page.getByLabel('Owner', { exact: true }).selectOption({ label: 'Owner B' });
+  await page.getByLabel('Amount', { exact: true }).fill('1,500.00');
+  await page.getByRole('button', { name: 'Post distribution' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Posted TX-' })).toBeVisible();
+  await expect(ytd).toHaveText('9,500.00');
+  await expect(page.locator('.tieout > span', { hasText: 'Every recorded distribution is posted to 3100 for its amount' })).toContainText('$21,500.00 recorded, $21,500.00 in 3100');
+  await expect(page.locator('.tie.ok', { hasText: 'Books YTD ties to the owner draws in the ledger' })).toBeVisible();
+  // Above the safe amount needs a reason.
+  await page.getByLabel('Amount', { exact: true }).fill('900,000.00');
+  await expect(page.getByLabel('Reason to go above the safe amount')).toBeVisible();
+  await page.getByRole('button', { name: 'Post distribution' }).click();
+  await expect(page.getByRole('alert')).toContainText('above the safe distribution');
+  await page.getByLabel('Amount', { exact: true }).fill('');
+  await page.locator('tr', { hasText: 'Owner B' }).getByRole('link', { name: /^TX-/ }).first().click();
+  await expect(page.getByText('3100 · Owner draws')).toBeVisible();
 });
 
 test('controls: a bookkeeper approving a bill above their limit is refused, and the message names who can', async ({ page }) => {

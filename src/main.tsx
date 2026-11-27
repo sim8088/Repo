@@ -44,6 +44,7 @@ import { JournalDetailPage, JournalFormPage, JournalsPage } from './app/pages/Jo
 import { ReconDetailPage, ReconsPage } from './app/pages/Recons';
 import { ConsolidationPage } from './app/pages/Consolidation';
 import { QboDifferencesPage, QboLogPage, QboMappingPage, QboStatusPage, QboSyncPage } from './app/pages/Qbo';
+import { AcquisitionsPage, CapitalPage, ComparePage, EvaluateDealPage, OwnersPage, ProFormaPage, QuarterlyReviewPage, ReadinessPage, SitesPage, ValuationPage } from './app/pages/Growth';
 import { BookToTaxPage, CpaPackagePage, SalesTaxPage, TaxCalendarPage, TaxDepreciationPage, TaxEntitiesPage, TaxEstimatesPage, TaxMethodsPage, TaxOwnersPage, TaxPlanningPage } from './app/pages/Tax';
 import { ApprovalLimitsPage, CashControlsPage, ControlsOverviewPage, FraudSignalsPage, RiskPage, SecurityPage, SodPage, UstPage } from './app/pages/Controls';
 
@@ -177,6 +178,17 @@ function App() {
             <Route path="/tax/owners" element={<TaxOwnersPage />} />
             <Route path="/tax/planning" element={<TaxPlanningPage />} />
             <Route path="/tax/cpa" element={<CpaPackagePage />} />
+            <Route path="/growth" element={<ReadinessPage />} />
+            <Route path="/growth/readiness" element={<ReadinessPage />} />
+            <Route path="/growth/sites" element={<SitesPage />} />
+            <Route path="/growth/pro-forma" element={<ProFormaPage />} />
+            <Route path="/growth/compare" element={<ComparePage />} />
+            <Route path="/growth/acquisitions" element={<AcquisitionsPage />} />
+            <Route path="/growth/capital" element={<CapitalPage />} />
+            <Route path="/growth/valuation" element={<ValuationPage />} />
+            <Route path="/growth/owners" element={<OwnersPage />} />
+            <Route path="/growth/review" element={<QuarterlyReviewPage />} />
+            <Route path="/growth/evaluate" element={<EvaluateDealPage />} />
             <Route path="/controls" element={<ControlsOverviewPage />} />
             <Route path="/controls/limits" element={<ApprovalLimitsPage />} />
             <Route path="/controls/sod" element={<SodPage />} />

@@ -700,6 +700,57 @@ export const HELP = {
     steps: ['Pick the year.', 'Check the tie-outs, then Download ZIP.', 'Print the index to send with it.'],
     tips: ['Each file opens on screen from the index.', 'Downloads are logged.'],
   },
+  // Phase 13: growth & owners.
+  growthReadiness: {
+    purpose: 'Are we ready for the next store? Eight checks, each green, amber or red: EBITDA and its trend, same-store profit by quarter, every store at break-even, reserve plus equity on hand, DSCR and leverage after the new debt, management bandwidth and the newest store against its ramp.',
+    steps: ['Read the overall and the red checks first; each check links to the screen behind it.', 'Add a fix plan for any store below break-even (it turns that check from red to amber).', 'Mark a manager ready to promote when one is.', 'Record the month once it is closed; the history keeps one row a month and the inbox flags a change to green or red.'],
+    tips: ['With fewer than 12 months on the books EBITDA is annualized, and the check says so.', 'Same-store profit needs four complete quarters; until then it says "not enough history".', "DSCR and leverage add the deal pro forma's year-1 debt service and EBITDA."],
+  },
+  growthSites: {
+    purpose: "Score prospective sites on traffic, visibility, access, competition, population and growth, trucks, zoning, environmental, utilities and income, with weights you set, and compare them with our own stores' sites.",
+    steps: ['Enter each prospect (and our stores, for comparison).', 'Add the competitors within three miles: brand, distance, price and amenities.', 'Change the weights to match what matters for this deal; scores update at once.'],
+    tips: ["Strong = at or above our stores' average; weak = 15 points or more below it.", "Each factor's scale is in its column tooltip and next to its weight."],
+  },
+  growthProForma: {
+    purpose: "A new store's ten-year monthly P&L for a buy, a build or a lease: volumes ramp then grow, with capital, incentives and the loan, giving EBITDA, cash after debt service, cash-on-cash, IRR, NPV, payback, DSCR by year, break-evens and sensitivity tables.",
+    steps: ["Pick a pro forma, or prefill one from a store's actual statements (\"start from HM15\").", 'Change the inputs, capital lines, incentives and financing; the results update as you type.', 'Save changes, save a copy, or export the annual and monthly P&L and the IRR cash flows.'],
+    tips: ['Pre-tax. A balloon is assumed refinanced on the same amortization; the loan payoff comes out of the final year.', 'Residual = real estate grown at the appreciation rate plus inventory and working capital recovered.', 'The IRR cash flows are listed exactly as computed, so the IRR can be checked in a spreadsheet.'],
+  },
+  growthCompare: {
+    purpose: 'Buy, build and lease side by side: levered and unlevered IRR, NPV, upfront cash, time to open, residual real estate and the risks of each.',
+    steps: ['Pick a site to compare its options, or see every option and acquisition.', 'Read the IRR with the construction overrun for a build.', 'Open an option to change its pro forma.'],
+    tips: ['An acquisition is shown as a buy at its normalized EBITDA, held flat.'],
+  },
+  growthAcquisitions: {
+    purpose: "Buying an existing store: the seller's P&L normalized with add-backs and owner perks, fuel volume checked against supplier statements, three valuation methods, cash at closing and the due-diligence tracker.",
+    steps: ["Check each add-back against its document; normalizations take out costs the seller didn't carry.", "Enter the supplier's gallons for each month; more than 2% off is flagged.", 'Work the QoE checklist and the diligence items: status, owner, due date and documents (they appear in the document vault).', 'Open Evaluate a deal for the go / no-go.'],
+    tips: ["An item can't be marked done without a document; an issue needs a note.", 'The real estate + business method values the business on EBITDA after a market rent.'],
+  },
+  growthCapital: {
+    purpose: 'Every competing use of cash on one list, ranked by risk-adjusted return, with the cash above the reserve allocated down it.',
+    steps: ['Add capital projects with their cost, added cash flow, risk and strategic value.', 'Link the next store to its pro forma: its equity and cash-on-cash are used.', 'Approve a project to fund it; ideas are ranked but not funded.'],
+    tips: ['Debt paydown is a certain after-tax return (from Paydown vs invest).', 'Approved projects starting within the capex window reduce the safe distribution.'],
+  },
+  growthValuation: {
+    purpose: 'What the group is worth each quarter: EBITDA at a market multiple range, the per-gallon cross-check, plus store real estate at appraised value less every loan against it.',
+    steps: ['Check the multiples with your broker or banker and save them.', 'Update property values on the refinance screen when a new appraisal arrives.', 'Record the quarter to add it to the trend.'],
+    tips: ['Real estate counts only stores with a value on file; their related-party mortgages come off.', 'A quarter recorded from these books keeps the figures as they stood that day.'],
+  },
+  growthOwners: {
+    purpose: 'What the owners have taken, YTD and lifetime, and what they can safely take this month; tax distributions; ROE and ROIC by store.',
+    steps: ['Read the safe distribution build-up: cash above the reserve less capex, tax estimates and a debt-service cushion.', 'Record a distribution: it posts Dr 3100 Owner draws / Cr Trustmark through the ledger. Above the safe amount it needs a reason.', 'Check the tax distributions still to make against the safe amount.'],
+    tips: ['Withdrawals booked to Corporate · Miscellaneous under the owner-withdrawal policy are counted with distributions.', 'Enter distributions from before these books once so lifetime totals are right.'],
+  },
+  growthReview: {
+    purpose: 'The quarterly CFO review on one screen: results vs budget, KPI trend, covenant headroom, refinance and paydown, the expansion scorecard, tax estimates and distribution capacity.',
+    steps: ['Work down the screen; each panel links to its detail.', 'Print it as the owner / bank pack, or export every section to one Excel workbook.'],
+    tips: ['The quarter runs to today; months still in progress are marked "to date".'],
+  },
+  growthEvaluate: {
+    purpose: 'Evaluate a deal in one place: the pro forma or acquisition, its financing, the effect on company DSCR, leverage and cash, and a go / no-go with the reasons.',
+    steps: ['Pick the deal.', 'Try other financing; the tests re-run as you type.', 'Read the reasons: a failed critical test is a no-go, a failed other test makes it conditional.'],
+    tips: ['Thresholds (DSCR and leverage targets, hurdle rate) are the growth settings.'],
+  },
   // Phase 14: controls & risk.
   controlsOverview: {
     purpose: 'One line per control: approval limits, segregation of duties, cash, fraud signals, insurance, the tanks and backups, each green, amber or red, with the screen that fixes it.',

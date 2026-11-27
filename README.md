@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask), 10 (GL toolkit & QuickBooks), 11 (Tax), 12 (Debt & treasury) and 14 (Controls & risk). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask), 10 (GL toolkit & QuickBooks), 11 (Tax), 12 (Debt & treasury), 13 (Growth & owners) and 14 (Controls & risk). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -67,6 +67,7 @@ src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
   debt.ts, debtTypes.ts   phase 12: debt dashboard, covenants, refinance, paydown vs invest, reserve, related-party loans (seed-debt.ts)
   tax.ts, taxPackage.ts, taxTypes.ts   phase 11: entity map, MACRS, book-to-tax, sales tax, estimates, K-1, CPA package (seed-tax.ts)
+  growth.ts, growthTypes.ts   phase 13: expansion scorecard, sites, pro forma, IRR/NPV, acquisitions, capital allocation, valuation, safe distribution, deal evaluation (seed-growth.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
 docs/          HOW-TO.md (one note per screen), DECISIONS.md
@@ -123,6 +124,21 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Lottery & age checks | Weekly lottery settlement per store with the shortage flag; commissions tie to 4140. Age-check audit log with follow-ups. |
 | Kitchen | Food sales by day, menu mix import, food cost % with counts and a target per store, waste log and its effect, kitchen labor and prime cost, supplier price alerts from item-level invoice detail. |
 | Inbox | Food cost outside target, shrink over threshold, purchasing budget exceeded, lottery shortage, scan-data short-paid, supplier price jump. |
+
+## What Phase 13 adds
+
+| Area | What works |
+|---|---|
+| Expansion readiness | Eight checks, green / amber / red, recalculated monthly with a recorded history: TTM EBITDA and trend (annualized, and it says so), three quarters of same-store profit ("not enough history" until four quarters exist), every store at break-even with fix plans, reserve plus equity for the next deal, DSCR and leverage after the deal's debt, management bandwidth (manager ready + books closed on time), the newest store against its ramp targets. Alert when it turns green or drops to red. |
+| Sites | Prospects and our own stores scored on AADT, visibility, access, competition within 3 miles (brand, price, amenities), population and growth, trucks, zoning, environmental, utilities and income, with editable weights. |
+| Pro forma | Buy / build / lease: 10 years of monthly P&L with a ramp, capital lines, brand and supplier incentives and financing → EBITDA, cash after debt service, cash-on-cash, levered and unlevered IRR (bracketed bisection + Newton), NPV, payback, DSCR by year, break-even gallons and inside sales, sensitivity (±2¢ × ±10% gallons, ±1% rate). Prefill from a store's statements. |
+| Buy vs build vs lease | Side by side: IRR, NPV, upfront cash, time to open, residual real estate, IRR with a construction overrun, risk factors. |
+| Acquisitions | Seller P&L normalized (add-backs, owner perks, normalizations), gallons vs supplier statements with a 2% flag, valuation by EBITDA multiple / per gallon / real estate + business, cash at closing with inventory and fuel in the tanks, QoE checklist, due-diligence tracker with documents in the vault. |
+| Capital allocation | Projects, debt paydown, the reserve and owner distributions ranked by risk-adjusted return, with deployable cash allocated down the list. |
+| Valuation | EBITDA × multiple range, per-gallon cross-check, real estate at appraised value less debt = equity, recorded quarterly with the trend. |
+| Owner returns | Distributions by owner YTD and lifetime (tied to the ledger), recorded distributions posted Dr 3100 / Cr bank, the safe distribution amount (replaces the Phase 11 placeholder on the tax screen), tax distributions, ROE and ROIC by store. |
+| Workflows | Quarterly CFO review (printable owner / bank pack and a multi-sheet Excel workbook) and Evaluate a deal (go / no-go with reasons). |
+| Inbox | Expansion scorecard changed, month not yet recorded, due diligence overdue or with an issue; Phase 12's "cash above the reserve 2+ months" now suggests where to put it. |
 
 ## What Phase 12 adds
 
@@ -245,4 +261,5 @@ Working papers for the CPA, not tax advice: rates, lives and thresholds are conf
 - Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation and the covenant monitor come in phases 11 and 12.
 - QuickBooks syncs by file: the live QBO API (OAuth, webhooks, real ids) needs the hosted back end. Recurring entries and reversals are generated when someone presses the button (the inbox says when), not on a timer.
 - Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). The covenant monitor and the risk register come in phases 12 and 14.
+- Growth: pro formas are pre-tax and assume a balloon is refinanced on the same amortization; same-store and TTM checks need more history than the demo has; valuation multiples are entered, not market data.
 - Tax: only ordinary income is allocated to owners (no separately stated items, QBI or state apportionment); partner basis leaves out liabilities; the books start in September, so earlier book income is entered.
