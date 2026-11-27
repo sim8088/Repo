@@ -12,11 +12,11 @@ import { formatMoney, parseMoney } from '../../core/money';
 import { can } from '../../core/permissions';
 import { ValidationError } from '../../core/books';
 import { bankStoreId } from '../../core/bank';
-import type { Department, Employee, ID, PayMethod, TaxAgency } from '../../core/types';
+import type { Department, Employee, ID, EmployeePayMethod, TaxAgency } from '../../core/types';
 import { PeopleGuard, RateApprovals, empName, errText, hrs, pctText, storeCode } from './Payroll';
 
 const DEPTS = Object.keys(DEPT_LABEL) as Department[];
-const METHODS = Object.keys(PAY_METHOD_LABEL) as PayMethod[];
+const METHODS = Object.keys(PAY_METHOD_LABEL) as EmployeePayMethod[];
 const errs = (e: unknown) => (e instanceof ValidationError ? e.errors : [(e as Error).message]);
 
 // ── Employees ────────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ function ConfirmHireButton({ id, onMsg }: { id: ID; onMsg: (m: string) => void }
 
 function EmployeeForm({ e, onDone, onCancel }: { e?: Employee; onDone: (e: Employee) => void; onCancel: () => void }) {
   const { books, user, stores } = useBooks();
-  const [f, setF] = useState({ name: e?.name ?? '', storeId: e?.storeId ?? stores.find((s) => s.kind === 'operating')?.id ?? '', department: e?.department ?? 'front' as Department, payType: e?.payType ?? 'hourly' as Employee['payType'], rate: e ? (e.rateCents / 100).toFixed(2) : '', hiredOn: e?.hiredOn ?? todayInChicago(), gustoId: e?.gustoId ?? '', paidBy: e?.paidBy ?? 'gusto' as PayMethod });
+  const [f, setF] = useState({ name: e?.name ?? '', storeId: e?.storeId ?? stores.find((s) => s.kind === 'operating')?.id ?? '', department: e?.department ?? 'front' as Department, payType: e?.payType ?? 'hourly' as Employee['payType'], rate: e ? (e.rateCents / 100).toFixed(2) : '', hiredOn: e?.hiredOn ?? todayInChicago(), gustoId: e?.gustoId ?? '', paidBy: e?.paidBy ?? 'gusto' as EmployeePayMethod });
   const [errors, setErrors] = useState<string[]>([]);
   const k = e ? 'ee' : 'ne';
   return (
@@ -130,7 +130,7 @@ function EmployeeForm({ e, onDone, onCancel }: { e?: Employee; onDone: (e: Emplo
         <div className="field"><label htmlFor={k + '-t'}>Pay type</label><select id={k + '-t'} value={f.payType} disabled={!!e} onChange={(x) => setF({ ...f, payType: x.target.value as Employee['payType'] })}><option value="hourly">Hourly</option><option value="salary">Salary (weekly)</option></select></div>
         {!e && <div className="field"><label htmlFor={k + '-r'}>Starting rate</label><input id={k + '-r'} className="num" inputMode="decimal" value={f.rate} onChange={(x) => setF({ ...f, rate: x.target.value })} placeholder={f.payType === 'hourly' ? 'per hour' : 'per week'} /></div>}
         <div className="field"><label htmlFor={k + '-h2'}>Hired</label><input id={k + '-h2'} type="date" value={f.hiredOn} onChange={(x) => setF({ ...f, hiredOn: x.target.value })} /></div>
-        <div className="field"><label htmlFor={k + '-p'}>Paid by</label><select id={k + '-p'} value={f.paidBy} onChange={(x) => setF({ ...f, paidBy: x.target.value as PayMethod })}>{METHODS.map((m) => <option key={m} value={m}>{PAY_METHOD_LABEL[m]}</option>)}</select></div>
+        <div className="field"><label htmlFor={k + '-p'}>Paid by</label><select id={k + '-p'} value={f.paidBy} onChange={(x) => setF({ ...f, paidBy: x.target.value as EmployeePayMethod })}>{METHODS.map((m) => <option key={m} value={m}>{PAY_METHOD_LABEL[m]}</option>)}</select></div>
         <div className="field"><label htmlFor={k + '-g'}>Gusto id</label><input id={k + '-g'} value={f.gustoId} onChange={(x) => setF({ ...f, gustoId: x.target.value })} /></div>
       </div>
       <div className="actions" style={{ marginTop: 12 }}>

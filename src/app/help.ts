@@ -239,6 +239,91 @@ export const HELP = {
       'The ordering plan suggests the next delivery date and gallons per tank from sales velocity and tank room.',
     ],
   },
+  // ── Phase 5: intercompany, payables, receivables ──
+  intercompany: {
+    purpose: 'Who owes whom across the related businesses, owners, tenants and lenders, and where each store entity stands with Corporate.',
+    steps: [
+      'Read the figures: owed to us, what we owe, the net, and anyone over their limit.',
+      'Click a party for its running ledger, aging and printable statement.',
+      'Record a movement when the shared account pays another business\'s bill, lends money, or gets paid back. Bills paid for them go to their receivable (1920), never to store expenses.',
+    ],
+    tips: ['The tie-out proves the party ledgers add up to 1910, 1920 and 2400 in the ledger, and that every line on those accounts names a party.', 'Store entity balances come from the due-to / due-from lines the ledger adds automatically.'],
+  },
+  partyStatement: {
+    purpose: 'One party\'s statement: every movement with a running balance, the aging of what is open, and its limit.',
+    steps: ['Pick the date range. The opening balance carries in everything before it.', 'Print for a PDF to send, or export CSV.', 'Set a limit; the inbox alerts when the balance goes above it.'],
+    tips: ['Positive balances are owed to us; negative ones we owe.', 'Tenant statements show the rent schedule\'s charges (marked scheduled) against rent received.', 'Aging settles the oldest items first, so what is left open is the newest.'],
+  },
+  draws: {
+    purpose: 'Owner withdrawals year to date, kept apart from everything else.',
+    steps: ['Check the total and each owner\'s share.', 'Open any withdrawal to see the entry and its document.'],
+    tips: ['Under the current policy withdrawals are booked as Corporate · Miscellaneous expense. This view finds them on that account (when an owner is named) and on the draws account, so switching the policy in Settings loses nothing.'],
+  },
+  eliminations: {
+    purpose: 'The group as one company, with the intercompany between the store entities and Corporate netted out.',
+    steps: ['Pick the as-of date.', 'Check that each entity pair agrees, and that due-from and due-to net to zero.', 'Read the consolidated balance sheet; export it for the CPA.'],
+    tips: ['Balances with related parties outside the group (Dhunna, SKD, Cheers and the rest) are real receivables and payables, so they are not eliminated.'],
+  },
+  rentTemplates: {
+    purpose: 'Monthly rent pass-throughs: a related party pays the store mortgage, the store books rent, and Corporate owes the party.',
+    steps: ['Check the templates and the next run date.', 'Pick a month and generate it. A month already generated is skipped, so it never duplicates.', 'Pause a template when a mortgage is paid off; add one for a new store.'],
+    tips: ['Each entry debits the store\'s rent and credits Corporate\'s due to related parties for that party, which then shows on the party\'s statement.'],
+  },
+  bills: {
+    purpose: 'Every bill from entry to payment: awaiting approval, approved, scheduled, paid.',
+    steps: ['Filter by status, or search a vendor or invoice number.', 'Open a bill to approve it, schedule it, record its payment or attach the invoice.', 'Enter a new bill from the bills inbox.'],
+    tips: ['Nothing posts until a bill is approved; then it is an expense against 2000 Accounts payable on the bill date.', 'The tie-out proves open bills equal the 2000 balance in the ledger.'],
+  },
+  billDetail: {
+    purpose: 'One bill: its lines by store, its documents, and the next step.',
+    steps: ['Approve (owner or CFO) to post the expense to accounts payable.', 'Schedule the payment date and method, or record the payment with the check number or confirmation.', 'Attach the invoice and the payment confirmation.'],
+    tips: ['Paying posts 2000 Accounts payable → Trustmark, so the bank feed matches it like any other payment.', 'Void an approved bill that was entered by mistake: its entry is reversed with your reason.'],
+  },
+  billsInbox: {
+    purpose: 'Turn a photo, PDF or emailed bill into a bill awaiting approval.',
+    steps: ['Upload the photo or PDF, or paste the email text.', 'Click "Read it". Amounts, dates, the invoice number, vendor, store and utility account are pulled out where the text shows them.', 'Check every field, fix what is wrong, split the amount across stores if needed, and save.'],
+    tips: ['There is no OCR service yet, so a photo or PDF only gives what its file name says. The file is still kept with the bill.', 'Saving never posts anything: the bill waits for approval.'],
+  },
+  apAging: {
+    purpose: 'What we owe vendors, by how late it is.',
+    steps: ['Pick the as-of date.', 'Read the buckets: current, then days past due.', 'Click a vendor to see their bills.'],
+    tips: ['The tie-out proves the aging (plus any manual entries on 2000) equals the Accounts payable balance in the ledger.'],
+  },
+  paymentCalendar: {
+    purpose: 'Bills by the day they go out, against the projected bank balance.',
+    steps: ['Read down the days: bills paying that day, and the balance projected after them.', 'Days that would end below the floor are red: move a payment or bring cash in.', 'Schedule unscheduled bills from their bill page.'],
+    tips: ['The projection is the 13-week forecast with approved and scheduled bills added; a bill replaces the matching recurring payment so nothing counts twice.', 'Bills awaiting approval are listed, but not in the projection.'],
+  },
+  utilities: {
+    purpose: 'Every utility account: who, where, account number, autopay, and the bill history.',
+    steps: ['Scan the flags: past due, disconnect notice, and jumps of more than 25% over the bill before.', 'Expand a row for the amount history.', 'Add an account when a new service starts.'],
+    tips: ['Autopay drafts with no bill entered still count in the history, straight from the bank.'],
+  },
+  vendorStatements: {
+    purpose: 'Check a vendor\'s statement against what our books say we owe them.',
+    steps: ['Record the statement: date, balance, and each open invoice on it.', 'Read each line: agrees, amount differs, paid but not yet credited, or not entered.', 'Fix what is ours (enter the missing bill) and ask the vendor about the rest.'],
+    tips: ['The explanations add up to the difference exactly; anything left over is shown as not explained.'],
+  },
+  ten99: {
+    purpose: 'Payments to 1099 vendors this year, flagged at $600.',
+    steps: ['Mark vendors as 1099 in Setup › Vendors & parties.', 'Check who is at $600 or more: they need a 1099-NEC in January.', 'Export the list for the CPA.'],
+    tips: ['Paid means money that left the bank or cash, on transactions naming the vendor.'],
+  },
+  rentRoll: {
+    purpose: 'Tenant rent, due vs received, month by month.',
+    steps: ['Read the late items first.', 'Record rent received when a tenant pays; it applies to the oldest month still open.', 'Open a tenant for their statement.'],
+    tips: ['Rent is late once the grace days after the due date have passed.', 'The tie-out proves rent received here equals rent income from those tenants in the ledger.'],
+  },
+  otherReceivables: {
+    purpose: 'Money owed to us outside rent: rebates and programs, ATM income, insurance claims and refunds.',
+    steps: ['Pick the tab.', 'Record money as it arrives, or apply a deposit already in the books.', 'Close an item that will never pay, with the reason.'],
+    tips: ['Expected = received + outstanding on every line.', 'A rebate that arrived at the bank but isn\'t booked: book it from the bank feed, then apply it here.'],
+  },
+  approvals: {
+    purpose: 'Everything waiting for a yes or no.',
+    steps: ['Read the item and open it if you need the detail.', 'Approve (with an optional note) or reject with a reason.'],
+    tips: ['Bills are here now. Rate changes, write-offs and adjusting entries join as their phases ship; amount limits by role come with controls.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel) and 6 (People & payroll). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 5 (Intercompany, payables & receivables) and 6 (People & payroll). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -50,6 +50,8 @@ src/data/      seed.ts (demo dataset), seed-payroll.ts (phase 6 demo), storage.t
   fuel.ts        fuel subledger: invoices, notices, Dash clearing, truck lane, margin, accrual COGS, tanks, pricing
   fuelio.ts      notice / invoice / Comdata file parsers
 src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (IndexedDB persistence)
+  intercompany.ts, payables.ts, receivables.ts, approvals.ts   phase 5
+src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
 docs/          HOW-TO.md (one note per screen), DECISIONS.md
@@ -94,6 +96,21 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Tanks | Tanks per store, daily readings, book-to-physical variance, water alerts, days of supply and a reorder signal. |
 | Pricing & ordering | Posted prices vs competitors with the margin impact of matching, and a suggested next load per store. |
 | Inbox | Missing fuel invoices, unposted notices (and any not netting to zero), tank variance and water, stores outside the cpg target, duplicate invoices. |
+## What Phase 5 adds
+
+| Area | What works |
+|---|---|
+| Related parties | A running due-to / due-from ledger for every related company, owner, tenant and lender, plus each store entity's position with Corporate. Aging, limits with inbox alerts, and a printable statement per party (PDF via print, CSV). Paying another business's bill from the shared account posts to that party's receivable (1920). |
+| Rent pass-throughs | Monthly templates generate the store rent / Corporate payable entries, idempotently. |
+| Owner draws | Year-to-date withdrawals by owner, found under either withdrawal policy. |
+| Elimination view | Consolidated balance sheet with the entity due-to / due-from netted out; proves each pair agrees and both sides net to zero. |
+| Bills | Vendor, store, invoice #, dates, category lines split by store, attachments, autopay. Draft → approved (posts expense → 2000) → scheduled → paid (2000 → Trustmark with check # and confirmation). |
+| Bills inbox | Upload a photo/PDF or paste the email; amounts, dates, invoice #, vendor and store are read from the text or file name (no OCR) into a form you confirm. |
+| AP aging, payment calendar | Aging buckets that tie to the 2000 balance; bills by pay date against the projected bank balance (bills feed the 13-week forecast). |
+| Utilities | Each account with its history; flags past due, disconnect notices and jumps over 25%. |
+| Vendor statements, 1099s | Statement vs AP with every difference explained; 1099 vendors flagged at $600. |
+| Receivables | Tenant rent roll (due vs received, late), rebates and programs, ATM income, insurance claims and refunds owed to us. |
+| Approvals | One queue under Today for everything waiting on a yes; bills now, other kinds plug in later. |
 
 ## Known limits
 
@@ -103,3 +120,5 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
 - Inbox items for fuel notices, bills and compliance deadlines arrive with their phases.
 - Inbox items for bills, payroll and compliance deadlines arrive with their phases. Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
+- Inbox items for fuel notices, payroll and compliance deadlines arrive with their phases.
+- Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).

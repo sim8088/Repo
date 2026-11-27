@@ -1,7 +1,7 @@
 import type { Books } from './books';
 import { ValidationError } from './books';
 import type {
-  BooksState, CashPayout, Department, Employee, ID, OffPayrollPay, PayMethod, PayrollLine, PayrollRun, PayrollTotals, PeopleState,
+  BooksState, CashPayout, Department, Employee, ID, OffPayrollPay, EmployeePayMethod, PayrollLine, PayrollRun, PayrollTotals, PeopleState,
   RateChange, TaxAgency, TaxDeposit, Transaction, User,
 } from './types';
 import type { DraftLine } from './ledger';
@@ -14,7 +14,7 @@ import { recordPayout } from './cash';
 export const ACCT = { wages: 'acct_wages', taxes: 'acct_payroll_taxes', bank: 'acct_trustmark' } as const;
 export const WOW_THRESHOLD = 0.15;
 export const DEPT_LABEL: Record<Department, string> = { front: 'Front', kitchen: 'Kitchen', office: 'Office', truck_lane: 'Truck lane' };
-export const PAY_METHOD_LABEL: Record<PayMethod, string> = { gusto: 'Gusto', cash: 'Cash', check: 'Check', mixed: 'Gusto + cash/check' };
+export const PAY_METHOD_LABEL: Record<EmployeePayMethod, string> = { gusto: 'Gusto', cash: 'Cash', check: 'Check', mixed: 'Gusto + cash/check' };
 
 export function emptyPeople(): PeopleState {
   return { employees: [], rateChanges: [], runs: [], offPayroll: [], taxDeposits: [], laborTargets: {}, checklist: {} };
@@ -94,7 +94,7 @@ export interface EmployeeInput {
   rateCents: number;
   hiredOn: string;
   gustoId?: string;
-  paidBy: PayMethod;
+  paidBy: EmployeePayMethod;
   notes?: string;
 }
 

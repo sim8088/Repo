@@ -3,7 +3,7 @@ export interface NavGroup { title: string; items: NavItem[]; }
 
 /** Built screens. The full information architecture, phase by phase, is on /roadmap. */
 export const NAV: NavGroup[] = [
-  { title: 'Today', items: [{ label: 'My day', to: '/', badge: 'inbox' }] },
+  { title: 'Today', items: [{ label: 'My day', to: '/', badge: 'inbox' }, { label: 'Approvals', to: '/approvals' }] },
   {
     title: 'Bank & cash',
     items: [
@@ -23,6 +23,34 @@ export const NAV: NavGroup[] = [
       { label: 'Truck lane', to: '/fuel/truck' },
       { label: 'Tanks', to: '/fuel/tanks' },
       { label: 'Pricing & ordering', to: '/fuel/pricing' },
+    ],
+  },
+  {
+    title: 'Intercompany',
+    items: [
+      { label: 'Related parties', to: '/intercompany/parties' },
+      { label: 'Rent pass-throughs', to: '/intercompany/rent' },
+      { label: 'Owner draws', to: '/intercompany/draws' },
+      { label: 'Elimination view', to: '/intercompany/eliminations' },
+    ],
+  },
+  {
+    title: 'Payables',
+    items: [
+      { label: 'Bills', to: '/payables/bills' },
+      { label: 'Bills inbox', to: '/payables/inbox' },
+      { label: 'AP aging', to: '/payables/aging' },
+      { label: 'Payment calendar', to: '/payables/calendar' },
+      { label: 'Utilities', to: '/payables/utilities' },
+      { label: 'Vendor statements', to: '/payables/statements' },
+      { label: '1099 vendors', to: '/payables/1099' },
+    ],
+  },
+  {
+    title: 'Receivables',
+    items: [
+      { label: 'Tenant rent', to: '/receivables/rent' },
+      { label: 'Rebates & other income', to: '/receivables/other' },
     ],
   },
   { title: 'Reports', items: [{ label: 'Profit & loss by store', to: '/reports/pnl' }, { label: 'Trial balance', to: '/reports/trial-balance' }] },

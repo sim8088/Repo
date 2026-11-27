@@ -22,6 +22,7 @@ const ROWS: Row[] = [
   ['1590', 'acct_accum_dep', 'Accumulated depreciation', 'asset', 'fixed_asset'],
   ['1900', SYS.dueFrom, 'Due from related entities', 'asset', 'intercompany', undefined, true],
   ['1910', 'acct_loans_related', 'Loans & advances to related parties', 'asset', 'intercompany'],
+  ['1920', 'acct_paid_for_related', 'Due from related parties – bills paid for them', 'asset', 'intercompany'],
   // Liabilities
   ['2000', 'acct_ap', 'Accounts payable', 'liability', 'payable'],
   ['2100', 'acct_accrued_payroll', 'Accrued payroll', 'liability', 'accrued'],

@@ -21,6 +21,10 @@ import { FuelInvoicesPage, SettlementPage, TruckLanePage } from './app/pages/Fue
 import { PageHead } from './app/components/ui';
 import { PayrollRunsPage, WeeklyReviewPage } from './app/pages/Payroll';
 import { CashPayPage, EmployeesPage, LaborPage, PayrollTaxPage } from './app/pages/People';
+import { DrawsPage, EliminationsPage, IntercompanyPage, PartyStatementPage, RentTemplatesPage } from './app/pages/Intercompany';
+import { ApAgingPage, BillDetailPage, BillsInboxPage, BillsPage, PaymentCalendarPage, Ten99Page, UtilitiesPage, VendorStatementsPage } from './app/pages/Payables';
+import { OtherReceivablesPage, RentRollPage } from './app/pages/Receivables';
+import { ApprovalsPage } from './app/pages/Approvals';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -69,6 +73,22 @@ function App() {
             <Route path="/fuel/truck" element={<TruckLanePage />} />
             <Route path="/fuel/tanks" element={<TanksPage />} />
             <Route path="/fuel/pricing" element={<PricingPage />} />
+            <Route path="/approvals" element={<ApprovalsPage />} />
+            <Route path="/intercompany/parties" element={<IntercompanyPage />} />
+            <Route path="/intercompany/parties/:id" element={<PartyStatementPage />} />
+            <Route path="/intercompany/draws" element={<DrawsPage />} />
+            <Route path="/intercompany/eliminations" element={<EliminationsPage />} />
+            <Route path="/intercompany/rent" element={<RentTemplatesPage />} />
+            <Route path="/payables/bills" element={<BillsPage />} />
+            <Route path="/payables/bills/:id" element={<BillDetailPage />} />
+            <Route path="/payables/inbox" element={<BillsInboxPage />} />
+            <Route path="/payables/aging" element={<ApAgingPage />} />
+            <Route path="/payables/calendar" element={<PaymentCalendarPage />} />
+            <Route path="/payables/utilities" element={<UtilitiesPage />} />
+            <Route path="/payables/statements" element={<VendorStatementsPage />} />
+            <Route path="/payables/1099" element={<Ten99Page />} />
+            <Route path="/receivables/rent" element={<RentRollPage />} />
+            <Route path="/receivables/other" element={<OtherReceivablesPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

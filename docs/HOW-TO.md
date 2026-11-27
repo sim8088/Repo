@@ -146,3 +146,54 @@ Each tank's gallons, fill, days of supply (7-day average draw), 30-day book-to-p
 
 ## Pricing & ordering (`/fuel/pricing`)
 Pick a store. The price board shows our posted price per grade, competitors seen in the last 7 days (generic names), the spread, delivered cost and margin per gallon, and what matching the lowest competitor would do to a week's margin dollars. Log competitor prices and change posted prices below. The **ordering plan** suggests each store's next delivery: when a full transport (8,800 gal) fits under the 90% safe fill, or sooner if a tank would fall to 2.5 days of supply, split by tank in 100-gallon compartments.
+# Phase 5: Intercompany, payables & receivables
+
+## Approvals (`/approvals`, under Today)
+Everything waiting for a yes or no, oldest first. Bills are the first kind; raises and rate changes, write-offs and adjusting entries plug into the same list in later phases. Approve with an optional note, or reject with a reason. Only roles with the approve permission (owner, CFO) see the buttons.
+
+## Related parties (`/intercompany/parties`)
+- **Figures:** owed to us, what we owe, the net, and anyone over their limit.
+- **Parties:** every related company, owner, tenant and lender with money out, money in, the balance and its limit. The tie-out proves the party ledgers add up to 1910, 1920 and 2400 in the ledger and that every line on those accounts names a party.
+- **Store entities with Corporate:** each store entity's position, built from the automatic due-to / due-from lines.
+- **Record a movement:** we paid a bill for them (posts to 1920, never store expenses), we lent them money (1910), they paid us back, we paid them back, or they paid a bill for us (our expense against 2400).
+
+## Party statement (`/intercompany/parties/:id`)
+A printable statement for one party: opening balance, each movement with a running balance, the closing balance, and the aging of what is open (oldest settled first). Print it for a PDF or export CSV. Set or remove the party's limit here. Tenant statements show the rent schedule's charges against rent received; owner statements list withdrawals in the period.
+
+## Rent pass-throughs (`/intercompany/rent`)
+Templates for the monthly mortgage pass-through: the store books rent, Corporate owes the related party. Pick a month and generate it; a month already generated is skipped, so it never duplicates. Pause a template or add one for a new store. The demo's 1 Sep, 1 Oct and 1 Nov entries were generated from these templates.
+
+## Owner draws (`/intercompany/draws`)
+Owner withdrawals year to date, by owner. Under the current policy they are booked as Corporate · Miscellaneous expense; the view finds them there (when an owner is named) and on the draws account, so switching the policy loses nothing.
+
+## Elimination view (`/intercompany/eliminations`)
+The consolidated balance sheet with the store-entity to Corporate due-to / due-from netted out. It proves each entity pair agrees, due-from equals due-to, the eliminations net to zero and consolidated assets equal liabilities plus equity. Balances with related parties outside the group are real and stay.
+
+## Bills (`/payables/bills`) and one bill (`/payables/bills/:id`)
+- Status runs **awaiting approval → approved → scheduled → paid** (or void). Nothing posts until approval; approval posts the expense lines (by store) against **2000 Accounts payable** on the bill date. Autopay bills are scheduled for their due date on approval.
+- On a bill: approve or reject, schedule (date and method), record the payment (check # or confirmation, plus the confirmation file), void an approved bill (its accrual is reversed with your reason), and attach the invoice.
+- Recording payment posts 2000 → Trustmark, so the bank feed matches it like any other payment and checks appear in the checks register.
+
+## Bills inbox (`/payables/inbox`)
+Upload a photo or PDF, or paste the email text, then **Read it**. Amounts, dates, the invoice #, vendor, store, utility account and disconnect wording are pulled out with simple pattern matching. **There is no OCR service**: a photo or PDF is kept with the bill, but only its file name is read. Check every field, split the amount across stores if needed, and **Save for approval**.
+
+## AP aging (`/payables/aging`)
+Open bills by vendor: current, 1–30, 31–60, 61–90 and over 90 days past due. The tie-out proves the aging (plus anything entered on 2000 by hand) equals the Accounts payable balance in the ledger.
+
+## Payment calendar (`/payables/calendar`)
+Bills by the day the money goes out over the next 35 days, against the projected Trustmark balance. The projection is the 13-week forecast with approved and scheduled bills added as known events; a bill stands in for the matching recurring payment so nothing counts twice. Bills awaiting approval are listed separately.
+
+## Utilities (`/payables/utilities`)
+Each utility account: company, service, store, account number, service address, autopay, last bill, change on the bill before, next due date and the full amount history (bills, plus autopay drafts straight from the bank). Flags: past due, disconnect notice, and a jump of more than 25%.
+
+## Vendor statements (`/payables/statements`)
+Record a vendor's statement (date, balance, open invoices). Each line is explained: agrees, amount differs, paid by us but not yet credited, on the statement but not in our AP, or in our AP but not on the statement. The explanations add up to the difference exactly; anything left is shown as not explained.
+
+## 1099 vendors (`/payables/1099`)
+Payments this year to vendors marked 1099 (Setup › Vendors & parties), flagged at $600. Paid means money that left the bank or cash on transactions naming the vendor.
+
+## Tenant rent (`/receivables/rent`)
+Each tenant's monthly rent, due vs received. Deposits apply to the oldest open month. Rent is late once the grace days after the due date pass. Record rent received from the form; the tie-out proves rent received equals rent income from those tenants in the ledger.
+
+## Rebates & other income (`/receivables/other`)
+Tabs for rebates and programs, ATM income, insurance claims and refunds owed to us. Each item shows expected, received and outstanding. Record money as it arrives (posts money in to its income account), apply a deposit already in the books, or close an item with a reason.

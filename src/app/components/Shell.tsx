@@ -96,7 +96,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="nav-group">
             <h2>Later phases</h2>
             <NavLink to="/roadmap" className="nav-link">Roadmap &amp; build status</NavLink>
-            <p className="nav-soon">Reports, intercompany, payables and the rest arrive phase by phase.</p>
+            <p className="nav-soon">Reports, inside store, kitchen and the rest arrive phase by phase.</p>
           </div>
         </nav>
         <div className="main">
