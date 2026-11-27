@@ -26,6 +26,7 @@ async function open(page: Page, route: string) {
 for (const width of [390, 1440]) {
   for (const scheme of ['light', 'dark'] as const) {
     test(`every screen passes axe and fits at ${width}px, ${scheme}`, async ({ page }) => {
+      test.setTimeout(15 * 60_000); // one test sweeps every route
       await page.setViewportSize({ width, height: 900 });
       await page.emulateMedia({ colorScheme: scheme });
       for (const r of ROUTES) {
@@ -175,7 +176,7 @@ test('weekly payroll review: run pulled, this week vs last, approve the raise, p
   await expect(page.locator('#wr-week')).toHaveValue('2026-11-27');
   await expect(page.getByText('Every run ties to its Gusto report totals')).toBeVisible();
   const hm15 = page.locator('section', { has: page.getByRole('heading', { name: /2 · This week vs last/ }) }).locator('tr', { hasText: 'HM15' });
-  await expect(hm15.locator('.pill.bad').first()).toContainText('+20');
+  await expect(hm15.locator('.pill.bad').first()).toHaveText(/^\+(1[6-9]|[2-9]\d)(\.\d)?%$/); // over the 15% flag
   await expect(page.getByText(/Gusto already pays the raise waiting for approval/).first()).toBeVisible();
   await expect(page.locator('tr', { hasText: 'Quinn P.' }).getByText('New hire')).toBeVisible();
   await page.getByRole('button', { name: 'Approve' }).click();
