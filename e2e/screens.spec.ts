@@ -15,6 +15,11 @@ const ROUTES = [
   '/intercompany/draws', '/intercompany/eliminations', '/intercompany/rent',
   '/payables/bills', '/payables/bills?status=all', '/payables/bills/BILL-0001', '/payables/inbox', '/payables/aging', '/payables/calendar', '/payables/utilities', '/payables/statements', '/payables/1099',
   '/receivables/rent', '/receivables/other', '/receivables/other?tab=atm', '/receivables/other?tab=insurance',
+  '/reports/command', '/reports/command?basis=cash&month=2026-10', '/reports/pnl?basis=cash', '/reports/pnl?basis=accrual&view=month&from=2026-09&to=2026-11&pct=1',
+  '/reports/pnl?basis=compare', '/reports/pnl?basis=accrual&view=prior&store=st_hm15',
+  '/reports/drill?basis=accrual&account=acct_cogs_fuel&from=2026-11&to=2026-11', '/reports/drill?basis=bridge&reason=uncleared_check&from=2026-11&to=2026-11',
+  '/reports/balance-sheet', '/reports/balance-sheet?entity=ent_hm11&asOf=2026-10-31', '/reports/cash-flow', '/reports/cash-flow?from=2026-09&to=2026-11&entity=ent_corp',
+  '/reports/scorecards', '/reports/board', '/reports/builder',
 ];
 
 async function open(page: Page, route: string) {
@@ -343,4 +348,50 @@ test('intercompany: pay another business\'s bill from the shared account', async
   await page.getByRole('link', { name: /Open TX-/ }).click();
   await expect(page.locator('h1')).toContainText('Paid Bullseye propane for Bullseye');
   await expect(page.getByText('1920 · Due from related parties – bills paid for them')).toBeVisible();
+});
+
+test('reports: command center → store P&L → its transactions; the accrual bridge ties', async ({ page }) => {
+  await open(page, '/reports/command');
+  await expect(page.locator('.page-head .lede')).toContainText('the latest month with sales');
+  await expect(page.locator('.tie.ok', { hasText: 'Store rows add to the company total' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Ties to the accrual P&L' })).toBeVisible();
+  await page.getByRole('link', { name: /^HM11 net profit/ }).click();
+  await expect(page.locator('h1')).toHaveText('Profit & loss by store');
+  await expect(page.locator('#p-store')).toHaveValue('st_hm11');
+  await expect(page.locator('.tie.ok', { hasText: 'Cash + bridge = accrual, to the cent' })).toBeVisible();
+  await page.getByRole('link', { name: /^Utilities, HM11: .* see transactions/ }).click();
+  await expect(page.locator('h1')).toHaveText('Utilities · HM11');
+  await expect(page.locator('.tie.ok', { hasText: 'Entries add to the P&L figure' })).toBeVisible();
+  await page.locator('tbody a', { hasText: /^TX-/ }).first().click();
+  await expect(page.getByText('Debits equal credits')).toBeVisible();
+  await open(page, '/reports/pnl');
+  await page.getByRole('button', { name: 'Accrual', exact: true }).click();
+  await expect(page.locator('.tie.ok', { hasText: 'Accrual = booked + paid fuel − accrual fuel cost' })).toBeVisible();
+  await page.getByRole('button', { name: 'Compare', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Bridge: cash basis to accrual basis' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Cash + bridge = accrual, to the cent' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Line differences add to the bridge' })).toBeVisible();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export Excel' }).click()]);
+  expect(dl.suggestedFilename()).toMatch(/^pnl-compare-.*\.xlsx$/);
+});
+
+test('reports: balance sheet and cash flow tie; build and save a report', async ({ page }) => {
+  await open(page, '/reports/balance-sheet');
+  await expect(page.locator('.tie.ok', { hasText: 'Assets = liabilities + equity' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Agrees to the trial balance, account by account' })).toBeVisible();
+  await open(page, '/reports/cash-flow');
+  await expect(page.locator('.tie.ok', { hasText: 'Opening + net change = closing cash' })).toBeVisible();
+  await open(page, '/reports/builder');
+  await page.getByLabel('Name').fill('Kitchen by month');
+  await page.getByLabel('Columns').selectOption('month');
+  await page.getByLabel('Kitchen sales').check();
+  await page.getByLabel('Schedule').selectOption('monthly');
+  await expect(page.locator('.tie.ok', { hasText: 'Every row adds across to its total' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save report' }).click();
+  await expect(page.getByRole('status')).toContainText('Saved "Kitchen by month"');
+  await expect(page.locator('.inbox li', { hasText: 'Kitchen by month' })).toContainText('monthly');
+  await open(page, '/reports/scorecards');
+  await expect(page.locator('.tie.ok', { hasText: 'Net profit ties to the accrual P&L' })).toBeVisible();
+  await open(page, '/reports/board');
+  await expect(page.getByLabel('Letter (edit before printing)')).toHaveValue(/summary for the owners/);
 });

@@ -50,9 +50,55 @@ export const HELP = {
     tips: ['Each entity balances on its own because intercompany lines are booked automatically.', 'Prior-year profit rolls into retained earnings.'],
   },
   pnl: {
-    purpose: 'Profit and loss by store straight from the ledger, by line of business. The full cash / accrual P&L with bridge arrives in phase 4.',
-    steps: ['Pick a month or range.', 'Click any amount to see the transactions behind it.', 'Print for a PDF, or export to CSV.'],
-    tips: ['This is booked basis: fuel cost is the fuel invoices dated in the month.'],
+    purpose: 'Profit and loss by store on three bases. Booked is the ledger as posted. Cash puts every line on the day its cash moved. Accrual puts every line on its transaction date and replaces paid fuel invoices with accrual fuel cost of sales. Compare shows cash and accrual side by side with the bridge between them.',
+    steps: [
+      'Pick the months, a store if you want one, and the basis.',
+      'Change the view: by store, by month (the trend), or against the prior period of the same length. Tick % of sales to see every line as a share of sales.',
+      'Click any amount for the entries behind it; each one opens its transaction.',
+      'On cash, accrual or compare, read the bridge: every difference between the two bases, grouped by why its dates differ. It ties to the cent.',
+      'Export CSV or Excel, or print to PDF.',
+    ],
+    tips: [
+      'Cash basis: a line counts on the date its bank line cleared. An uncleared check is left out until it clears; other uncleared bank items (ACH, card, online) count on their book date. Bills count when paid. Cash on hand, cash in transit and supplier / card clearing count as cash, so card sales and Craddock / Dash settlement items count on their book date.',
+      'Accrual basis: every line on its transaction date; bills on their bill (invoice) date; paid fuel invoices (5000) taken out and replaced by gallons sold × that month\'s delivered cost per gallon (Plus blended 50/50), dated the month end.',
+      'The bridge also splits the fuel difference into the change in fuel inventory at cost and fuel delivered but not yet paid; neither is posted to the ledger yet.',
+      'Budget comparison arrives in phase 8.',
+    ],
+  },
+  commandCenter: {
+    purpose: 'The board: every store with activity in one month — sales, gross margin, labor % and net profit — and the company total.',
+    steps: ['It opens on the latest month with sales and says so. Pick another month or basis if you need it.', 'Click a store\'s net profit for its P&L, then any amount for the transactions.', 'Labor shows red when it is over the store\'s target (People › Labor %).'],
+    tips: ['Labor % here is net pay + payroll taxes (6100 + 6110) ÷ net sales on the same basis.', 'The tie-out proves the stores add to the total and the total equals the P&L.'],
+  },
+  drill: {
+    purpose: 'Every entry behind one figure on the P&L or the bridge, on the basis you clicked from.',
+    steps: ['Read the date the basis uses, the book date and the cash date.', 'Click a reference to open the transaction; accrual fuel cost links to the fuel margin screen.', 'Export the list to CSV or Excel.'],
+    tips: ['"Not in cash" means the line has no cash date yet: an uncleared check or an unpaid bill.', 'The tie-out proves the entries add to the P&L figure.'],
+  },
+  balanceSheet: {
+    purpose: 'Assets, liabilities and equity as of any date, for one entity or consolidated.',
+    steps: ['Pick the date and the entity.', 'Intercompany accounts are broken out by party and group entity.', 'Click an account for its general ledger.'],
+    tips: ['Equity includes owner capital, owner draws, retained earnings and current-year earnings.', 'Tie-outs: assets = liabilities + equity; every balance agrees with the trial balance; consolidated, due-from and due-to group entities eliminate.', 'Fuel inventory isn\'t adjusted for gallons in the tanks yet (see the accrual bridge).'],
+  },
+  cashFlow: {
+    purpose: 'The indirect cash flow statement: net income, then working capital, investing and financing, adding up to the change in cash and cash equivalents.',
+    steps: ['Pick the months and the entity.', 'Click a line for the account behind it.', 'Use the 13-week forecast for the months ahead.'],
+    tips: ['Cash and cash equivalents = bank, cash on hand and in transit, and supplier / card clearing.', 'Net income is on the booked basis, so the statement ties to the ledger\'s cash accounts.', 'Loans and bills paid for related parties are investing; mortgages, related-party payables, group entities and equity are financing.'],
+  },
+  scorecards: {
+    purpose: 'Each store\'s KPIs for a month against thresholds: green, amber or red, with notes.',
+    steps: ['Pick the month.', 'Read across a store; each pill says the value and its rating.', 'Add a note explaining the month.', 'The CFO or bookkeeper can change a threshold (green and amber lines) below.'],
+    tips: ['Accrual basis: fuel margin uses accrual fuel cost.', 'Labor is rated on points over each store\'s labor target. Break-even sales = fixed costs ÷ contribution margin; it is rated on how far sales are above it.', 'Food cost % is purchases ÷ food sales until kitchen counts arrive in phase 7.'],
+  },
+  boardPack: {
+    purpose: 'A one-page monthly pack for the owners: letter, P&L, balance sheet, cash, KPIs, intercompany and open issues.',
+    steps: ['Pick the month.', 'Read the letter written from the numbers and edit it.', 'Print / PDF to save or send it.'],
+    tips: ['Your edits last until you change month or reset the letter; they are not saved to the books.', 'Open issues are the inbox items that need someone.'],
+  },
+  reportBuilder: {
+    purpose: 'Build your own report: rows of accounts or groups, columns of stores or months, on any basis.',
+    steps: ['Tick row groups or add account rows.', 'Pick columns, months, basis and stores.', 'Save it; open it again from Saved reports.', 'Pick a schedule to keep a cadence with the report.'],
+    tips: ['Scheduling stores the cadence only: nothing is emailed yet, because sending needs the hosted back end.', 'The tie-out proves every row adds across and net profit agrees with the P&L.'],
   },
   periods: {
     purpose: 'Open and locked months. A locked month refuses every change.',

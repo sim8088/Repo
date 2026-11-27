@@ -37,7 +37,7 @@ Add accounts, or edit a name, number, line of business or floor. Inactive accoun
 General-ledger lines with a running balance for any date range, optionally for one store. The tie-out proves that opening + activity = closing, and that closing matches the trial balance.
 
 ## Profit & loss by store (`/reports/pnl`)
-With no month in the URL, it opens on the latest month with sales and says so. Lines are grouped by line of business: Fuel, Inside, Kitchen, Other. Each margin shows as a % of sales. Click any amount to open the transactions behind it. The tie-outs check the total against the ledger (summed independently) and the store columns against the total.
+With no month in the URL, it opens on the latest month with sales and says so. Lines are grouped by line of business: Fuel, Inside, Kitchen, Other. Each margin shows as a % of sales. Click any amount to open the transactions behind it. The tie-outs check the total against the ledger (summed independently) and the store columns against the total. Phase 4 adds the cash and accrual bases, the views and the bridge; see the Phase 4 section below.
 
 ## Trial balance (`/reports/trial-balance`)
 Shows one entity or all entities, as of any date. Each entity balances on its own. Prior-year profit rolls into retained earnings. Export it as CSV for the CPA.
@@ -197,3 +197,38 @@ Each tenant's monthly rent, due vs received. Deposits apply to the oldest open m
 
 ## Rebates & other income (`/receivables/other`)
 Tabs for rebates and programs, ATM income, insurance claims and refunds owed to us. Each item shows expected, received and outstanding. Record money as it arrives (posts money in to its income account), apply a deposit already in the books, or close an item with a reason.
+
+# Phase 4: Reports
+
+## Command center (`/reports/command`)
+The board. One tile and one table row per store with activity in the month: net sales, gross margin and GM %, labor % (pill: red when over the store's target), net profit and net margin, and the change on the month before, plus the company total. It opens on the latest month with sales and says so; pick another month or basis (accrual by default). Click a store's net profit for its P&L. Tie-outs: the stores add to the total, and the total equals the P&L on the same basis.
+
+## Profit & loss (`/reports/pnl`)
+- **Basis:** Booked (the ledger, the default), Cash, Accrual, or Compare (cash and accrual side by side with the bridge).
+  - *Cash:* each line on the date its cash moved. Bank items on the date their statement line cleared; an uncleared **check** is left out until it clears; other uncleared bank items (ACH, card, online) count on their book date; bills when paid (unpaid bills are left out). Cash on hand, cash in transit and supplier / card clearing are cash equivalents, so their items count on their book date.
+  - *Accrual:* each line on its transaction date; bills on their bill (invoice) date; paid fuel invoices (5000) taken out and replaced with accrual fuel cost of sales (`fuelCostOfSales`: gallons sold × the month's delivered cost per gallon, Plus blended 50/50), dated the month end.
+- **View:** by store, by month (the trend), or against the prior period of the same length. Tick **% of sales** to see every line as a share of sales.
+- **Drill-down:** on cash and accrual every amount opens `/reports/drill`, the entries behind it with their book and cash dates; on booked it opens the transactions list as before.
+- **Bridge:** cash-basis net profit → bank clear date vs book date → uncleared checks → bills on invoice date → paid fuel out → accrual fuel cost in → accrual net profit. It ties to the cent, and each line opens its entries. "Fuel, explained" splits the fuel lines into the change in fuel inventory at cost (delivered − sold) and fuel delivered but not paid (delivered − paid); neither is posted to the ledger yet.
+- **Budget:** "Budgets arrive in phase 8." The hook (`budgetCompare`) takes budget figures once they exist.
+
+## Drill-down (`/reports/drill`)
+Every entry behind a P&L figure or a bridge line, with the date the basis uses, the cash date ("not in cash" for an uncleared check or unpaid bill) and a link to each transaction. Accrual fuel cost rows show gallons × cost per gallon by grade. Tie-out: the entries add to the P&L figure.
+
+## Balance sheet (`/reports/balance-sheet`)
+As of any date, for one entity or consolidated: bank, cash on hand and in transit, supplier clearing, receivables, inventory, prepaid, intercompany broken out by party and group entity, fixed assets net of depreciation, accounts payable, accrued payroll / payroll taxes / sales tax, loans, intercompany payables, owner capital, owner draws, retained earnings and current-year earnings. Tie-outs: assets = liabilities + equity; every balance agrees with the trial balance account by account; consolidated, due-from and due-to group entities eliminate.
+
+## Cash flow (`/reports/cash-flow`)
+Indirect method for any months and entity: booked net income, depreciation added back, working-capital changes, investing (fixed assets, loans and bills paid for related parties), financing (mortgages, related-party payables, group entities, owner capital and draws). Cash and cash equivalents = bank + cash + supplier clearing. Tie-outs: opening + net change = closing, and the change equals the cash accounts' own movement in the ledger. The 13-week forecast is linked for the months ahead.
+
+## Store scorecards (`/reports/scorecards`)
+For each operating store and month (accrual basis): fuel gallons, fuel margin ¢/gal, inside GM %, food cost % (purchases ÷ food sales until counts arrive in phase 7), labor % against the store's target, card fee %, cash over / short, net profit and break-even sales (fixed costs ÷ contribution margin, rated on the margin of safety). Each is green, amber or red against thresholds the CFO or bookkeeper can change. Add notes per store and month. Tie-out: net profit equals the accrual P&L.
+
+## Board pack (`/reports/board`)
+One printable page per month: a summary letter written from the numbers (edit it before printing; edits aren't saved to the books), P&L by store, balance sheet, cash, KPIs, intercompany positions and the open inbox items. **Print / PDF** uses the browser's print.
+
+## Report builder (`/reports/builder`)
+Pick row groups (net sales, sales by line of business, cost of goods, gross profit, labor, operating expenses, net profit) and account rows, columns by store or month, a basis, months and stores. Save it, and open saved reports from the list. A schedule (weekly, monthly, quarterly) is kept with the report, but **nothing is emailed yet**: sending needs the hosted back end. Tie-outs: every row adds across; net profit agrees with the P&L.
+
+## Exports
+Every report has **Export CSV**, **Export Excel** (a real .xlsx workbook) and **Print / PDF**. Exports are logged in the audit log.

@@ -25,6 +25,8 @@ import { DrawsPage, EliminationsPage, IntercompanyPage, PartyStatementPage, Rent
 import { ApAgingPage, BillDetailPage, BillsInboxPage, BillsPage, PaymentCalendarPage, Ten99Page, UtilitiesPage, VendorStatementsPage } from './app/pages/Payables';
 import { OtherReceivablesPage, RentRollPage } from './app/pages/Receivables';
 import { ApprovalsPage } from './app/pages/Approvals';
+import { BalanceSheetPage, CashFlowPage, CommandCenterPage, DrillPage } from './app/pages/Statements';
+import { BoardPackPage, ReportBuilderPage, ScorecardsPage } from './app/pages/ReportTools';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -48,6 +50,13 @@ function App() {
             <Route path="/books/accounts/:id" element={<AccountDetailPage />} />
             <Route path="/reports/pnl" element={<PnlPage />} />
             <Route path="/reports/trial-balance" element={<TrialBalancePage />} />
+            <Route path="/reports/command" element={<CommandCenterPage />} />
+            <Route path="/reports/drill" element={<DrillPage />} />
+            <Route path="/reports/balance-sheet" element={<BalanceSheetPage />} />
+            <Route path="/reports/cash-flow" element={<CashFlowPage />} />
+            <Route path="/reports/scorecards" element={<ScorecardsPage />} />
+            <Route path="/reports/board" element={<BoardPackPage />} />
+            <Route path="/reports/builder" element={<ReportBuilderPage />} />
             <Route path="/close/periods" element={<Periods />} />
             <Route path="/setup/stores" element={<StoresPage />} />
             <Route path="/setup/entities" element={<EntitiesPage />} />
