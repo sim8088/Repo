@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen) and 9 (Compliance, assets & ask). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 9 (Compliance, assets & ask) and 11 (Tax). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -57,6 +57,7 @@ src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (Ind
   xlsx.ts        minimal .xlsx (OOXML) writer for Excel exports
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
+  tax.ts, taxPackage.ts, taxTypes.ts   phase 11: entity map, MACRS, book-to-tax, sales tax, estimates, K-1, CPA package (seed-tax.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
 docs/          HOW-TO.md (one note per screen), DECISIONS.md
@@ -156,6 +157,24 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Loans | Terms, covenants, amortization tables and payoff dates; payments split principal and interest through the ledger; a line of credit with draws and daily interest. Store mortgages carried by Dhunna / SKD are information only (no double-booking of the rent). Ties to 2310/2320. |
 | Ask | Plain-English questions answered from the books with the transactions as proof (⌘K offers "Ask: …"). Never invents a number: it says what's missing instead. Copy as text or export CSV. |
 
+## What Phase 11 adds
+
+Working papers for the CPA, not tax advice: rates, lives and thresholds are configurable tables to verify with the CPA, and nothing is filed.
+
+| Area | What works |
+|---|---|
+| Entity map | Classification, masked EIN, owners and %, the return each entity files on, state registrations, fiscal year, method, preparer, prior returns in the vault. |
+| Calendar & returns | Tax kinds on the compliance calendar (income, state, payroll, sales tax, excise, property, 1099s, W-2s, annual reports) plus estimate installments, linked to their trackers; tax notices. |
+| Sales tax | Taxable POS sales (fuel excluded) vs collected (2200) vs remitted by store and month, variance flags and a printable / CSV filing worksheet; ties to 2200. |
+| Book-to-tax | Trial balance → adjustments (depreciation, meals, penalties, owner items, accrual-to-cash, manual) with workpapers and review → taxable income; Schedule M-1 and M-2. |
+| Tax depreciation | MACRS (tested against Pub 946), §179, bonus, QIP, the mid-quarter test, cost-seg flags; book vs tax side by side feeding the M-1. |
+| Methods | Gross-receipts test, cash/accrual, inventory and UNICAP, Form 3115 tracking. |
+| Estimates | Per owner and entity, annualized, with 100%/110% safe harbors; payments by an entity post through the ledger. |
+| Owners & K-1 | Shares by %, distributions, basis and capital roll-forward, tax distributions vs capacity. |
+| Planning | Projected taxable income and levers (equipment timing, bonus/§179, retirement, S-corp salary, restructuring note) with tax saved. |
+| CPA package | One ZIP of every year-end schedule with a printable index. |
+| Inbox | Estimate due in 14 days, return due in 30 days, sales tax collected ≠ remitted. |
+
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
@@ -164,4 +183,5 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
 - Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
 - Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).
-- Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation, the covenant monitor and the risk register come in phases 11, 12 and 14.
+- Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). The covenant monitor and the risk register come in phases 12 and 14.
+- Tax: only ordinary income is allocated to owners (no separately stated items, QBI or state apportionment); partner basis leaves out liabilities; the books start in September, so earlier book income is entered.

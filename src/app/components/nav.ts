@@ -129,6 +129,21 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: 'Tax',
+    items: [
+      { label: 'Entity map', to: '/tax' },
+      { label: 'Calendar & returns', to: '/tax/calendar' },
+      { label: 'Sales tax', to: '/tax/sales-tax' },
+      { label: 'Book-to-tax', to: '/tax/book-to-tax' },
+      { label: 'Tax depreciation', to: '/tax/depreciation' },
+      { label: 'Methods', to: '/tax/methods' },
+      { label: 'Estimates', to: '/tax/estimates' },
+      { label: 'Owners & K-1', to: '/tax/owners' },
+      { label: 'Planning', to: '/tax/planning' },
+      { label: 'CPA package', to: '/tax/cpa' },
+    ],
+  },
+  {
     title: 'Setup',
     items: [
       { label: 'Stores', to: '/setup/stores' },

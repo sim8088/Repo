@@ -25,6 +25,8 @@ import { emptyInside } from '../core/inside';
 import { emptyKitchen } from '../core/kitchen';
 import { seedInside } from './seed-inside';
 import { seedKitchen } from './seed-kitchen';
+import { seedTax } from './seed-tax';
+import { emptyTax } from '../core/tax';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -61,6 +63,7 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedAssets, seedCompliance,
   seedReports,
   seedInside, seedKitchen,
+  seedTax,
 ];
 
 function rng(seed: number) {
@@ -162,6 +165,7 @@ export function emptyState(): BooksState {
     receivables: { rent: [], items: [] },
     compliance: emptyCompliance(),
     assets: emptyAssets(),
+    tax: emptyTax(),
     reports: emptyReports(),
     inside: emptyInside(),
     kitchen: emptyKitchen(),

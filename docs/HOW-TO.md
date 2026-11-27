@@ -306,3 +306,38 @@ Property tax, insurance and annual fees spread evenly over their months. Add a p
 
 ## Ask (`/ask`, or ⌘K "Ask: …")
 Type a question in plain English. Patterns understood: what did we pay *vendor* (for *store*) in *month*; outstanding *supplier* invoices as of *date*; gallons sold this/last month at *store* (including or excluding Comdata); *account* balance as of *date*; sales at *store* last week/month; who owes us; intercompany balances; bills due this week / past due. The answer shows how the question was read, then the proof rows (transactions, bills, invoices or statements) that add to it. Copy it as text or export the rows to CSV. There is no AI service: when a question isn't understood, or the data isn't in the books, it says exactly what's missing and suggests a phrasing.
+
+
+# Phase 11 — Tax
+
+Working papers for the CPA, not tax advice. Every rate, life and threshold is a configurable table (Tax › Planning › Tax tables) with a current-law default labeled "verify with your CPA". Nothing here files a return.
+
+## Entity map (`/tax`)
+Each entity's classification and form, masked EIN (last four digits; edit the EIN in Setup › Entities), the return it files on (disregarded entities roll into their parent, the hub by default), owners and %, state registrations, fiscal year end, overall and inventory method, preparer and where prior returns are kept (a vault document or a note). **Edit** a row to change them. Tie-outs: every return's ownership adds to 100%; every disregarded entity rolls into a return that files; every owner draw this year went to an owner of the return it came from.
+
+## Calendar & returns (`/tax/calendar`)
+The compliance calendar's tax kinds (federal income, state income/franchise, estimated tax, payroll, sales tax, fuel and tobacco excise, property tax, 1099s, W-2s, annual reports) plus every estimate installment. Each row links to its tracker (payroll → the Phase 6 tracker, 1099s → Payables › 1099, sales tax → the worksheet, estimates → Estimates). **Update** records status, filed date, confirmation and payment, exactly as on the compliance calendar. Tax notices from the Phase 9 tracker are listed below. Tie-outs: filed items carry a confirmation or document; entity-paid estimates agree with their entries in the books.
+
+## Sales tax (`/tax/sales-tax`)
+Pick a month. Per store: POS sales, fuel (excluded unless the tables say otherwise), other non-taxable, taxable sales, tax at the rate, tax collected (2200 credits, with anything collected outside the POS shown apart), variance, remitted (2200 debits for that month) and not remitted. Flags appear when collected differs from rate × taxable sales, or, once the return is due or filed, when collected ≠ remitted (also an inbox item). Export or print the worksheet. Tie-outs: collected less remitted ties to 2200; taxable sales tie to the taxable departments on the POS close.
+
+## Book-to-tax (`/tax/book-to-tax`)
+Pick the return and year. Net income per books (the members' trial balances, plus book income from before these books, entered) → adjustments → taxable income. Standard adjustments recompute from the books: depreciation (register book − tax), meals (50% of 6350), penalties (6360), owner withdrawals booked to expense, and accrual-to-cash for a cash-method return. Each has a **Workpaper** (notes, source link, the meals %) and a **Review** sign-off; editing clears the sign-off. Add manual adjustments with their M-1 line; someone other than the preparer reviews them. Schedule M-1 and M-2 (AAA for the S corporation, partners' capital for the partnership) are laid out below. Tie-outs: trial balances balance; book income ties to them; book depreciation ties to the register and 6400; M-1 line 8 equals book income plus every adjustment.
+
+## Tax depreciation (`/tax/depreciation`)
+Every Phase 9 asset with its tax schedule beside the book one: recovery period, convention (the 40% mid-quarter test is applied automatically), §179, bonus, QIP, book and tax for the year, accumulated on both sides and the difference. **Elections** sets them per asset. Flags: no elections recorded, cost-segregation candidates (canopies, USTs, site work; HM14's land and building pending a study), lives that look wrong, bonus or §179 where they aren't allowed. The MACRS tables (5, 7, 15-year half-year and mid-quarter; 39-year mid-month) are shown below. Tie-outs: book ties to the register and 6400; book − tax ties to the M-1 depreciation adjustments.
+
+## Methods (`/tax/methods`)
+The §448(c) gross-receipts test: three prior years (entered for years before these books, plus anything in the books), aggregated across every entity, averaged and compared with the threshold. Per return: cash vs accrual eligibility, inventory method and UNICAP (exempt for a small business). Form 3115 changes with DCN, status, filed date and §481(a) adjustment. Tie-out: this year's receipts in the books tie to net sales on the P&L.
+
+## Estimates (`/tax/estimates`)
+One card per payer (an owner, or an entity paying its own tax). Projected income (year to date annualized, depreciation at the full year), × the rate, against the safe harbor (last year's tax at 100%, or 110% above the AGI threshold): the smaller is required, in four installments; overpayments carry forward. **Record a payment**: paid personally (recorded only) or by an entity, which posts from Trustmark (an owner's estimate as a distribution under the owner-withdrawal policy; an entity's own to 6250). Installments due within 14 days reach the inbox.
+
+## Owners & K-1 (`/tax/owners`)
+Per return: each owner's %, share of taxable income, distributions (from owner draws), non-deductible share, basis start and end (suspended losses and distributions over basis flagged), capital start and end. **Start** enters last year's ending basis and capital. S-corporation distributions out of proportion to ownership are flagged. Tax distributions = projected taxable share × owner rate, against what has been distributed and the distribution capacity (bank above the floor less entity estimates due in 90 days).
+
+## Planning (`/tax/planning`)
+Projected year-end taxable income for a return and the levers: equipment bought before year end (bonus / MACRS), electing bonus on this year's assets, retirement contributions, owner salary (FICA effect for the S corporation) and a C-corporation comparison (information only), each with the tax saved at the table rates. The tax tables themselves are edited here.
+
+## CPA package (`/tax/cpa`)
+The year-end ZIP: entity map, trial balance per entity, fixed assets book and tax, loan schedules, payroll summary, 1099 list, owner draws, intercompany balances, inventory, tax workpapers with M-1/M-2, sales tax, estimates and K-1 support, plus a printable index (HTML and CSV). Each line opens its screen. Downloads are logged.

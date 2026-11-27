@@ -33,6 +33,7 @@ import { BalanceSheetPage, CashFlowPage, CommandCenterPage, DrillPage } from './
 import { BoardPackPage, ReportBuilderPage, ScorecardsPage } from './app/pages/ReportTools';
 import { AgeChecksPage, BudgetsPage, DeptSalesPage, InventoryPage, LotteryPage, RebatesPage, VendorPurchasesPage } from './app/pages/Inside';
 import { FoodCostPage, FoodSalesPage, PrimeCostPage, SupplierPricesPage, WastePage } from './app/pages/Kitchen';
+import { BookToTaxPage, CpaPackagePage, SalesTaxPage, TaxCalendarPage, TaxDepreciationPage, TaxEntitiesPage, TaxEstimatesPage, TaxMethodsPage, TaxOwnersPage, TaxPlanningPage } from './app/pages/Tax';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -128,6 +129,16 @@ function App() {
             <Route path="/kitchen/waste" element={<WastePage />} />
             <Route path="/kitchen/labor" element={<PrimeCostPage />} />
             <Route path="/kitchen/prices" element={<SupplierPricesPage />} />
+            <Route path="/tax" element={<TaxEntitiesPage />} />
+            <Route path="/tax/calendar" element={<TaxCalendarPage />} />
+            <Route path="/tax/sales-tax" element={<SalesTaxPage />} />
+            <Route path="/tax/book-to-tax" element={<BookToTaxPage />} />
+            <Route path="/tax/depreciation" element={<TaxDepreciationPage />} />
+            <Route path="/tax/methods" element={<TaxMethodsPage />} />
+            <Route path="/tax/estimates" element={<TaxEstimatesPage />} />
+            <Route path="/tax/owners" element={<TaxOwnersPage />} />
+            <Route path="/tax/planning" element={<TaxPlanningPage />} />
+            <Route path="/tax/cpa" element={<CpaPackagePage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

@@ -9,6 +9,7 @@ import { bankStoreId } from './bank';
 
 export const KIND_LABEL: Record<ComplianceKind, string> = {
   sales_tax: 'Sales tax', fuel_excise: 'Fuel excise', payroll: 'Payroll filing', income_tax: 'Income tax', property_tax: 'Property tax', annual_report: 'Annual report', other: 'Other',
+  state_income: 'State income / franchise', estimated_tax: 'Estimated tax', tobacco_excise: 'Tobacco excise', info_1099: '1099s', w2: 'W-2s',
 };
 export const STATUS_LABEL: Record<ComplianceStatus, string> = { not_started: 'Not started', in_prep: 'In prep', filed: 'Filed', paid: 'Paid', accepted: 'Accepted' };
 export const LICENSE_LABEL: Record<LicenseKind, string> = {

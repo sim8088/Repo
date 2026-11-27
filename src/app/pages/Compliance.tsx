@@ -103,7 +103,7 @@ export function CalendarPage() {
   );
 }
 
-function OccurrenceForm({ row, onDone, say }: { row: OccurrenceRow; onDone: (m: string) => void; say: (m: string) => void }) {
+export function OccurrenceForm({ row, onDone, say }: { row: OccurrenceRow; onDone: (m: string) => void; say: (m: string) => void }) {
   const { books, user, state } = useBooks();
   const today = todayInChicago();
   const o = row.occ;

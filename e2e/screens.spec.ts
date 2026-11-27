@@ -25,6 +25,8 @@ const ROUTES = [
   '/reports/scorecards', '/reports/board', '/reports/builder',
   '/inside', '/inside?tab=import', '/inside/purchases', '/inside/inventory', '/inside/budgets', '/inside/rebates', '/inside/lottery', '/inside/lottery?show=short', '/inside/age-checks',
   '/kitchen', '/kitchen?tab=import', '/kitchen/food-cost', '/kitchen/waste', '/kitchen/labor', '/kitchen/prices', '/kitchen/prices?tab=invoices', '/kitchen/prices?tab=import',
+  '/tax', '/tax/calendar', '/tax/calendar?show=open', '/tax/sales-tax', '/tax/sales-tax?period=2026-10', '/tax/book-to-tax', '/tax/book-to-tax?entity=ent_hm14', '/tax/depreciation',
+  '/tax/methods', '/tax/estimates', '/tax/owners', '/tax/planning', '/tax/planning?entity=ent_hm14', '/tax/cpa',
 ];
 
 async function open(page: Page, route: string) {
@@ -496,4 +498,36 @@ test('inside store: enter a count that shows shrink, post it, and 1310 still tie
   await expect(page.locator('.tie.ok', { hasText: 'HM11 1310 ties to the latest counts' })).toBeVisible();
   await open(page, '/');
   await expect(page.getByText('Shrink over threshold')).toBeVisible();
+});
+
+test('tax: the October sales tax worksheet ties to 2200 and flags the $105 collected outside the POS and not remitted', async ({ page }) => {
+  await open(page, '/tax/sales-tax?period=2026-10');
+  await expect(page.locator('.tie.ok', { hasText: 'Tax collected less remitted ties to 2200 Sales tax payable' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Taxable sales tie to the taxable departments on the POS close' })).toBeVisible();
+  await expect(page.locator('.tie.bad', { hasText: 'Collected ≠ remitted for this month' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Look into these before filing' })).toContainText('HM15: collected');
+  await expect(page.getByRole('status').filter({ hasText: 'Look into these before filing' })).toContainText('$105.00 not remitted');
+  await page.getByLabel('Month', { exact: true }).selectOption('2026-09');
+  await expect(page.locator('.tie.ok', { hasText: 'Collected = remitted for this month' })).toBeVisible();
+  await open(page, '/tax/book-to-tax');
+  await expect(page.locator('.tie.ok', { hasText: 'M-1 reconciles book income to taxable income' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Book depreciation in these books ties to the asset register (6400)' })).toBeVisible();
+  await open(page, '/');
+  await expect(page.getByText('Sales tax collected ≠ remitted')).toBeVisible();
+});
+
+test('tax: record the Corporate estimate due within 14 days; it posts through the ledger and clears', async ({ page }) => {
+  await open(page, '/tax/estimates');
+  await expect(page.locator('.figure', { hasText: 'Due within 14 days' }).locator('.value')).toHaveText('1');
+  const card = page.locator('section', { has: page.getByRole('heading', { name: 'CORP · State 2026' }) });
+  await card.getByRole('button', { name: 'Record a payment' }).click();
+  await card.getByLabel('Quarter').selectOption('4');
+  await card.getByLabel('Amount').fill('1,000.00');
+  await card.getByLabel('Confirmation #').fill('PTE-E2E-4');
+  await card.getByRole('button', { name: 'Record payment' }).click();
+  await expect(page.getByRole('status')).toContainText('Payment posted as TX-');
+  await expect(page.locator('.figure', { hasText: 'Due within 14 days' }).locator('.value')).toHaveText('0');
+  await expect(page.locator('.tie.ok', { hasText: 'Payments made by an entity agree with their entries in the books (2)' })).toBeVisible();
+  await card.getByRole('link', { name: /^TX-/ }).last().click();
+  await expect(page.getByText('6250 · Income & franchise taxes (entity level)')).toBeVisible();
 });

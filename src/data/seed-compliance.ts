@@ -38,7 +38,7 @@ export function seedCompliance({ state, books, cfo, setClock }: SeedCtx): void {
     setClock(date);
     const byStore = new Map<string, number>();
     for (const t of state.transactions) {
-      if (t.deleted || !t.date.startsWith(period)) continue;
+      if (t.deleted || !t.date.startsWith(period) || t.tags.includes('sales tax')) continue; // the month's collections, not last month's remittance
       for (const l of t.lines) if (l.accountId === 'acct_sales_tax') byStore.set(l.storeId, (byStore.get(l.storeId) ?? 0) + l.credit - l.debit);
     }
     const total = [...byStore.values()].reduce((a, b) => a + b, 0);
