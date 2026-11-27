@@ -33,6 +33,8 @@ import { emptyGl } from '../core/journals';
 import { emptyQbo } from '../core/qbo';
 import { seedJournals } from './seed-journals';
 import { seedQbo } from './seed-qbo';
+import { seedDebt } from './seed-debt';
+import { emptyDebt } from '../core/debt';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -70,6 +72,7 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedReports,
   seedInside, seedKitchen,
   seedBudgets, seedClose,
+  seedDebt,
   // Phase 10 last: account recs are signed off against the October balances, and QBO pushes cover every entry.
   seedJournals, seedQbo,
 ];
@@ -173,6 +176,7 @@ export function emptyState(): BooksState {
     receivables: { rent: [], items: [] },
     compliance: emptyCompliance(),
     assets: emptyAssets(),
+    debt: emptyDebt(),
     reports: emptyReports(),
     inside: emptyInside(),
     kitchen: emptyKitchen(),

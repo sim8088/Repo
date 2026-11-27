@@ -1,12 +1,12 @@
 import type { SeedCtx } from './seed';
 import type { Attachment, ID, User } from '../core/types';
-import { approveJournal, createJournal, fromTemplate, generateRecurring, postReversals, saveRecurring, template } from '../core/journals';
+import { approveJournal, createJournal, fromTemplate, generateRecurring, postReversals, saveRecurring } from '../core/journals';
 import { payrollAccrual, prepareRecon, reconRow, reviewRecon, setManualSupport } from '../core/recons';
 
 const c = (dollars: number) => Math.round(dollars * 100);
 
 /**
- * Phase 10 demo: a recurring interest accrual (September and October generated, November due),
+ * Phase 10 demo: a recurring audit-fee accrual (September and October generated, November due),
  * an intercompany management fee, reversing accruals at 31 October (utilities from a template,
  * payroll as a multi-store manual entry, fuel received not invoiced approved over the limit),
  * one entry waiting for approval, and October account reconciliations:
@@ -17,13 +17,17 @@ export function seedJournals({ state, books, cfo, setClock }: SeedCtx): void {
   const owner = state.users.find((u) => u.role === 'owner') as User;
   const corp = 'st_corp';
 
-  // Recurring: interest on the related-party mortgage reimbursement, accrued monthly on the 25th.
+  // Recurring: the year-end CPA fee, accrued monthly on the 25th. (Interest is not accrued here: Phase 9 loan
+  // payments post 6500, and the related-party mortgages are covered by the rent pass-throughs.)
   setClock('2026-09-02');
-  const interest = template('accr_interest')!;
+  const accruedExp = 'acct_accrued_exp';
   const rec = saveRecurring(books, cfo, {
-    name: 'Monthly interest accrual', description: 'Accrued interest – related-party mortgages', memo: 'Interest on the store mortgages Dhunna / SKD pay, per their monthly statements; settled when reimbursed.',
-    templateKey: interest.key, adjusting: true, autoReverse: false, frequency: 'monthly', day: 25, start: '2026-09', end: '2027-08',
-    lines: fromTemplate(state, interest.key, { date: '2026-09-25', stores: [corp], amounts: [c(850)] }).lines,
+    name: 'Monthly audit fee accrual', description: 'Accrued year-end CPA fee', memo: 'One twelfth of the engagement letter fee for the year-end review and returns; billed in March.',
+    adjusting: true, autoReverse: false, frequency: 'monthly', day: 25, start: '2026-09', end: '2027-08',
+    lines: [
+      { accountId: 'acct_professional', storeId: corp, debit: c(850), credit: 0, memo: 'Year-end CPA fee, 1/12' },
+      { accountId: accruedExp, storeId: corp, debit: 0, credit: c(850), memo: 'Accrued professional fees' },
+    ],
   });
   setClock('2026-09-25');
   generateRecurring(books, cfo, '2026-09-30', [rec.id]);

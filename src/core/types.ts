@@ -2,8 +2,10 @@ import type { Cents } from './money';
 import type { FuelState } from './fuelTypes';
 import type { ComplianceState } from './complianceTypes';
 import type { AssetsState } from './assetTypes';
+import type { DebtState } from './debtTypes';
 export type * from './complianceTypes';
 export type * from './assetTypes';
+export type * from './debtTypes';
 import type { InsideState, KitchenState } from './insideTypes';
 
 export type ID = string;
@@ -162,7 +164,7 @@ export interface AuditEntry {
   userId: ID;
   action: string;
   objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people' | 'fuel'
-    | 'bill' | 'intercompany' | 'receivable' | 'report' | 'inside' | 'kitchen' | 'compliance' | 'document' | 'asset' | 'loan' | 'budget' | 'close' | 'journal' | 'recon' | 'qbo';
+    | 'bill' | 'intercompany' | 'receivable' | 'report' | 'inside' | 'kitchen' | 'compliance' | 'document' | 'asset' | 'loan' | 'budget' | 'close' | 'journal' | 'recon' | 'qbo' | 'debt';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -464,6 +466,8 @@ export interface BooksState {
   compliance?: ComplianceState;
   /** Fixed assets, prepaids & loans (phase 9). Read it through `assetsOf(state)`. */
   assets?: AssetsState;
+  /** Debt, treasury & capital structure (phase 12). Read it through `debtOf(state)`. */
+  debt?: DebtState;
   /** Inside store (phase 7). Older books lack it: read it through `insideOf(state)`. */
   inside: InsideState;
   /** Kitchen (phase 7). Older books lack it: read it through `kitchenOf(state)`. */

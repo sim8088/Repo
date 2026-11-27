@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask) and 10 (GL toolkit & QuickBooks). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask), 10 (GL toolkit & QuickBooks) and 12 (Debt & treasury). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -64,6 +64,7 @@ src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (Ind
   qbo.ts         phase 10: QuickBooks connector interface, file connector, mapping, pull, push, differences
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
+  debt.ts, debtTypes.ts   phase 12: debt dashboard, covenants, refinance, paydown vs invest, reserve, related-party loans (seed-debt.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
 docs/          HOW-TO.md (one note per screen), DECISIONS.md
@@ -120,6 +121,19 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Lottery & age checks | Weekly lottery settlement per store with the shortage flag; commissions tie to 4140. Age-check audit log with follow-ups. |
 | Kitchen | Food sales by day, menu mix import, food cost % with counts and a target per store, waste log and its effect, kitchen labor and prime cost, supplier price alerts from item-level invoice detail. |
 | Inbox | Food cost outside target, shrink over threshold, purchasing budget exceeded, lottery shortage, scan-data short-paid, supplier price jump. |
+
+## What Phase 12 adds
+
+| Area | What works |
+|---|---|
+| Debt dashboard | Every loan, mortgage, line of credit, equipment note and related-party loan (both ways), related-party-carried mortgages flagged; balance, rate and index, after-tax cost, payment, maturity and balloon, collateral, guarantor, prepayment penalty, covenants; interest to date (6500) and projected; WACD; maturity ladder. Ties to 2300–2320 and the schedules. |
+| Covenant monitor | DSCR, leverage, minimum liquidity and fixed-charge coverage monthly from the statements (TTM, or annualized with fewer months, and it says so), headroom, a forecast breach date from the 13-week forecast and the trend, and a printable lender package with an Excel workbook. |
+| Refinance analyzer | Current vs proposed loan: payment change, interest saved, break-even months, NPV at the cost of capital, DSCR before and after, cash freed. Saved scenarios, market rate history, property values and LTV. |
+| Triggers | Rate gap with break-even, maturity within 12 months, LTV below target, variable above fixed, covenant forecast to breach. |
+| Paydown vs invest | After-tax cost of each debt vs after-tax return on alternatives, ranked (avalanche once the reserve is met), with the effect on DSCR, liquidity and months to fund the next store. |
+| Cash reserve | N weeks of fixed costs + one fuel load per store + one payroll; deployable cash and suggested uses. |
+| Related-party loans | Documented terms, imputed-interest flags below the AFR, monthly balance confirmations. |
+| Inbox | Covenant breach forecast, DSCR below target, maturity within 12 months, refinance opportunity, variable above fixed, deployable cash above the reserve 2+ months. |
 
 ## What Phase 3 adds
 
