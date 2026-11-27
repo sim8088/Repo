@@ -8,6 +8,7 @@ import { validateDraft, type DraftLine, type TxnDraft } from '../../core/ledger'
 import { ValidationError } from '../../core/books';
 import { suggest } from '../../core/rules';
 import { can } from '../../core/permissions';
+import { createJournal } from '../../core/journals';
 import type { Transaction, ID } from '../../core/types';
 
 type Mode = 'money_out' | 'money_in' | 'transfer' | 'journal';
@@ -88,6 +89,12 @@ export function TransactionForm() {
     if (cats.some((r) => r.amount && cents(r.amount) === null) || jrows.some((r) => (r.debit && cents(r.debit) === null) || (r.credit && cents(r.credit) === null))) errs.unshift('One of the amounts is not a number. Use digits like 1,284.36.');
     if (errs.length) { setErrors([...new Set(errs)]); return; }
     try {
+      // Phase 10: new journal entries go through the JE suite (memo required, approval over the limit).
+      if (!editing && mode === 'journal') {
+        const je = createJournal(books, user, { date: draft.date, description: draft.description, memo: draft.memo ?? '', partyId: draft.partyId, lines: draft.lines });
+        nav(`/books/journals/${je.id}`);
+        return;
+      }
       const t = editing ? books.updateTransaction(user, editing.id, draft, 'Edited in form') : books.createTransaction(user, draft);
       nav(`/books/transactions/${t.id}`);
     } catch (e) {
@@ -201,6 +208,7 @@ export function TransactionForm() {
         ) : (
           <section className="panel" aria-labelledby="j-h">
             <div className="panel-head"><h2 id="j-h">Lines</h2><span className={dr === crT ? 'pos' : 'neg'}>Debits <Money c={dr} /> · Credits <Money c={crT} /> {dr === crT ? '· balanced' : `· off by ${formatMoney(Math.abs(dr - crT), { dollarSign: true })}`}</span></div>
+            {!editing && <p className="panel-pad small muted" style={{ paddingBottom: 0 }}>A memo is required. Over {formatMoney(state.settings.jeApprovalLimitCents, { dollarSign: true })} the entry waits for approval. Templates, recurring and reversing entries: <Link to="/books/journals/new">Journal entries</Link>.</p>}
             <div className="panel-pad lines-grid">
               {jrows.map((r, i) => (
                 <div className="line-row" key={r.key}>

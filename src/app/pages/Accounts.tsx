@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useBooks } from '../store';
-import { Errors, Help, Money, PageHead, TieOut, csvMoney, useExport, useToast } from '../components/ui';
+import { AccountOptions, Errors, Figure, Help, Money, PageHead, TieOut, csvMoney, useToast } from '../components/ui';
+import { ExportButtons } from '../components/reportkit';
+import { glOf } from '../../core/journals';
 import { ACCOUNT_TYPE_LABEL, LOB_LABEL } from '../../core/coa';
 import { accountDetail, balanceAsOf, trialBalance } from '../../core/reports';
 import { todayInChicago, shortDate, periodOf } from '../../core/dates';
@@ -84,66 +86,104 @@ export function Accounts() {
   );
 }
 
+/** Where a ledger transaction came from, for the GL detail's drill to source. */
+function useSources(): Map<string, { label: string; to: string }> {
+  const { state, version } = useBooks();
+  return useMemo(() => {
+    const m = new Map<string, { label: string; to: string }>();
+    for (const j of glOf(state).entries) {
+      if (j.txnId) m.set(j.txnId, { label: j.ref, to: `/books/journals/${j.id}` });
+      if (j.reversal) m.set(j.reversal.txnId, { label: `${j.ref} reversal`, to: `/books/journals/${j.id}` });
+    }
+    for (const b of state.payables?.bills ?? []) {
+      if (b.approved) m.set(b.approved.txnId, { label: b.ref, to: `/payables/bills/${b.id}` });
+      if (b.payment) m.set(b.payment.txnId, { label: `${b.ref} payment`, to: `/payables/bills/${b.id}` });
+    }
+    for (const r of state.people?.runs ?? []) for (const id of r.txnIds) m.set(id, { label: `Payroll ${r.payDate}`, to: '/people/runs' });
+    for (const p of state.qbo?.pulled ?? []) if (p.txnId && p.status === 'posted') m.set(p.txnId, { label: 'QBO pull', to: '/qbo/log?kind=pull' });
+    return m;
+  }, [state, version]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export function AccountDetailPage() {
-  const { id } = useParams();
+  const { id: routeId } = useParams();
   const [sp, setSp] = useSearchParams();
-  const { state, lines, stores, user } = useBooks();
-  const exportCsv = useExport();
+  const nav = useNavigate();
+  const { state, lines, stores } = useBooks();
+  const sources = useSources();
   const today = todayInChicago();
+  const id = routeId ?? sp.get('account') ?? 'acct_trustmark';
   const from = sp.get('from') ?? periodOf(today) + '-01';
   const to = sp.get('to') ?? today;
   const store = sp.get('store') ?? '';
+  const entity = sp.get('entity') ?? '';
   const a = state.accounts.find((x) => x.id === id);
-  const gl = useMemo(() => (a ? accountDetail(state, a.id, { from, to, storeId: store || undefined, lines }) : null), [state, a, from, to, store, lines]);
+  const gl = useMemo(() => (a ? accountDetail(state, a.id, { from, to, storeId: store || undefined, entityId: entity || undefined, lines }) : null), [state, a, from, to, store, entity, lines]);
   const tbBal = useMemo(() => {
     if (!a || store) return null;
-    const tb = trialBalance(state, { asOf: to, lines });
+    const tb = trialBalance(state, { asOf: to, entityId: entity || undefined, lines });
     const row = tb.rows.find((r) => r.account.id === a.id);
     const sign = a.type === 'asset' || a.type === 'expense' || a.type === 'cogs' || a.type === 'contra_revenue' ? 1 : -1;
     return (row?.net ?? 0) * sign;
-  }, [state, a, to, store, lines]);
+  }, [state, a, to, store, entity, lines]);
   if (!a || !gl) return <PageHead title="Account not found" />;
   const set = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }); };
   const sum = gl.rows.reduce((x, r) => x + r.change, 0);
+  const code = (sid: string) => state.stores.find((s) => s.id === sid)?.code ?? '';
+  const entCode = (sid: string) => state.entities.find((e) => e.id === state.stores.find((s) => s.id === sid)?.entityId)?.code ?? '';
+  const src = (tid: string, ref: string) => sources.get(tid) ?? { label: ref, to: `/books/transactions/${tid}` };
+  const low = a.floorCents !== undefined && gl.closing < a.floorCents ? 'neg' : undefined;
 
   return (
     <>
-      <PageHead eyebrow={`${ACCOUNT_TYPE_LABEL[a.type]} · ${a.number}`} title={a.name} lede={a.floorCents !== undefined ? `Floor ${(a.floorCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}. Closing balance below that shows in red.` : undefined}>
+      <PageHead eyebrow={`GL detail · ${ACCOUNT_TYPE_LABEL[a.type]} · ${a.number}`} title={a.name} lede={a.floorCents !== undefined ? `Floor ${(a.floorCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}. Closing balance below that shows in red.` : undefined}>
         <Link className="btn" to="/books/accounts">All accounts</Link>
-        {can(user, 'export') && <button className="btn" onClick={() => exportCsv(`gl-${a.number}-${from}-to-${to}`, ['Date', 'Ref', 'Description', 'Store', 'Memo', 'Debit', 'Credit', 'Balance'], gl.rows.map((r) => [r.t.date, r.t.ref, r.t.description, state.stores.find((s) => s.id === r.l.storeId)?.code ?? '', r.l.memo ?? '', csvMoney(r.l.debit), csvMoney(r.l.credit), csvMoney(r.balance)]))}>Export CSV</button>}
-        <button className="btn" onClick={() => window.print()}>Print</button>
+        <ExportButtons name={`gl-${a.number}-${from}-to-${to}${entity ? '-' + (state.entities.find((e) => e.id === entity)?.code ?? '') : ''}`} sheet={`GL ${a.number}`} header={['Date', 'Ref', 'Source', 'Description', 'Store', 'Entity', 'Memo', 'Debit', 'Credit', 'Balance']}
+          rows={[['', '', '', 'Opening balance', '', '', '', '', '', csvMoney(gl.opening)], ...gl.rows.map((r) => [r.t.date, r.t.ref, src(r.t.id, r.t.ref).label, r.t.description, code(r.l.storeId), entCode(r.l.storeId), r.l.memo ?? '', csvMoney(r.l.debit), csvMoney(r.l.credit), csvMoney(r.balance)])]} />
       </PageHead>
+      <section className="figures" aria-label="Account" style={{ marginBottom: 20 }}>
+        <Figure label={`Opening ${shortDate(from)}`} value={<Money c={gl.opening} dollar />} />
+        <Figure label="Debits" value={<Money c={gl.totalDebit} dollar />} note={`${gl.rows.length} lines`} />
+        <Figure label="Credits" value={<Money c={gl.totalCredit} dollar />} />
+        <Figure label={`Closing ${shortDate(to)}`} value={<Money c={gl.closing} dollar className={low} />} />
+      </section>
       <section className="panel">
         <div className="filters">
+          <div className="field wide"><label htmlFor="g-acct">Account</label><select id="g-acct" value={a.id} onChange={(e) => nav(`/books/accounts/${e.target.value}?${sp.toString()}`)}><AccountOptions /></select></div>
           <div className="field"><label htmlFor="g-from">From</label><input id="g-from" type="date" value={from} onChange={(e) => set('from', e.target.value)} /></div>
           <div className="field"><label htmlFor="g-to">To</label><input id="g-to" type="date" value={to} onChange={(e) => set('to', e.target.value)} /></div>
+          <div className="field"><label htmlFor="g-ent">Entity</label><select id="g-ent" value={entity} onChange={(e) => set('entity', e.target.value)}><option value="">All entities</option>{state.entities.filter((e) => !e.deleted).map((e) => <option key={e.id} value={e.id}>{e.code}</option>)}</select></div>
           <div className="field"><label htmlFor="g-store">Store</label><select id="g-store" value={store} onChange={(e) => set('store', e.target.value)}><option value="">All stores</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select></div>
         </div>
         <div className="table-wrap">
           <table className="t">
-            <thead><tr><th scope="col">Date</th><th scope="col">Ref</th><th scope="col">Description</th><th scope="col">Store</th><th scope="col" className="num">Debit</th><th scope="col" className="num">Credit</th><th scope="col" className="num">Balance</th></tr></thead>
+            <thead><tr><th scope="col">Date</th><th scope="col">Ref</th><th scope="col">Source</th><th scope="col">Description</th><th scope="col">Store</th><th scope="col" className="num">Debit</th><th scope="col" className="num">Credit</th><th scope="col" className="num">Balance</th></tr></thead>
             <tbody>
-              <tr className="sub"><td colSpan={6}>Opening balance {shortDate(from)}</td><td className="num"><Money c={gl.opening} /></td></tr>
-              {gl.rows.length === 0 && <tr><td colSpan={7} className="muted">No activity in this range.</td></tr>}
-              {gl.rows.slice(0, 2000).map((r) => (
-                <tr key={r.l.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>{shortDate(r.t.date)}</td>
-                  <td><Link to={`/books/transactions/${r.t.id}`}>{r.t.ref}</Link></td>
-                  <td className="trunc" title={r.t.description + (r.l.memo ? ' · ' + r.l.memo : '')}>{r.t.description}{r.l.memo && <span className="muted"> · {r.l.memo}</span>}</td>
-                  <td>{state.stores.find((s) => s.id === r.l.storeId)?.code}</td>
-                  <td className="num">{r.l.debit ? <Money c={r.l.debit} /> : ''}</td>
-                  <td className="num">{r.l.credit ? <Money c={r.l.credit} /> : ''}</td>
-                  <td className="num"><Money c={r.balance} /></td>
-                </tr>
-              ))}
-              {gl.rows.length > 2000 && <tr><td colSpan={7} className="muted">Showing the first 2,000 of {gl.rows.length.toLocaleString('en-US')} lines. Narrow the dates or export for the rest.</td></tr>}
-              <tr className="total"><td colSpan={4}>Closing balance {shortDate(to)}</td><td className="num"><Money c={gl.totalDebit} /></td><td className="num"><Money c={gl.totalCredit} /></td><td className="num"><Money c={gl.closing} className={a.floorCents !== undefined && gl.closing < a.floorCents ? 'neg' : undefined} /></td></tr>
+              <tr className="sub"><td colSpan={7}>Opening balance {shortDate(from)}</td><td className="num"><Money c={gl.opening} /></td></tr>
+              {gl.rows.length === 0 && <tr><td colSpan={8} className="muted">No activity in this range.</td></tr>}
+              {gl.rows.slice(0, 2000).map((r) => {
+                const s = src(r.t.id, r.t.ref);
+                return (
+                  <tr key={r.l.id}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{shortDate(r.t.date)}</td>
+                    <td><Link to={`/books/transactions/${r.t.id}`}>{r.t.ref}</Link></td>
+                    <td className="small">{s.to.startsWith('/books/transactions') ? <span className="muted">{r.t.kind.replace('_', ' ')}</span> : <Link to={s.to}>{s.label}</Link>}</td>
+                    <td className="trunc" title={r.t.description + (r.l.memo ? ' · ' + r.l.memo : '')}>{r.t.description}{r.l.memo && <span className="muted"> · {r.l.memo}</span>}</td>
+                    <td>{code(r.l.storeId)}</td>
+                    <td className="num">{r.l.debit ? <Money c={r.l.debit} /> : ''}</td>
+                    <td className="num">{r.l.credit ? <Money c={r.l.credit} /> : ''}</td>
+                    <td className="num"><Money c={r.balance} /></td>
+                  </tr>
+                );
+              })}
+              {gl.rows.length > 2000 && <tr><td colSpan={8} className="muted">Showing the first 2,000 of {gl.rows.length.toLocaleString('en-US')} lines. Narrow the dates or export for the rest.</td></tr>}
+              <tr className="total"><td colSpan={5}>Closing balance {shortDate(to)}</td><td className="num"><Money c={gl.totalDebit} /></td><td className="num"><Money c={gl.totalCredit} /></td><td className="num"><Money c={gl.closing} className={low} /></td></tr>
             </tbody>
           </table>
         </div>
         <TieOut items={[
           { label: 'Opening + activity = closing', ok: gl.opening + sum === gl.closing },
-          ...(tbBal !== null ? [{ label: tbBal === gl.closing ? 'Ties to the trial balance' : 'Differs from the trial balance', ok: tbBal === gl.closing, detail: <Link to={`/reports/trial-balance?asOf=${to}`}>open trial balance</Link> }] : []),
+          ...(tbBal !== null ? [{ label: tbBal === gl.closing ? 'Ties to the trial balance' : 'Differs from the trial balance', ok: tbBal === gl.closing, detail: <Link to={`/reports/trial-balance?asOf=${to}${entity ? `&entity=${entity}` : ''}`}>open trial balance</Link> }] : []),
         ]} />
       </section>
       <Help k="accountDetail" />

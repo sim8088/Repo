@@ -70,7 +70,7 @@ export function ApprovalsPage() {
           </section>
         );
       })}
-      <p className="muted small">Raises and rate changes (People), write-offs and adjusting entries (GL toolkit) join this list as their phases ship. Approval limits by role and amount arrive with Controls.</p>
+      <p className="muted small">Bills and journal entries over the approval limit are here; write-offs join as their phases ship. Approval limits by role and amount arrive with Controls.</p>
       {toast}
       <Help k="approvals" />
     </>

@@ -3,6 +3,7 @@ import type { BooksState, ID, User } from './types';
 import type { Cents } from './money';
 import type { Permission } from './permissions';
 import { approveBill, awaitingApproval, billTotal, rejectBill, vendorName } from './payables';
+import { approveJournal, jeTotal, pendingJournals, rejectJournal } from './journals';
 
 /** One thing waiting for someone with authority to say yes or no. */
 export interface ApprovalItem {
@@ -44,7 +45,21 @@ const bills: ApprovalProvider = {
   reject: (books, actor, id, reason) => rejectBill(books, actor, id, reason),
 };
 
-export const APPROVAL_PROVIDERS: ApprovalProvider[] = [bills];
+/** Phase 10: journal entries over the approval limit. The approver can't be the preparer. */
+const journals: ApprovalProvider = {
+  kind: 'journal',
+  label: 'Journal entries',
+  permission: 'approve',
+  list: (state) => pendingJournals(state).map((j) => ({
+    kind: 'journal', id: j.id, title: `${j.ref} · ${j.description}`,
+    detail: `${j.date}${j.adjusting ? ' · adjusting' : ''}${j.reverseOn ? ` · reverses ${j.reverseOn}` : ''} · ${j.lines.length} lines · over the ${(state.settings.jeApprovalLimitCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} limit`,
+    amount: jeTotal(j.lines), storeId: j.lines[0]?.storeId, requestedBy: j.preparedBy, requestedAt: j.preparedAt, to: `/books/journals/${j.id}`,
+  })),
+  approve: (books, actor, id, note) => { approveJournal(books, actor, id, note); },
+  reject: (books, actor, id, reason) => { rejectJournal(books, actor, id, reason); },
+};
+
+export const APPROVAL_PROVIDERS: ApprovalProvider[] = [bills, journals];
 
 export function approvalQueue(state: BooksState, visible?: Set<ID>): (ApprovalItem & { provider: ApprovalProvider })[] {
   return APPROVAL_PROVIDERS.flatMap((p) => p.list(state).map((i) => ({ ...i, provider: p })))

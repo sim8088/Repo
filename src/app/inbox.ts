@@ -52,6 +52,7 @@ function closeItems(state: BooksState, visible: Set<ID>, today: string): InboxIt
     { key: 'variances', count: vars.length, title: 'Budget variances over the threshold with no comment', detail: vars.length ? `${vMonths.map(periodLabel).join(', ')}: say why each line is off budget.` : 'Every variance over the threshold is explained.', to: vMonths[0] ? `/budgets/bva?month=${vMonths[0]}&show=open` : '/budgets/bva', action: 'Explain' },
   ];
 }
+import { glInbox } from './glinbox';
 
 export interface InboxItem {
   key: string;
@@ -140,6 +141,7 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     ...kitchenInbox(state, visible),
     ...ap,
     ...phase9Inbox(state, visible, today, seesBank),
+    ...glInbox(state, lines, visible, today, seesBank),
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
     { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },

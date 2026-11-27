@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close) and 9 (Compliance, assets & ask). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask) and 10 (GL toolkit & QuickBooks). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -58,6 +58,10 @@ src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (Ind
   close.ts       phase 8: month-end checklist, auto-evidence, intercompany agreements, lock gate
   binder.ts      phase 8: the close binder (printable HTML, ZIP of CSVs)
   xlsx.ts        minimal .xlsx (OOXML) writer for Excel exports
+  journals.ts    phase 10: journal entries, approval limit, reversing / recurring, templates, trial balance columns
+  recons.ts      phase 10: monthly account reconciliations with subledger support and sign-offs
+  consolidation.ts  phase 10: consolidated trial balance with elimination entries
+  qbo.ts         phase 10: QuickBooks connector interface, file connector, mapping, pull, push, differences
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
@@ -171,6 +175,18 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Lock gate | Lock is enabled only when every other step is done; the CFO can override with a reason, kept with the month. Periods › Lock goes through the same gate. |
 | Close binder | One printable HTML document (statements on both bases, bank reconciliation, checklist with evidence, budget vs actual, schedules, document index) and a ZIP of CSVs. |
 | Inbox | Close steps overdue, months past their close date and not locked, budget variances over the threshold with no comment. |
+## What Phase 10 adds
+
+| Area | What works |
+|---|---|
+| Journal entries | Multi-line, balanced, entity and store per line, required memo, attachments. Over the approval limit an entry waits (posts nothing) until someone other than the preparer approves it; it shows on Approvals. Adjusting flag. |
+| Templates | Accruals (payroll, utilities, fuel received not invoiced, interest), prepaids (insurance, property tax, licenses), depreciation, intercompany fee, reclass, owner draw / contribution, inventory (fuel book-to-physical, inside count), bad-debt write-off: amounts, stores and a date. |
+| Reversing & recurring | Auto-reverse date, posted once on that date. Monthly or quarterly schedules generating each period once. |
+| GL detail & trial balance | Any account and range with running balance, entity filter, drill to source, Excel. Trial balance unadjusted / adjusting / adjusted by entity with the prior month end. |
+| Account reconciliations | Every balance-sheet account monthly: GL vs support from the subledger (bank rec, Craddock, Dash, party ledgers, bills, payroll) or entered with its document; preparer and reviewer sign-off, invalidated if the GL moves. |
+| Consolidation | Entities side by side, elimination entries (due-to / due-from by pair, intercompany fees), proof they net to zero, an elimination entry log. |
+| QuickBooks | Pluggable connector with a working file connector (the live API needs the hosted back end): connections per entity, mapping with suggestions, pull with de-dupe and batch ids, push of approved entries and monthly summaries as a QBO journal CSV with QBO ids (never into a locked month), differences report with causes and a $5 alert, sync log. |
+| Inbox | Journal entries awaiting approval, recurring entries and reversals due, account recs not signed off after month end, QBO differences over $5, unmapped accounts. |
 
 ## Known limits
 
@@ -181,3 +197,4 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 - Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
 - Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).
 - Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation, the covenant monitor and the risk register come in phases 11, 12 and 14.
+- QuickBooks syncs by file: the live QBO API (OAuth, webhooks, real ids) needs the hosted back end. Recurring entries and reversals are generated when someone presses the button (the inbox says when), not on a timer.

@@ -329,3 +329,43 @@ The one-screen month-end close. Pick the month; the figures show steps done, ope
 
 ## Close binder (`/close/binder`)
 One printable HTML document for the month: the checklist with its evidence, P&L on the accrual and cash bases with the bridge, balance sheet, cash flow, the bank reconciliation with its outstanding items, budget vs actual with the variance comments, schedules (AP aging, intercompany balances and whether each was agreed, fuel gallons and margin, fixed assets) and an index of supporting documents (where each attachment is filed). **Open printable binder** opens it to print to PDF; **Download HTML** saves it; **Download ZIP of CSVs** has one CSV per table. The contents list shows every section's tie-outs.
+
+# Phase 10: GL toolkit & QuickBooks
+
+## Journal entries (`/books/journals`)
+Every manual journal entry, with tabs. **Entries:** filter by status; each shows its posting (or "nothing posted" while it waits). **Templates:** accruals (payroll, utilities, fuel received not invoiced, interest), prepaids (insurance, property tax, licenses), depreciation, intercompany management fee, reclass, owner draw / contribution, inventory adjustments (fuel book-to-physical, inside count) and bad-debt write-off; each fills the accounts and sides and needs only amounts, stores and a date. **Recurring:** monthly or quarterly schedules on a day of the month between a first and last month; "Generate N due" creates each period's entry once. **Reversing:** entries with an auto-reverse date; "Post N reversals due" posts each reversal once, on its own date. Figures: awaiting approval, posted this month, recurring runs due, reversals due. Tie-outs: each posted entry agrees with its transaction; pending entries posted nothing; reversals mirror their entries.
+
+## New journal entry (`/books/journals/new`)
+Pick a template (or none), give the date, stores and amounts, check the lines (each line's entity comes from its store; due-to / due-from are added when lines span entities), write the required memo, tick **Adjusting** where it applies, set an auto-reverse date, attach support. At or under the approval limit (Setup › Settings, $10,000 in the demo) it posts at once; over it, it waits for approval by someone other than the preparer with approval rights (CFO or owner) and posts nothing until then. The Journal entry mode of **New entry** uses the same rules.
+
+## Journal entry (`/books/journals/:id`)
+Lines with store and entity, status, preparer, approver, reversal, attachments and history. An approver who isn't the preparer can approve (it posts on its own date) or reject with a reason.
+
+## GL detail (`/books/gl`, `/books/accounts/:id`)
+Any account and date range with the opening balance, every line with a running balance, and the closing balance. Filter by entity and store. The **Source** column drills to the journal entry, bill, payroll run or QBO pull behind a line; the ref opens the transaction. Export CSV or Excel. Tie-outs: opening + activity = closing; closing equals the trial balance (for the same entity).
+
+## Trial balance (`/reports/trial-balance`)
+By entity or all entities, as of any date: **unadjusted**, **adjusting** (entries tagged adjusting dated in the month of the as-of date), **adjusted**, the **prior month end** and the change. Debits positive, credits in parentheses. Tie-outs: unadjusted + adjusting = adjusted on every row; each column balances. Link to the consolidated view.
+
+## Account reconciliations (`/books/recons`, `/books/recons/:account`)
+Every balance-sheet account (retained earnings rolls forward from the P&L) for a month: GL, support, difference, status, preparer and reviewer. Support comes from the subledger where there is one: the saved bank reconciliation (statement ± book-only and bank-only items), Craddock notices, Dash clearing, related-party ledgers, entity due-to / due-from, open bills (AP), and the payroll accrual from pay runs. Everything else (cash on hand, Fiserv clearing, inventory, prepaid, fixed assets, loans until Phase 9, sales tax, equity) is entered by hand with its document attached. The preparer signs (a difference needs an explanation); a reviewer with approval rights who isn't the preparer signs off. A sign-off lapses ("GL changed after sign-off") if anything posts to the account in that month afterwards. The inbox lists the last month's accounts not signed off.
+
+## Consolidation (`/books/consolidation`)
+As of any date: each entity's trial balance side by side, combined, the eliminations and the consolidated column. Elimination entries: each pair of entities' due-to / due-from (from the automatic lines, so the Phase 5 pair check applies) and intercompany management fee income against the expense. Tie-outs: each entity balances; eliminations net to zero; nothing intercompany is left; consolidated net income equals the sum of the entities; every pair agrees. **Record** keeps the elimination entries in the elimination entry log. Nothing posts to the ledger.
+
+# QuickBooks
+
+## Sync status (`/qbo`)
+Each entity's QBO company, status ("Not connected — needs hosted back end"), connector, QBO's closing date, last push and last QBO trial balance, with the steps to sync by file until the live connection ships. Edit the company name and closing date.
+
+## Mapping (`/qbo/mapping`)
+Tabs for accounts, stores ↔ classes / locations, and vendors / parties ↔ QBO vendors / customers. Pick a QBO name per row, use a suggestion (same account number, then the closest name), or accept them all. Unmapped accounts hold back any entry that touches them and go to the inbox. Load QBO's account list from its Account List CSV.
+
+## Pull & push (`/qbo/sync`)
+**Push:** for an entity and month, the approved journal entries (and reversals) and the monthly summaries (sales, fuel COGS, card fees, payroll; each source entry lands in one summary), each balanced on the entity's own lines. "Push and download CSV" records each entry with its (simulated) QBO id and downloads a CSV for QBO's journal import. Unchanged entries aren't sent twice; a changed one is re-sent under its id. Locked months and QBO's closing date refuse. **Pull:** paste or choose QBO's Transaction List export; the preview marks each row already pulled, duplicate (same date, amount and payee as a portal entry), new or held (unmapped); new rows post with the batch id. **QBO trial balance:** import QBO's Trial Balance CSV for an entity and month; the same file twice changes nothing, a new version replaces the old.
+
+## Differences report (`/qbo/differences`)
+The portal's trial balance against QBO's for an entity and month, by QBO account, with each difference's likely cause: unmapped account (either side), entry not pushed (or changed since the push), timing (a portal entry within 3 days of month end for the same amount), or not explained. Differences over $5 alert in the inbox. Tie-outs: both sides balance, the differences net to zero, every difference has a cause.
+
+## Sync log (`/qbo/log`)
+Every pull, push, QBO trial balance import, mapping change, error and fix: when, who, what moved (each pushed entry with its QBO id), who approved, the batch id. Tie-out: every pushed entry is in the log.

@@ -70,7 +70,7 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => { window.clearTimeout(id); window.removeEventListener('resize', mark); };
   });
 
-  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : ['/bank', '/cash', '/fuel', '/assets', '/budgets', '/close'].includes(to) ? loc.pathname === to : loc.pathname.startsWith(to));
+  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : ['/bank', '/cash', '/fuel', '/assets', '/budgets', '/close', '/qbo'].includes(to) ? loc.pathname === to : loc.pathname.startsWith(to));
 
   return (
     <>

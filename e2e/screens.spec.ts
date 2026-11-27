@@ -28,6 +28,14 @@ const ROUTES = [
   '/budgets', '/budgets?store=st_hm11', '/budgets/bva', '/budgets/bva?month=2026-09&store=st_hm13', '/budgets/forecast', '/budgets/forecast?fy=2027&store=st_hm15',
   '/budgets/scenarios', '/budgets/scenarios?fy=2027', '/budgets/break-even', '/budgets/break-even?source=budget', '/reports/pnl?basis=accrual&view=budget&from=2026-10',
   '/close', '/close?month=2026-10&step=intercompany', '/close?month=2026-09&step=bank', '/close?month=2026-10&step=inventory&store=st_hm15', '/close/binder', '/close/binder?month=2026-09',
+  // Phase 10: GL toolkit & QuickBooks
+  '/books/journals', '/books/journals?tab=templates', '/books/journals?tab=recurring', '/books/journals?tab=reversing', '/books/journals?status=pending',
+  '/books/journals/new', '/books/journals/new?template=accr_payroll', '/books/journals/JE-0007', '/books/journals/JE-0010',
+  '/books/gl', '/books/gl?account=acct_due_to&entity=ent_hm11&from=2026-10-01&to=2026-10-31', '/reports/trial-balance?asOf=2026-10-31&entity=ent_hm11',
+  '/books/recons', '/books/recons?period=2026-10&all=1', '/books/recons/acct_prepaid?period=2026-10', '/books/recons/acct_trustmark?period=2026-10',
+  '/books/consolidation', '/books/consolidation?asOf=2026-10-31',
+  '/qbo', '/qbo/mapping', '/qbo/mapping?tab=classes', '/qbo/mapping?tab=parties&show=unmapped', '/qbo/sync', '/qbo/sync?tab=pull', '/qbo/sync?tab=tb&entity=ent_hm11&period=2026-10',
+  '/qbo/differences', '/qbo/differences?entity=ent_hm11&period=2026-10&all=1', '/qbo/log',
 ];
 
 async function open(page: Page, route: string) {
@@ -592,4 +600,83 @@ test('close: the CFO can override the lock gate with a reason; the binder downlo
   await open(page, '/close/binder?month=2026-10');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download ZIP of CSVs' }).click()]);
   expect(dl.suggestedFilename()).toBe('close-binder-2026-10-schedules.zip');
+});
+
+test('journal entries: a template entry over the limit waits, another role approves it, and it posts', async ({ page }) => {
+  await open(page, '/books/journals/new?template=accr_utilities');
+  await page.getByLabel('Date', { exact: true }).fill('2026-11-20');
+  await page.getByLabel('Store', { exact: true }).selectOption('st_hm13');
+  await page.getByLabel('Estimate').fill('12,500.00');
+  await expect(page.getByText(/^Over the \$10,000\.00 limit/)).toBeVisible();
+  await page.getByRole('button', { name: 'Submit for approval' }).click();
+  await expect(page.locator('h1')).toContainText('Accrued utilities HM13');
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Awaiting approval');
+  await expect(page.getByText(/You prepared this entry/)).toBeVisible();
+  await open(page, '/approvals');
+  await expect(page.getByRole('link', { name: /Accrued utilities HM13/ })).toBeVisible();
+  await page.locator('#acting-as').selectOption('usr_owner');
+  await page.getByRole('link', { name: /Accrued utilities HM13/ }).click();
+  await page.getByRole('button', { name: 'Approve and post' }).click();
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Posted');
+  await expect(page.locator('.tie.ok', { hasText: 'The posted transaction carries these lines' })).toBeVisible();
+  await page.getByRole('link', { name: /^Posted as TX-/ }).click();
+  await expect(page.getByText('Debits equal credits')).toBeVisible();
+});
+
+test('account reconciliations: review one, prepare one with its document, and a later posting invalidates a sign-off', async ({ page }) => {
+  await open(page, '/books/recons?period=2026-10');
+  await expect(page.locator('.tie.ok', { hasText: 'GL column ties to the trial balance' })).toBeVisible();
+  await page.getByRole('link', { name: '2200 · Sales tax payable' }).click();
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Awaiting review');
+  await page.getByRole('button', { name: 'Sign as reviewer' }).click();
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Signed off');
+  await open(page, '/books/recons/acct_owner_capital?period=2026-10');
+  await page.getByLabel('Balance per support').fill('1,750,400.00');
+  await page.getByLabel('What it is').fill('Capital account statement');
+  await page.locator('input[type=file]').setInputFiles({ name: 'capital.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 demo') });
+  await expect(page.getByText('capital.pdf')).toBeVisible();
+  await page.getByRole('button', { name: 'Save support' }).click();
+  await expect(page.locator('.tie.ok', { hasText: 'No difference' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sign as preparer' }).click();
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Awaiting review');
+  await expect(page.getByText('You prepared it, so someone else reviews it.')).toBeVisible();
+  // A journal entry into October changes 2200 after its sign-off.
+  await open(page, '/books/new?kind=journal');
+  await page.getByLabel('Date').fill('2026-10-31');
+  await page.getByLabel('Description').fill('Sales tax true-up');
+  await page.getByLabel('Account 1').selectOption('acct_sales_tax');
+  await page.getByLabel('Debit').first().fill('10');
+  await page.getByLabel('Account 2').selectOption('acct_misc');
+  await page.getByLabel('Credit').nth(1).fill('10');
+  await page.getByLabel('Memo', { exact: true }).fill('Rounding on the October return');
+  await page.getByRole('button', { name: 'Post journal entry' }).click();
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Posted');
+  await open(page, '/books/recons/acct_sales_tax?period=2026-10');
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('GL changed after sign-off');
+});
+
+test('QuickBooks: differences are explained; push the held entry; import a QBO trial balance once', async ({ page }) => {
+  await open(page, '/qbo/differences?entity=ent_hm11&period=2026-10');
+  await expect(page.locator('.figure', { hasText: 'Over $5' })).toContainText('4');
+  await expect(page.locator('.tie.ok', { hasText: 'Every difference has a cause' })).toBeVisible();
+  await expect(page.locator('td', { hasText: 'Entry not pushed' }).first()).toBeVisible();
+  await expect(page.locator('td', { hasText: 'Unmapped account' }).first()).toBeVisible();
+  await open(page, '/qbo/sync?entity=ent_hm11&period=2026-10');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Push 1 and download CSV' }).click()]);
+  expect(dl.suggestedFilename()).toBe('qbo-journal-HM11-2026-10.csv');
+  await expect(page.getByRole('status')).toContainText('Pushed 1');
+  await open(page, '/qbo/sync?tab=tb&entity=ent_hm13&period=2026-10');
+  const tb = ['Trial Balance', 'HM13 books', 'As of October 31, 2026', '', ',Debit,Credit', 'Trustmark Operating,"1,000.00",', 'Owner Capital,,"1,000.00"', 'TOTAL,"$1,000.00","$1,000.00"'].join('\n');
+  await page.getByLabel('QBO trial balance').fill(tb);
+  await expect(page.locator('.tie.ok', { hasText: 'Debits equal credits' })).toBeVisible();
+  await page.getByRole('button', { name: 'Import trial balance' }).click();
+  await expect(page.getByRole('status')).toContainText('Imported the QBO trial balance for HM13');
+  await page.getByLabel('QBO trial balance').fill(tb);
+  await page.getByRole('button', { name: 'Import trial balance' }).click();
+  await expect(page.getByRole('status')).toContainText('Already imported');
+  await page.locator('#main').getByRole('link', { name: 'Differences report' }).click();
+  await expect(page.locator('h1')).toHaveText('Differences report');
+  await expect(page.locator('td', { hasText: 'Not explained' }).first()).toBeVisible();
+  await open(page, '/qbo/log');
+  await expect(page.locator('td', { hasText: 'Imported the QBO trial balance for HM13 2026-10' })).toBeVisible();
 });
