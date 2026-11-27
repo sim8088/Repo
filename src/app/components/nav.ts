@@ -15,6 +15,18 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
+    title: 'Fuel',
+    items: [
+      { label: 'Gallons & margin', to: '/fuel' },
+      { label: 'Invoices & BOLs', to: '/fuel/invoices' },
+      { label: 'Supplier settlement', to: '/fuel/settlement' },
+      { label: 'Truck lane', to: '/fuel/truck' },
+      { label: 'Tanks', to: '/fuel/tanks' },
+      { label: 'Pricing & ordering', to: '/fuel/pricing' },
+    ],
+  },
+  { title: 'Reports', items: [{ label: 'Profit & loss by store', to: '/reports/pnl' }, { label: 'Trial balance', to: '/reports/trial-balance' }] },
+  {
     title: 'People',
     items: [
       { label: 'Payroll runs', to: '/people/runs' },
@@ -25,7 +37,6 @@ export const NAV: NavGroup[] = [
       { label: 'Payroll tax tracker', to: '/people/taxes' },
     ],
   },
-  { title: 'Reports', items: [{ label: 'Profit & loss by store', to: '/reports/pnl' }, { label: 'Trial balance', to: '/reports/trial-balance' }] },
   {
     title: 'Books',
     items: [

@@ -182,6 +182,63 @@ export const HELP = {
     ],
     tips: ['Owed = employee + employer taxes on every Gusto run, split into federal and state.', 'HM11\'s cash pay is wages too: agree the reporting with the CPA before W-2s go out.'],
   },
+  fuelMargin: {
+    purpose: 'Gallons, retail and margin per gallon by store and grade, by month or by day, with discounts, card fees and the break-even margin.',
+    steps: [
+      'Pick the stores and the month. Switch to By day to see each day, or By grade for the month.',
+      'Read cpg margin against the target band. Cost per gallon is that month\'s delivered cost from the invoices; Plus is blended 50/50 Regular/Premium.',
+      'Break-even cpg is discounts plus card fees per gallon: the margin fuel needs before it earns anything.',
+      'The tie-out proves the structured fuel sales add up to fuel revenue in the ledger, and shows the accrual fuel cost the phase 4 P&L will use.',
+    ],
+    tips: ['HM15 diesel comes from the Comdata truck-lane summary, not the store POS; it is counted here once.', 'Card fees per gallon include inside-store card sales, because the supplier charges them on the whole batch.'],
+  },
+  fuelInvoices: {
+    purpose: 'Every fuel delivery: the BOL, the invoice, gallons by grade, cost, freight, taxes, due date, and how it was settled.',
+    steps: [
+      'Use the filters to see open, missing (BOL with no invoice), flagged (duplicates and price outliers) or settled deliveries.',
+      'Log a delivery by hand with its BOL and, when it arrives, the invoice number and cost per grade. The total must equal lines + freight + taxes.',
+      'Import a file of invoices: the preview groups rows into invoices, totals them, and skips any already on file.',
+      'Open an invoice to attach the PDF, see the notice or Dash payment that settled it, or remove a duplicate with a reason.',
+    ],
+    tips: ['Craddock invoices are paid by netting on the next EFT notice; Dash invoices come out of Dash clearing on their due date.', 'A price outlier is a cost per gallon more than 5% from that month\'s average for the grade.'],
+  },
+  fuelSettlement: {
+    purpose: 'Post each Craddock EFT notice and prove it nets to zero; follow the Craddock receivable and the Dash clearing account.',
+    steps: [
+      'Upload or paste the notice (Type and Amount columns at least). Proceeds are +, fees, discounts, invoices and deposits are −, a draft is +.',
+      'Check the parsed lines: the notice must net to zero, each invoice line must match an invoice on file, and card proceeds are compared with the POS card sales for each day.',
+      'Post it. Card fees and host discounts are dated to each sales day, invoices and network fees to the notice date, and the draft or deposit to the next business day.',
+      'Pick any date to see the Craddock receivable and the card batches not yet on a notice. Switch to Dash clearing for card money in, invoices out on their due dates, and who owes whom.',
+    ],
+    tips: ['Importing the same notice twice adds nothing; every line keeps its batch id.', 'A posted notice can be unposted with a reason while its month is open and the bank line is not reconciled.'],
+  },
+  fuelTruck: {
+    purpose: 'The HM15 truck lane: Comdata gallons and sales kept apart from the store POS, Mudflap discounts and true-ups, and Fiserv merchant deposits and fees.',
+    steps: [
+      'Import the weekly Comdata summary (Date, Gallons, Sales, Transactions). Days already on file are skipped.',
+      'Post Mudflap fuel-code discounts and card true-ups; they go to 4910 contra revenue against the merchant clearing.',
+      'Check the Fiserv table: deposits by month, the fees debited the month after, and the effective fee rate.',
+    ],
+    tips: ['The tie-out compares Comdata sales with diesel revenue in the ledger and with truck-lane cards into Fiserv clearing.'],
+  },
+  fuelTanks: {
+    purpose: 'Book-to-physical by tank: yesterday\'s reading plus deliveries minus sales against today\'s stick or ATG reading, with water and reorder alerts.',
+    steps: [
+      'Read each tank\'s gallons, days of supply and 30-day variance against its allowance (1% of gallons sold + 130 gallons).',
+      'Open a tank for its daily book-to-physical table.',
+      'Record a stick or ATG reading. Store managers can record their own store\'s tanks.',
+    ],
+    tips: ['Water over 1 inch is an alert: call the tank contractor before it reaches the pumps.', 'Plus draws half from the Regular tank and half from the Premium tank.'],
+  },
+  fuelPricing: {
+    purpose: 'Our posted prices against nearby competitors, what matching would do to margin, and when to order the next load.',
+    steps: [
+      'Pick a store. Each grade shows our price, the competitors seen in the last week, the spread and the margin per gallon at our price.',
+      'Matching impact is the change in a week\'s margin dollars if we matched the lowest competitor and sold the same gallons.',
+      'Log a competitor price or change our posted price.',
+      'The ordering plan suggests the next delivery date and gallons per tank from sales velocity and tank room.',
+    ],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

@@ -9,6 +9,8 @@ const ROUTES = [
   '/bank', '/bank?tab=reconcile', '/bank?tab=lines', '/bank?tab=import', '/bank/checks', '/bank/deposits', '/cash', '/cash?show=flagged', '/cash/forecast', '/books/new?kind=transfer',
   '/people/runs', '/people/runs?tab=import', '/people/review', '/people/review?week=2026-11-20&all=1', '/people/employees', '/people/employees?show=pending', '/people/employees?status=all',
   '/people/cash-pay', '/people/cash-pay?all=1', '/people/labor', '/people/taxes',
+  '/fuel', '/fuel?view=day', '/fuel?view=trend', '/fuel/invoices', '/fuel/invoices?show=flagged', '/fuel/invoices?tab=import', '/fuel/settlement',
+  '/fuel/settlement?tab=dash', '/fuel/truck', '/fuel/tanks', '/fuel/pricing',
 ];
 
 async function open(page: Page, route: string) {
@@ -236,4 +238,44 @@ test('cash & check pay: someone paid by Gusto and in cash is shown both ways and
   await row.getByLabel('What the extra pay was for').fill('Covered two extra shifts');
   await row.getByRole('button', { name: 'Confirm extra pay' }).click();
   await expect(page.locator('tr', { hasText: 'Morgan T.' }).first().getByText('Both: confirmed extra pay')).toBeVisible();
+});
+
+test('fuel: paste a Craddock notice, prove it nets to zero, post it, and post the waiting one', async ({ page }) => {
+  await open(page, '/fuel/settlement');
+  const notice = [
+    'Notice,Store,Notice date,Type,Processing date,Description,Invoice,Amount',
+    '41990,HM11,2026-11-26,CC_PROCEEDS,2026-11-24,Card batch 11/23,,1000.00',
+    '41990,HM11,2026-11-26,CC_FEE,2026-11-24,Card fees,,-21.50',
+    '41990,HM11,2026-11-26,OTHER,,Cybera network fee,,-86.50',
+    '41990,HM11,2026-11-26,DEPOSIT,,ACH deposit,,-892.00',
+  ].join('\n');
+  await page.getByLabel('Paste the notice').fill(notice);
+  await page.getByRole('button', { name: 'Read notice' }).click();
+  const preview = page.locator('section', { has: page.getByRole('heading', { name: /^Preview:/ }) });
+  await expect(preview.locator('.tie.ok', { hasText: 'Nets to zero' })).toBeVisible();
+  await page.getByRole('button', { name: 'Import and post 1 notice' }).click();
+  await expect(page.getByRole('status')).toContainText('posted 1 notice');
+  await page.getByLabel('Paste the notice').fill(notice);
+  await page.getByRole('button', { name: 'Read notice' }).click();
+  await expect(page.getByText('Already on file')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import and post 0 notices' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('button', { name: /^Post notice #/ }).click();
+  await expect(page.getByText('Every notice is posted.')).toBeVisible();
+  await expect(page.getByText('HM13 receivable ties to the ledger')).toBeVisible();
+  await expect(page.getByText('HM11 receivable ties to the ledger')).toBeVisible();
+});
+
+test('fuel: import an invoice once; the second import adds nothing', async ({ page }) => {
+  await open(page, '/fuel/invoices?tab=import');
+  const csv = 'Supplier,Store,Invoice,BOL,Delivered,Due,Grade,Gross,Net,Cost,Freight,Taxes\nCraddock,HM11,C-9901,99001,2026-11-26,2026-11-29,Regular,6020,6000,12480.00,270.00,2184.00\nCraddock,HM11,C-9901,99001,2026-11-26,2026-11-29,Premium,1505,1500,3900.00,67.50,546.00\n';
+  await page.getByLabel('Paste invoices').fill(csv);
+  await page.getByRole('button', { name: 'Read invoices' }).click();
+  await expect(page.getByText('1 new, 0 skipped')).toBeVisible();
+  await page.getByRole('button', { name: 'Import 1 invoice' }).click();
+  await expect(page.getByRole('status')).toContainText('Imported 1 invoices');
+  await page.getByLabel('Paste invoices').fill(csv);
+  await page.getByRole('button', { name: 'Read invoices' }).click();
+  await expect(page.getByText('0 new, 1 skipped')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import 0 invoices' })).toBeDisabled();
 });
