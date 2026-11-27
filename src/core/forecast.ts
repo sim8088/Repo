@@ -81,8 +81,17 @@ export interface ForecastEvent {
   date: string;
   label: string;
   amount: number;
-  source: 'pattern' | 'manual' | 'cash_in_transit';
+  source: 'pattern' | 'manual' | 'cash_in_transit' | 'bill';
   key: string;
+  /** A known item (e.g. an approved bill) that stands in for the nearest occurrence of this detected pattern. */
+  replaces?: string;
+}
+
+/** Cash events another module knows about ahead of time (phase 5: approved and scheduled bills). */
+export type ForecastSource = (state: BooksState, accountId: ID, asOf: string, end: string) => ForecastEvent[];
+const SOURCES: ForecastSource[] = [];
+export function addForecastSource(fn: ForecastSource): void {
+  if (!SOURCES.includes(fn)) SOURCES.push(fn);
 }
 
 export interface ForecastWeek {
@@ -125,7 +134,7 @@ function monthlyDates(anchor: number, from: string, to: string): string[] {
  * 13-week rolling cash forecast for one bank account, starting from the book balance today.
  * Book balance already reflects checks written but not cleared, so they aren't added again.
  */
-export function forecast(state: BooksState, accountId: ID, asOf: string, opts: { weeks?: number; disabled?: Set<string>; items?: ForecastItem[] } = {}): Forecast {
+export function forecast(state: BooksState, accountId: ID, asOf: string, opts: { weeks?: number; disabled?: Set<string>; items?: ForecastItem[]; sources?: ForecastSource[] } = {}): Forecast {
   const nWeeks = opts.weeks ?? 13;
   const end = addDays(asOf, nWeeks * 7);
   const opening = balanceAsOf(state, accountId, asOf);
@@ -151,6 +160,16 @@ export function forecast(state: BooksState, accountId: ID, asOf: string, opts: {
     } else if (step) {
       for (let d = it.start; d <= end && (!it.end || d <= it.end); d = addDays(d, step)) if (d > asOf) events.push({ date: d, label: it.label, amount: it.amount, source: 'manual', key: it.id });
     } else if (it.start > asOf && it.start <= end) events.push({ date: it.start, label: it.label, amount: it.amount, source: 'manual', key: it.id });
+  }
+  for (const src of opts.sources ?? SOURCES) {
+    for (const e of src(state, accountId, asOf, end)) {
+      if (e.replaces) {
+        // Drop the detected occurrence this known item replaces, so it isn't counted twice.
+        const i = events.findIndex((x) => x.source === 'pattern' && x.key === e.replaces && Math.abs(daysBetween(x.date, e.date)) <= 10);
+        if (i >= 0) events.splice(i, 1);
+      }
+      events.push(e);
+    }
   }
   // Cash already at HQ gets deposited in the first week (unless the deposit pattern is switched off).
   const pool = poolBalance(state, asOf);

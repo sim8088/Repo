@@ -7,6 +7,10 @@ const ROUTES = [
   '/close/periods', '/setup/stores', '/setup/entities', '/setup/parties', '/setup/rules', '/setup/users', '/setup/audit', '/setup/settings', '/roadmap',
   '/books/transactions/TX-000300',
   '/bank', '/bank?tab=reconcile', '/bank?tab=lines', '/bank?tab=import', '/bank/checks', '/bank/deposits', '/cash', '/cash?show=flagged', '/cash/forecast', '/books/new?kind=transfer',
+  '/approvals', '/intercompany/parties', '/intercompany/parties/pt_cheers', '/intercompany/parties/pt_laundry', '/intercompany/parties/ent_hm11', '/intercompany/parties/pt_owner_a',
+  '/intercompany/draws', '/intercompany/eliminations', '/intercompany/rent',
+  '/payables/bills', '/payables/bills?status=all', '/payables/bills/BILL-0001', '/payables/inbox', '/payables/aging', '/payables/calendar', '/payables/utilities', '/payables/statements', '/payables/1099',
+  '/receivables/rent', '/receivables/other', '/receivables/other?tab=atm', '/receivables/other?tab=insurance',
 ];
 
 async function open(page: Page, route: string) {
@@ -155,4 +159,64 @@ test('dismissing a duplicate updates the list straight away', async ({ page }) =
   await open(page, '/books/transactions?queue=dup');
   await page.getByRole('button', { name: 'Not a duplicate' }).first().click();
   await expect(page.getByText('No possible duplicates')).toBeVisible();
+});
+
+test('payables: approve a bill, then schedule and pay it; AP ties throughout', async ({ page }) => {
+  await open(page, '/approvals');
+  await expect(page.getByRole('link', { name: 'Kitchen equipment service (demo) · invoice KS-3318' })).toBeVisible();
+  await page.getByRole('button', { name: 'Approve Kitchen equipment service (demo) · invoice KS-3318' }).click();
+  await expect(page.getByText(/Approved Kitchen equipment service/)).toBeVisible();
+  await open(page, '/payables/bills?status=open&q=KS-3318');
+  await page.getByRole('link', { name: /BILL-/ }).first().click();
+  await expect(page.locator('h1')).toContainText('KS-3318');
+  await expect(page.locator('.tie.ok', { hasText: 'Accounts payable credited the bill total' })).toBeVisible();
+  await page.getByRole('button', { name: 'Record payment' }).click();
+  await page.getByLabel('Check #').fill('4990');
+  await page.getByRole('button', { name: /Record payment of \$1,240.00/ }).click();
+  await expect(page.getByText(/Paid. Posted TX-/)).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Paid by TX-' })).toBeVisible();
+  await open(page, '/payables/aging');
+  await expect(page.locator('.tie.ok', { hasText: 'Ties to 2000 Accounts payable in the ledger' })).toBeVisible();
+  await open(page, '/bank/checks');
+  await expect(page.getByRole('link', { name: '#4990' })).toBeVisible();
+});
+
+test('bills inbox: paste an email, read it, save for approval', async ({ page }) => {
+  await open(page, '/payables/inbox');
+  await expect(page.getByText('No OCR yet.')).toBeVisible();
+  await page.getByLabel('Or paste the email text').fill('From: Ice supplier (demo)\nInvoice # IC-2433 dated 11/15/2026 for HM15\nAmount due: $415.00\nDue date: 12/15/2026');
+  await page.getByRole('button', { name: 'Read it' }).click();
+  await expect(page.getByText('Invoice # IC-2433', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Invoice #')).toHaveValue('IC-2433');
+  await expect(page.getByLabel('Due date')).toHaveValue('2026-12-15');
+  await expect(page.getByLabel('Amount 1')).toHaveValue('415.00');
+  await page.getByRole('button', { name: 'Save for approval' }).click();
+  await expect(page.locator('h1')).toContainText('IC-2433');
+  await expect(page.locator('.figure', { hasText: 'Status' })).toContainText('Awaiting approval');
+});
+
+test('intercompany: open a party statement that ties, and the elimination view nets to zero', async ({ page }) => {
+  await open(page, '/intercompany/parties');
+  await expect(page.locator('.tie.ok', { hasText: 'Party ledgers tie to the party accounts in the ledger' })).toBeVisible();
+  await page.getByRole('link', { name: 'Southern Eagle' }).click();
+  await expect(page.locator('h1')).toHaveText('Southern Eagle');
+  await expect(page.locator('.tie.ok', { hasText: 'Opening + money out − money in = closing' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Agrees with the party accounts in the ledger' })).toBeVisible();
+  await expect(page.locator('.figure', { hasText: 'Limit' })).toContainText('Over by');
+  await expect(page.getByRole('button', { name: 'Print / PDF' })).toBeVisible();
+  await open(page, '/intercompany/eliminations');
+  await expect(page.locator('.tie.ok', { hasText: 'Due-from and due-to net to zero' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Consolidated assets = liabilities + equity' })).toBeVisible();
+});
+
+test('intercompany: pay another business\'s bill from the shared account', async ({ page }) => {
+  await open(page, '/intercompany/parties');
+  await page.getByLabel('Party', { exact: true }).selectOption('pt_bullseye');
+  await page.getByLabel('What happened').selectOption('paid_bill');
+  await page.getByLabel('Amount').fill('725.00');
+  await page.getByLabel('Whose bill (vendor paid)').fill('Bullseye propane');
+  await page.getByRole('button', { name: 'Post movement' }).click();
+  await page.getByRole('link', { name: /Open TX-/ }).click();
+  await expect(page.locator('h1')).toContainText('Paid Bullseye propane for Bullseye');
+  await expect(page.getByText('1920 · Due from related parties – bills paid for them')).toBeVisible();
 });

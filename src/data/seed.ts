@@ -7,6 +7,10 @@ import { addDays, dayOfWeek, lastDayOfPeriod } from '../core/dates';
 import type { DraftLine, TxnDraft } from '../core/ledger';
 import { SYS } from '../core/ledger';
 import type { BooksState, Entity, Party, Rule, Store, User } from '../core/types';
+import { generateRent } from '../core/intercompany';
+import { rentTemplates, seedIntercompany } from './seed-intercompany';
+import { seedPayables } from './seed-payables';
+import { seedReceivables } from './seed-receivables';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -38,6 +42,7 @@ export interface SeedCtx {
  * Periods are still open when they run.
  */
 export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
+  seedIntercompany, seedPayables, seedReceivables,
 ];
 
 function rng(seed: number) {
@@ -132,6 +137,9 @@ export function emptyState(): BooksState {
     bank: { lines: [], batches: [], reconciliations: [], openings: {} },
     cash: { bags: [], payouts: [] },
     forecastItems: [],
+    intercompany: { limits: {}, rentTemplates: [] },
+    payables: { bills: [], utilities: [], statements: [] },
+    receivables: { rent: [], items: [] },
     seq: 0,
   };
 }
@@ -196,6 +204,8 @@ export function buildDemo(): BooksState {
     dr('acct_cash_registers', 'st_hm17', c(4_000)), dr('acct_inv_merch', 'st_hm17', c(38_000)), dr('acct_equipment', 'st_hm17', c(280_000)),
     cr('acct_owner_capital', 'st_hm17', c(322_000)),
   ] });
+
+  state.intercompany.rentTemplates = rentTemplates();
 
   // Running subledger positions the generator needs.
   const clearing: Record<string, number> = {};
@@ -397,13 +407,9 @@ export function buildDemo(): BooksState {
 
     // ── Monthly items.
     if (dayOfMonth === 1) {
-      // Rent pass-throughs: related party pays the mortgage → store rent + Corporate payable.
-      const rents: [string, number, string][] = [['st_hm11', 2_950_000, 'pt_dhunna'], ['st_hm13', 1_125_000, 'pt_dhunna'], ['st_hm15', 3_100_000, 'pt_skd']];
-      for (const [s, amt, party] of rents) {
-        post({ date: d, kind: 'journal', description: `Rent pass-through ${code(s)} via ${party === 'pt_skd' ? 'SKD Properties' : 'Dhunna Development'}`, partyId: party, tags: ['rent', 'intercompany'], lines: [
-          dr('acct_rent', s, amt, 'Mortgage paid by related party'), cr('acct_due_related', 'st_corp', amt, 'Reimburse through Corporate', party),
-        ] });
-      }
+      // Rent pass-throughs: related party pays the mortgage → store rent + Corporate payable. Generated from the templates (Intercompany › Rent pass-throughs).
+      clockDate = d;
+      generateRent(books, cfo, d.slice(0, 7));
     }
     if (dayOfMonth === 3) {
       for (const [party, store, amt] of [['pt_taco_feliz', 'st_hm11', 2_800], ['pt_mavs', 'st_hm11', 650], ['pt_gulfport_op', 'st_hm14', 8_500]] as const) {

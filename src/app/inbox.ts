@@ -5,6 +5,10 @@ import { addDays, periodOf, todayInChicago } from '../core/dates';
 import { checksRegister, isMatched, matchIndex } from '../core/bank';
 import { bagFlagged, bagOverdue } from '../core/cash';
 import { formatMoney } from '../core/money';
+import { billTotal, dueWithin, pastDue, unscheduledDueSoon, utilityRows, vendorName } from '../core/payables';
+import { lateRent } from '../core/receivables';
+import { overLimit } from '../core/intercompany';
+import { approvalQueue } from '../core/approvals';
 
 export interface InboxItem {
   key: string;
@@ -48,8 +52,30 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     { key: 'unclassified', count: unclassified.length, title: 'Unclassified deposits', detail: 'Say where each deposit came from.', to: '/bank/deposits?show=unclassified', action: 'Classify' },
   ] : [];
   const mat = formatMoney(state.settings.materialityCents, { dollarSign: true });
+  // Phase 5: payables, receivables, intercompany, approvals.
+  const mineBill = (b: { storeId: ID }) => visible.has(b.storeId);
+  const due7 = dueWithin(state, today, 7).filter(mineBill);
+  const unsched = unscheduledDueSoon(state, today, 3).filter(mineBill);
+  const late = pastDue(state, today).filter(mineBill);
+  const utils = utilityRows(state, today).filter((u) => visible.has(u.ua.storeId) && (u.pastDue.length || u.disconnect));
+  const rentLate = seesBank ? lateRent(state, today) : [];
+  const over = seesBank ? overLimit(state, today) : [];
+  const approvals = approvalQueue(state, visible);
+  const money = (n: number) => formatMoney(n, { dollarSign: true });
+  const ap: InboxItem[] = [
+    { key: 'approvals', count: approvals.length, title: 'Approvals waiting', detail: approvals.length ? `${approvals.map((a) => a.title).slice(0, 2).join('; ')}${approvals.length > 2 ? '…' : ''}` : 'Nothing waiting for a yes or no.', to: '/approvals', action: 'Approve' },
+    { key: 'billsunsched', count: unsched.length, title: 'Bills due in 3 days with no payment scheduled', detail: unsched.length ? unsched.map((b) => `${vendorName(state, b.vendorId)} ${money(billTotal(b))} due ${b.dueDate}`).join('; ') : 'Everything due soon is scheduled or on autopay.', to: unsched.length === 1 ? `/payables/bills/${unsched[0].id}` : '/payables/calendar', action: 'Schedule' },
+    { key: 'billslate', count: late.length, title: 'Bills past due', detail: late.length ? `${money(late.reduce((a, b) => a + billTotal(b), 0))} across ${[...new Set(late.map((b) => vendorName(state, b.vendorId)))].join(', ')}.` : 'No bill is late.', to: '/payables/aging', action: 'Pay' },
+    { key: 'utility', count: utils.length, title: 'Utilities past due or with a disconnect notice', detail: utils.length ? utils.map((u) => `${state.stores.find((x) => x.id === u.ua.storeId)?.code} ${u.ua.accountNo}${u.disconnect ? ' (disconnect notice)' : ''}`).join(', ') : 'Every utility account is current.', to: '/payables/utilities', action: 'Review' },
+    ...(seesBank ? [
+      { key: 'rentlate', count: rentLate.length, title: 'Tenant rent late', detail: rentLate.length ? rentLate.map((c) => `${state.parties.find((p) => p.id === c.tenantId)?.name.replace(' (tenant)', '')} ${c.period}`).join(', ') : 'Every tenant is paid up.', to: '/receivables/rent', action: 'Follow up' },
+      { key: 'iclimit', count: over.length, title: 'Intercompany balances over their limit', detail: over.length ? over.map((p) => `${p.name} ${money(Math.abs(p.balance))} (limit ${money(p.limit!)})`).join(', ') : 'Every related party is inside its limit.', to: over.length === 1 ? `/intercompany/parties/${over[0].id}` : '/intercompany/parties', action: 'Review' },
+    ] : []),
+    { key: 'billsdue', count: due7.length, title: 'Bills due in the next 7 days', detail: `${money(due7.reduce((a, b) => a + billTotal(b), 0))} going out. Check the payment calendar against cash.`, to: '/payables/calendar', action: 'Plan' },
+  ];
   return [
     ...bank,
+    ...ap,
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
     { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },

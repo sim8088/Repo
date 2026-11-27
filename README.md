@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Phases 1 (Foundation) and 2 (Bank & cash) are built.** The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Phases 1 (Foundation), 2 (Bank & cash) and 5 (Intercompany & payables) are built.** The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -45,6 +45,7 @@ src/core/      Accounting core: pure TypeScript, no UI. Most of the logic and th
   duplicates.ts  duplicate detection
   permissions.ts roles and the permission matrix
   coa.ts         chart of accounts for fuel retail
+  intercompany.ts, payables.ts, receivables.ts, approvals.ts   phase 5
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
@@ -64,10 +65,27 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Forecast | A 13-week rolling forecast against the $30k floor, built from recurring items found in the books plus items you add. 7/14/30-day projections and the lowest point also show on Today. |
 | Transfers | A Transfer mode for moving money between balance-sheet accounts. The ledger refuses a transfer that touches the P&L. |
 
+## What Phase 5 adds
+
+| Area | What works |
+|---|---|
+| Related parties | A running due-to / due-from ledger for every related company, owner, tenant and lender, plus each store entity's position with Corporate. Aging, limits with inbox alerts, and a printable statement per party (PDF via print, CSV). Paying another business's bill from the shared account posts to that party's receivable (1920). |
+| Rent pass-throughs | Monthly templates generate the store rent / Corporate payable entries, idempotently. |
+| Owner draws | Year-to-date withdrawals by owner, found under either withdrawal policy. |
+| Elimination view | Consolidated balance sheet with the entity due-to / due-from netted out; proves each pair agrees and both sides net to zero. |
+| Bills | Vendor, store, invoice #, dates, category lines split by store, attachments, autopay. Draft → approved (posts expense → 2000) → scheduled → paid (2000 → Trustmark with check # and confirmation). |
+| Bills inbox | Upload a photo/PDF or paste the email; amounts, dates, invoice #, vendor and store are read from the text or file name (no OCR) into a form you confirm. |
+| AP aging, payment calendar | Aging buckets that tie to the 2000 balance; bills by pay date against the projected bank balance (bills feed the 13-week forecast). |
+| Utilities | Each account with its history; flags past due, disconnect notices and jumps over 25%. |
+| Vendor statements, 1099s | Statement vs AP with every difference explained; 1099 vendors flagged at $600. |
+| Receivables | Tenant rent roll (due vs received, late), rebates and programs, ATM income, insurance claims and refunds owed to us. |
+| Approvals | One queue under Today for everything waiting on a yes; bills now, other kinds plug in later. |
+
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
 - **Booked basis only.** Fuel cost is the fuel invoices dated in the month. The cash and accrual P&L, and the bridge between them, come in Phase 4.
 - **CSV, not .xlsx.** Excel opens the CSV exports. Native .xlsx and the board-pack PDF come in Phase 4.
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
-- Inbox items for fuel notices, bills, payroll and compliance deadlines arrive with their phases.
+- Inbox items for fuel notices, payroll and compliance deadlines arrive with their phases.
+- Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).

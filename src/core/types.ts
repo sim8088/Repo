@@ -155,7 +155,8 @@ export interface AuditEntry {
   at: string;
   userId: ID;
   action: string;
-  objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast';
+  objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast'
+    | 'bill' | 'intercompany' | 'receivable';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -278,6 +279,138 @@ export interface CashState {
   payouts: CashPayout[];
 }
 
+// ── Intercompany, payables & receivables (phase 5) ────────────────────
+/** A recurring rent pass-through: a related party pays the store's mortgage, so the store books rent and Corporate owes the party. */
+export interface RentTemplate {
+  id: ID;
+  storeId: ID;
+  partyId: ID;
+  amount: Cents;
+  dayOfMonth: number;
+  expenseAccountId: ID;
+  payableAccountId: ID;
+  /** First month to generate, YYYY-MM. */
+  startPeriod: string;
+  endPeriod?: string;
+  active: boolean;
+  /** Period → the transaction it generated. */
+  generated: Record<string, ID>;
+}
+
+export interface IntercompanyState {
+  /** Per-party limit on the balance either way; the inbox alerts above it. */
+  limits: Record<ID, Cents>;
+  rentTemplates: RentTemplate[];
+}
+
+export type BillStatus = 'draft' | 'approved' | 'scheduled' | 'paid' | 'void';
+export type PayMethod = 'check' | 'ach' | 'autopay' | 'card' | 'cash';
+
+export interface BillLine {
+  id: ID;
+  accountId: ID;
+  storeId: ID;
+  amount: Cents;
+  memo?: string;
+}
+
+export interface Bill {
+  id: ID;
+  /** Human reference: BILL-0001 */
+  ref: string;
+  vendorId: ID;
+  /** The store the bill is addressed to; the payable sits here. Lines can allocate the cost to other stores. */
+  storeId: ID;
+  invoiceNo: string;
+  billDate: string;
+  dueDate: string;
+  lines: BillLine[];
+  status: BillStatus;
+  autopay: boolean;
+  memo?: string;
+  attachments: Attachment[];
+  utilityAccountId?: ID;
+  /** The bill carries a disconnect / shut-off notice. */
+  disconnectNotice?: boolean;
+  source: 'manual' | 'inbox' | 'demo';
+  createdAt: string;
+  createdBy: ID;
+  approved?: { by: ID; at: string; note?: string; txnId: ID };
+  scheduled?: { date: string; method: PayMethod; by: ID; at: string };
+  payment?: { date: string; method: PayMethod; checkNo?: string; confirmation?: string; txnId: ID; by: ID; at: string; attachments: Attachment[] };
+  voided?: { by: ID; at: string; reason: string };
+}
+
+export type UtilityService = 'electric' | 'water' | 'gas' | 'telecom' | 'waste';
+
+export interface UtilityAccount {
+  id: ID;
+  vendorId: ID;
+  storeId: ID;
+  service: UtilityService;
+  serviceAddress: string;
+  accountNo: string;
+  autopay: boolean;
+  active: boolean;
+}
+
+/** A vendor's statement of what they think we owe, line by open invoice. */
+export interface VendorStatement {
+  id: ID;
+  vendorId: ID;
+  date: string;
+  balance: Cents;
+  lines: { invoiceNo: string; date: string; amount: Cents }[];
+  note?: string;
+  by: ID;
+  at: string;
+}
+
+export interface PayablesState {
+  bills: Bill[];
+  utilities: UtilityAccount[];
+  statements: VendorStatement[];
+}
+
+export interface RentSchedule {
+  id: ID;
+  tenantId: ID;
+  storeId: ID;
+  amount: Cents;
+  dueDay: number;
+  /** Days after the due day before the rent counts as late. */
+  graceDays: number;
+  startPeriod: string;
+  endPeriod?: string;
+  active: boolean;
+}
+
+export type ReceivableKind = 'rebate' | 'insurance' | 'refund' | 'other';
+
+/** Money someone owes us outside tenant rent: rebates and programs, insurance claims, refunds. */
+export interface ReceivableItem {
+  id: ID;
+  kind: ReceivableKind;
+  /** Who pays: a program name or a party. */
+  payer: string;
+  partyId?: ID;
+  storeId: ID;
+  description: string;
+  expected: Cents;
+  expectedBy: string;
+  /** Where the money posts when it arrives. */
+  incomeAccountId: ID;
+  /** Deposits (ledger transactions) applied to this item. */
+  receipts: { txnId: ID; amount: Cents }[];
+  closed?: { by: ID; at: string; reason: string };
+  createdAt: string;
+}
+
+export interface ReceivablesState {
+  rent: RentSchedule[];
+  items: ReceivableItem[];
+}
+
 export interface Settings {
   companyName: string;
   timezone: 'America/Chicago';
@@ -311,6 +444,9 @@ export interface BooksState {
   bank: BankState;
   cash: CashState;
   forecastItems: ForecastItem[];
+  intercompany: IntercompanyState;
+  payables: PayablesState;
+  receivables: ReceivablesState;
   /** Duplicate pairs the CFO marked "not a duplicate". */
   dismissedDuplicates: string[];
   seq: number;

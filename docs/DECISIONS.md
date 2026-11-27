@@ -2,6 +2,26 @@
 
 This file records the context and decisions behind the portal so they don't get lost between sessions. Add new entries at the top.
 
+## 2026-11-27 — Phase 5 build (Intercompany, payables & receivables)
+- **Party ledgers are read from the ledger**, not kept separately: lines on intercompany accounts (1910 loans, new **1920 bills paid for related parties**, 2400 due to related parties), loan and receivable accounts, tagged with the party (on the line or the transaction). Sign: + they owe us, − we owe them. Store entities get the same ledger from Corporate's automatic 1900/2900 lines. Aging settles the oldest items first.
+- **Paying another business's bill** posts to 1920 under that party, never to store expenses or the P&L.
+- **Tenants** appear in the party list with the rent schedule's monthly charges (memo only, not posted: rent stays cash basis) against rent received.
+- **Rent pass-throughs are templates** (`state.intercompany.rentTemplates`); the demo's main loop now calls `generateRent` on the 1st, producing the same entries (same refs) as before. Generation is idempotent per template and month.
+- **Owner draws** are found on draws-type accounts and on the owner-withdrawal expense account where an owner is named, so the view works under either policy.
+- **Limits** are per party (or entity), on the absolute balance; the inbox alerts above them. Demo: Southern Eagle is over.
+- **Elimination view** nets only the automatic entity due-to / due-from (1900/2900). Related parties outside the group are real balances and stay.
+- **Bills** are a subledger (`state.payables.bills`). A draft posts nothing; **approval** posts expense lines → 2000 on the bill date and needs the `approve` permission (owner, CFO). When the approver's role can't post journals (owner), the entry is posted under the person who entered the bill and the approval is audited under the approver. **Payment** posts 2000 → Trustmark (or cash at HQ) and needs the new `bills.pay` permission (CFO, bookkeeper); `bills.enter` covers CFO, bookkeeper and store managers (own store only). New `ar.edit` covers receivables. Amount limits by role come in phase 14.
+- **One payment per bill** for now (no partial payments). Voiding an approved bill soft-deletes its accrual with the reason.
+- **Forecast hook:** `addForecastSource` in `forecast.ts` lets a module add known events; approved and scheduled bills are added on their pay date and replace the nearest occurrence (within 10 days) of the same vendor's detected pattern, so nothing counts twice.
+- **The bills inbox has no OCR.** Pasted text and file names are read with regular expressions; files are kept as attachments. A real OCR or email-forwarding service needs the hosted back end.
+- **Utilities history** combines bills on the utility account and autopay drafts paid straight from the bank (no bill). A jump is a bill more than 25% above the one before.
+- **Vendor statements** are reconciled by invoice number; every difference is classified and the classifications add to the difference exactly.
+- **1099** = money out of bank or cash accounts on transactions naming a 1099 vendor, calendar year, flagged at $600.
+- **Receivables** (rebates, insurance claims, refunds) are tracked as expected amounts, not accrued; receipts post money in to the item's income account or apply an existing deposit. ATM income is read from 4310 by month.
+- **Approvals** are a provider registry (`src/core/approvals.ts`); bills are the first provider. Later phases add rate changes, write-offs and adjusting entries without touching the screen.
+- **Saved books from before Phase 5** (same schema number) load without the new slices; the core reads them as empty. Reset to the demo data to see the Phase 5 demo.
+- **Demo data** (illustrative, generic names): about 30 bills across 10 new demo vendors (one past due, one due in 3 days and unscheduled, one awaiting approval), 11 utility accounts (HM15 water jumps 40%, HM13 water past due with a disconnect notice), an ice-supplier statement with every difference explained, related-party activity for Cheers, Rowdy's, Bullseye and Five Rivers, a new laundromat tenant late for November, and rebates, an insurance claim and a refund outstanding.
+
 ## 2026-11-27 — Phase 2 build (Bank & cash)
 - **Keep building in this repo** (CFO decision, 2026-11-27); StationBooks stays as it is.
 - **HM17 opened November 2026** (CFO decision, 2026-11-27).

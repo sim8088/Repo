@@ -4,12 +4,13 @@ export type Permission =
   | 'txn.create' | 'txn.edit' | 'txn.delete' | 'journal.create'
   | 'period.lock' | 'period.unlock'
   | 'setup.edit' | 'users.edit' | 'export' | 'approve' | 'view.all_stores' | 'view.reports'
-  | 'bank.import' | 'bank.reconcile' | 'cash.count' | 'cash.handle';
+  | 'bank.import' | 'bank.reconcile' | 'cash.count' | 'cash.handle'
+  | 'bills.enter' | 'bills.pay' | 'ar.edit';
 
 const MATRIX: Record<Role, Permission[]> = {
-  cfo: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'period.lock', 'period.unlock', 'setup.edit', 'users.edit', 'export', 'approve', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle'],
-  bookkeeper: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'setup.edit', 'export', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle'],
-  store_manager: ['txn.create', 'cash.count'],
+  cfo: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'period.lock', 'period.unlock', 'setup.edit', 'users.edit', 'export', 'approve', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'bills.enter', 'bills.pay', 'ar.edit'],
+  bookkeeper: ['txn.create', 'txn.edit', 'txn.delete', 'journal.create', 'setup.edit', 'export', 'view.all_stores', 'view.reports', 'bank.import', 'bank.reconcile', 'cash.count', 'cash.handle', 'bills.enter', 'bills.pay', 'ar.edit'],
+  store_manager: ['txn.create', 'cash.count', 'bills.enter'],
   owner: ['approve', 'view.all_stores', 'view.reports', 'export'],
   reviewer: ['view.all_stores', 'view.reports', 'export'],
 };
