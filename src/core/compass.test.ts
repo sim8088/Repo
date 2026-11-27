@@ -51,6 +51,7 @@ function base(): CompassInputs {
     targets: { fuelCpg: 25, insideGmPct: 28 },
     nextStoreNumber: 5,
     history: [],
+    evidence: { loans: 2, cashFlowDetail: 5, hasDeal: true },
     ties: { ebitda: true, storesAddUp: true, capital: true, debt: true, balanceSheet: true, cashFlow: true, cashFlowNetIncome: true },
     tieDetail: { ebitdaStatement: 0, ebitdaMetric: 0, capitalEntities: 0, capitalConsolidated: 0, debtBs: 0, debtMetric: 0, cfNetIncome: 0, bookedNetIncome: 0 },
   };

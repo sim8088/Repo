@@ -25,6 +25,7 @@ import { fuelMargin } from './fuel';
 import { ownerRateBps } from './tax';
 import { laborTarget } from './payroll';
 import { storeTraffic } from './inside';
+import { loansOf } from './loans';
 import { capitalAllocation, dealProForma, growthOf, newestStore, proFormaResult, rampCheck } from './growth';
 
 // ── State ────────────────────────────────────────────────────────────────
@@ -148,6 +149,8 @@ export interface CompassInputs {
   targets: { fuelCpg: number; insideGmPct: number };
   nextStoreNumber: number;
   history: CompassRecord[];
+  /** What the books hold, so a gate can say it can't tell rather than judge zeros. */
+  evidence: { loans: number; cashFlowDetail: number; hasDeal: boolean };
   ties: { ebitda: boolean; storesAddUp: boolean; capital: boolean; debt: boolean; balanceSheet: boolean; cashFlow: boolean; cashFlowNetIncome: boolean };
   tieDetail: { ebitdaStatement: Cents; ebitdaMetric: Cents; capitalEntities: Cents; capitalConsolidated: Cents; debtBs: Cents; debtMetric: Cents; cfNetIncome: Cents; bookedNetIncome: Cents };
 }
@@ -289,6 +292,7 @@ export function compassInputs(state: BooksState, asOf: string, opts: { entries?:
     targets: { fuelCpg: th.fuelCpg.green, insideGmPct: th.insideGm.green },
     nextStoreNumber: state.stores.filter((s) => !s.deleted && s.kind !== 'corporate').length + 1,
     history: compassOf(state).history,
+    evidence: { loans: loansOf(state).length, cashFlowDetail: cf.sections.reduce((a, x) => a + x.lines.filter((l) => l.key !== 'ni').length, 0), hasDeal: !!deal },
     ties: {
       ebitda: !m || ebitdaStatement === m.ebitda,
       storesAddUp: allIds.reduce((a, id) => a + (st.netIncome[id] ?? 0), 0) === st.netIncome.total && st.difference === 0,
@@ -341,6 +345,8 @@ export interface Gate {
   value: string;
   target: string;
   detail: string;
+  /** Can't tell yet: the missing input and where to enter it. */
+  needs?: string;
   /** Short reason used in the verdict sentence when it fails. */
   why: string;
   to: string;
@@ -380,7 +386,11 @@ export interface Verdict {
   wacc: Wacc;
   company: { nopatAnnual: Cents; roic: number | null; spread: number | null; netIncomeAnnual: Cents; ebitdaAnnual: Cents; profitPerGallon: number | null; profitPerStoreMonth: Cents | null };
   cash: { fcfAnnual: Cents; fcfMonthly: Cents; conversion: number | null; monthsToFund: number | null };
-  capacity: { dscrAfter: number | null; dscrTarget: number; leverageAfter: number; leverageTarget: number };
+  capacity: { dscrAfter: number | null; dscrTarget: number; leverageAfter: number | null; leverageTarget: number };
+  /** Gates that can't be judged on these books, with what they need. */
+  missing: { key: string; label: string; needs: string }[];
+  /** The stage stands on incomplete evidence. */
+  provisional: boolean;
   gates: Gate[];
   stores: StoreView[];
   moves: Move[];
@@ -393,7 +403,7 @@ const TO = { pnl: '/reports/pnl', covenants: '/debt/covenants', reserve: '/debt/
 
 function storeView(s: StoreInput, x: { factor: number; taxBps: number; wacc: number; targets: CompassInputs['targets']; cs: CompassSettings; months: number }): StoreView {
   const nopatAnnual = nopat(s.ebitda, s.depreciation, x.taxBps, x.factor);
-  const roic = roicOf(nopatAnnual, s.capital.total);
+  const roic = s.capital.fixed > 0 ? roicOf(nopatAnnual, s.capital.total) : null;
   const spread = roic === null ? null : roic - x.wacc;
   const levers: Lever[] = [];
   const cpgGap = s.fuelCpg === null ? 0 : x.targets.fuelCpg - s.fuelCpg;
@@ -411,9 +421,10 @@ function storeView(s: StoreInput, x: { factor: number; taxBps: number; wacc: num
   const trend = salesChange === null ? 'na' : salesChange > 0.01 ? 'up' : salesChange < -0.01 ? 'down' : 'flat';
   let role: StoreRole, roleWhy: string;
   const young = s.monthsOpen !== null && s.monthsOpen < x.cs.watchMonths;
-  if (young || roic === null) {
+  const noAssets = s.capital.fixed <= 0;
+  if (young || roic === null || noAssets) {
     role = 'watch';
-    roleWhy = young ? `Opened ${shortDate(s.openedOn!)}, under ${x.cs.watchMonths} months: judged on its ramp, not its returns.` : 'No invested capital on its books yet to measure a return on.';
+    roleWhy = young ? `Opened ${shortDate(s.openedOn!)}, under ${x.cs.watchMonths} months: judged on its ramp, not its returns.` : "Can't tell yet: needs its fixed assets on the books to measure a return (Assets › Fixed assets).";
   } else if (spread! < 0) {
     role = 'fix';
     roleWhy = `ROIC ${pct1(roic)} is ${pts(spread!)} against the cost of capital${mainLever ? `; main lever: ${mainLever.label} (about ${money(mainLever.gap)} a year)` : '; no operating lever is below target, so the gap is the capital tied up'}.`;
@@ -535,6 +546,24 @@ export function evaluateGates(inp: CompassInputs, cs: CompassSettings, growthTar
     detail: !inp.ramp ? 'No ramp targets entered for the newest store.' : !rl ? 'No sales yet in a target month.' : `${periodLabel(rl.period)}, ${rl.days} of ${rl.daysInMonth} days (targets prorated).`,
     why: inp.ramp && rl ? `${inp.ramp.code} is at ${pct1(rampVal)} of its ramp target` : 'the newest store has no ramp to judge', to: TO.readiness,
   });
+  // Missing evidence: say what is needed rather than judge zeros.
+  const ev = inp.evidence;
+  const unknown = (key: string, msg: string) => { const g = gates.find((x) => x.key === key)!; g.status = 'na'; g.needs = msg; g.value = `Can't tell yet: needs ${msg}`; };
+  if (!inp.ready) unknown('profit', 'a complete month of P&L (Books › Transactions)');
+  if (!ev.loans && !inp.covenants.length) unknown('covenants', 'the loans and their covenants (Assets › Loans, Debt › Covenants)');
+  if (inp.cash.reserveTarget <= 0) {
+    const r = 'a reserve target from fixed costs, fuel loads and payroll (Debt › Cash reserve)';
+    unknown('reserve', r); unknown('cushion', r); unknown('equity', r);
+  }
+  if (inp.company.capital.fixed <= 0) unknown('roic', 'fixed assets on the books to know invested capital (Assets › Fixed assets)');
+  if (!inp.ready) unknown('conversion', 'a complete month of P&L (Books › Transactions)');
+  else if (!ev.cashFlowDetail) unknown('conversion', 'balance-sheet activity (bank, payables, inventory, assets) to tell cash from profit (Bank, Payables, Assets)');
+  if (!measured.length) unknown('stores', 'each store\'s fixed assets to measure its return (Assets › Fixed assets)');
+  if (!ev.hasDeal) { const d = 'a new-store pro forma with its loan (Growth › Pro forma)'; unknown('dscrAfter', d); unknown('leverageAfter', d); }
+  else if (!ev.loans) unknown('dscrAfter', 'the loans on file for today\'s debt service (Assets › Loans)');
+  else if (!inp.ready) { unknown('dscrAfter', 'a complete month of P&L (Books › Transactions)'); unknown('leverageAfter', 'a complete month of P&L (Books › Transactions)'); }
+  if (!inp.ramp) unknown('ramp', 'ramp targets for the newest store (Growth › Expansion readiness)');
+  else if (!rl) unknown('ramp', `a month of sales at ${inp.ramp.code} in a target month`);
   const replicateReady = gates.every((g) => g.status === 'pass');
   const prior = [...inp.history].filter((h) => h.period < inp.period).sort((a, b) => b.period.localeCompare(a.period));
   let held = replicateReady ? 1 : 0;
@@ -554,13 +583,19 @@ export function evaluateGates(inp: CompassInputs, cs: CompassSettings, growthTar
     detail: `After the next store's ${money(need)} equity, ${money(Math.max(0, after))} is left above the reserve; free cash flow is ${money(fcfMonthly)} a month.`,
     why: 'free cash flow would not fund another store soon enough', to: TO.capital,
   });
+  // The furthest stage the available evidence supports: the first rung with a failing gate. Gates that can't be judged
+  // don't block, but a store is never opened on missing evidence: with any unknown up to Replicate, the stage stops at Optimize.
   let stage: CompassStage = 'scale';
-  for (const k of ['fix', 'stabilize', 'optimize', 'replicate'] as CompassStage[]) if (gates.some((g) => g.stage === k && g.status !== 'pass')) { stage = k; break; }
+  for (const k of ['fix', 'stabilize', 'optimize', 'replicate'] as CompassStage[]) if (gates.some((g) => g.stage === k && g.status === 'fail')) { stage = k; break; }
+  const missing = gates.filter((g) => g.status === 'na').map((g) => ({ key: g.key, label: g.label, needs: g.needs ?? 'more data' }));
+  const unknownBefore = gates.some((g) => g.status === 'na' && ['fix', 'stabilize', 'optimize'].includes(g.stage));
+  if (unknownBefore && STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf('optimize')) stage = 'optimize';
+  const provisional = gates.some((g) => g.status === 'na' && STAGE_ORDER.indexOf(g.stage) <= STAGE_ORDER.indexOf(stage));
   return {
-    stage, gates, wacc, stores, replicateReady, held,
+    stage, gates, wacc, stores, replicateReady, held, missing, provisional,
     company: { nopatAnnual, roic, spread, netIncomeAnnual, ebitdaAnnual, profitPerGallon: inp.company.gallons ? inp.company.netIncome / inp.company.gallons : null, profitPerStoreMonth: inp.stores.length && inp.months ? Math.round(inp.stores.reduce((a, s) => a + s.netIncome, 0) / inp.stores.length / inp.months) : null },
     cash: { fcfAnnual, fcfMonthly, conversion, monthsToFund: toFund },
-    capacity: { dscrAfter, dscrTarget, leverageAfter, leverageTarget },
+    capacity: { dscrAfter: gates.find((g) => g.key === 'dscrAfter')!.status === 'na' ? null : dscrAfter, dscrTarget, leverageAfter: gates.find((g) => g.key === 'leverageAfter')!.status === 'na' || !Number.isFinite(leverageAfter) ? null : leverageAfter, leverageTarget },
   };
 }
 type GateResult = ReturnType<typeof evaluateGates>;
@@ -570,10 +605,10 @@ const growthTargetsOf = (state?: BooksState) => { const s = state ? growthOf(sta
 /** The next three moves: anything that clears a failing gate of the current stage first, then by annual value. */
 export function rankMoves(inp: CompassInputs, cs: CompassSettings, r: GateResult): Move[] {
   const out: Move[] = [];
-  const failing = new Set(r.gates.filter((g) => g.stage === r.stage && g.status !== 'pass').map((g) => g.key));
+  const failing = new Set(r.gates.filter((g) => g.stage === r.stage && g.status === 'fail').map((g) => g.key));
   // Fix the worst store's main lever: Fix-role stores first (lowest spread), else the biggest gap anywhere.
   const fixers = r.stores.filter((s) => s.role === 'fix' && s.mainLever).sort((a, b) => (a.spread ?? 0) - (b.spread ?? 0));
-  const leverStore = fixers[0] ?? r.stores.filter((s) => s.role !== 'watch' && s.mainLever).sort((a, b) => b.mainLever!.gap - a.mainLever!.gap)[0];
+  const leverStore = fixers[0] ?? r.stores.filter((s) => (s.input.monthsOpen === null || s.input.monthsOpen >= cs.watchMonths) && s.mainLever).sort((a, b) => b.mainLever!.gap - a.mainLever!.gap)[0];
   if (leverStore?.mainLever) {
     const l = leverStore.mainLever;
     out.push({ key: `lever:${leverStore.input.storeId}`, title: `${leverStore.input.code}: close the ${l.kind === 'fuel' ? 'fuel margin' : l.kind === 'labor' ? 'labor' : 'inside margin'} gap`, why: `${l.label[0].toUpperCase()}${l.label.slice(1)}. Gap × volume ≈ ${money(l.gap)} a year.`, value: l.gap, valueKind: 'annual', to: l.to, linkLabel: l.kind === 'fuel' ? 'Fuel margin' : l.kind === 'labor' ? 'Labor' : 'Inside store', clears: failing.has('profit') || failing.has('roic') || failing.has('stores') ? [...failing].find((k) => ['profit', 'roic', 'stores'].includes(k)) : undefined });
@@ -592,7 +627,7 @@ export function rankMoves(inp: CompassInputs, cs: CompassSettings, r: GateResult
     out.push({ key: 'reserve', title: dep < 0 ? 'Rebuild the cash reserve' : 'Build a cushion over the reserve', why: dep < 0 ? `Cash is ${money(-dep)} under the ${money(inp.cash.reserveTarget)} reserve. Hold distributions and new projects until it is back.` : `Only ${money(dep)} sits above the reserve; hold back ${money(gap)} more before committing cash.`, value: gap, valueKind: 'risk', to: TO.reserve, linkLabel: 'Cash reserve', clears: dep < 0 ? 'reserve' : 'cushion' });
   }
   // Pay down the dearest debt (only with cash above the reserve).
-  if (inp.paydown && dep > 0) {
+  if (inp.paydown && dep > 0 && inp.cash.reserveTarget > 0) {
     const amt = Math.min(dep, inp.paydown.balance);
     out.push({ key: 'paydown', title: `Pay down the ${inp.paydown.label}`, why: `${(inp.paydown.rateBps / 100).toFixed(2)}% (${(inp.paydown.afterTaxBps / 100).toFixed(2)}% after tax), a certain return: ${money(amt)} of the cash above the reserve saves about ${money(Math.round((amt * inp.paydown.afterTaxBps) / 10_000))} a year after tax.`, value: Math.round((amt * inp.paydown.afterTaxBps) / 10_000), valueKind: 'annual', to: '/debt/paydown', linkLabel: 'Paydown vs invest' });
   }
@@ -635,7 +670,9 @@ export function buildTriggers(inp: CompassInputs, cs: CompassSettings, r: GateRe
   for (const g of gates) {
     let eta: { months: number | null; note: string } = { months: null, note: 'no estimate from the data on file' };
     const fcf = r.cash.fcfMonthly;
-    if (g.key === 'equity' || g.key === 'reserve' || g.key === 'cushion') {
+    if (g.status === 'na') {
+      eta = { months: null, note: `can't tell yet: needs ${g.needs}` };
+    } else if (g.key === 'equity' || g.key === 'reserve' || g.key === 'cushion') {
       const need = g.key === 'equity' ? inp.cash.equityNeed : g.key === 'reserve' ? 0 : Math.round((inp.cash.reserveTarget * cs.reserveCushionPct) / 100);
       const m = g.key === 'equity' ? monthsToFund(need, Math.max(0, inp.cash.deployable), fcf) : monthsToFund(need, inp.cash.deployable, fcf);
       eta = { months: m, note: m === null ? 'no estimate: free cash flow is not positive' : `about ${m} month${m === 1 ? '' : 's'} at the current pace (${money(fcf)} free cash flow a month)` };
@@ -670,16 +707,18 @@ export function buildTriggers(inp: CompassInputs, cs: CompassSettings, r: GateRe
 }
 
 const sentenceOf = (stage: CompassStage, gates: Gate[]) => {
-  const fails = gates.filter((g) => g.stage === stage && g.status !== 'pass');
+  const fails = gates.filter((g) => g.stage === stage && g.status === 'fail');
+  const unknown = gates.filter((g) => g.status === 'na');
+  const tail = unknown.length ? ` Can't tell yet: ${unknown.map((g) => `${g.label[0].toLowerCase()}${g.label.slice(1)} (needs ${g.needs})`).join('; ')}.` : '';
   if (stage === 'scale') return 'Scale: every gate passes, has held for months, and cash funds the next store quickly.';
-  const why = fails.map((g) => (g.status === 'na' ? `${g.label[0].toLowerCase()}${g.label.slice(1)}: not enough data yet` : g.why)).join('; ');
-  return `${STAGE_LABEL[stage]}: ${why}.`;
+  if (!fails.length) return `${STAGE_LABEL[stage]}, provisionally: every gate with evidence passes up to here, but some can't be judged on these books.${tail}`;
+  return `${STAGE_LABEL[stage]}: ${fails.map((g) => g.why).join('; ')}.${tail}`;
 };
 
 export function compassVerdict(inp: CompassInputs, cs: CompassSettings, growthTargets = growthTargetsOf()): Verdict {
   const r = evaluateGates(inp, cs, growthTargets);
   return {
-    inputs: inp, settings: cs, stage: r.stage, sentence: sentenceOf(r.stage, r.gates), wacc: r.wacc, company: r.company, cash: r.cash, capacity: r.capacity,
+    inputs: inp, settings: cs, stage: r.stage, sentence: sentenceOf(r.stage, r.gates), wacc: r.wacc, company: r.company, cash: r.cash, capacity: r.capacity, missing: r.missing, provisional: r.provisional,
     gates: r.gates, stores: r.stores, moves: rankMoves(inp, cs, r).slice(0, 3), triggers: buildTriggers(inp, cs, r), replicateReady: r.replicateReady, heldMonths: r.held,
   };
 }

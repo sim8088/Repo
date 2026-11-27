@@ -19,7 +19,7 @@ const pc = (v: number | null | undefined, d = 1) => (v === null || v === undefin
 const ptsS = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)} pts`);
 const errList = (e: unknown) => (e instanceof ValidationError ? e.errors : [(e as Error).message]);
 const GATE_PILL: Record<GateStatus, string> = { pass: 'ok', fail: 'bad', na: 'warn' };
-const GATE_LABEL: Record<GateStatus, string> = { pass: 'Pass', fail: 'Fail', na: 'Not enough data' };
+const GATE_LABEL: Record<GateStatus, string> = { pass: 'Pass', fail: 'Fail', na: "Can't tell yet" };
 const ROLE_PILL = { grow: 'ok', harvest: '', fix: 'bad', watch: 'warn' } as const;
 
 function Panel({ id, title, extra, children }: { id: string; title: string; extra?: ReactNode; children: ReactNode }) {
@@ -137,11 +137,12 @@ export function CompassPage() {
             <ol className="compass-ladder" aria-label="Growth stages">
               {STAGES.map((s, k) => <li key={s.key} className={k === stageIdx ? 'on' : k < stageIdx ? 'past' : ''} aria-current={k === stageIdx ? 'step' : undefined}><span className="n">{k + 1}</span>{s.label}</li>)}
             </ol>
-            <p className="compass-stage" data-testid="compass-stage">{STAGE_LABEL[v.stage]}</p>
+            <p className="compass-stage" data-testid="compass-stage">{STAGE_LABEL[v.stage]}</p>{v.provisional && <p className="muted small" style={{ margin: '0 0 4px' }}>Provisional: some gates can't be judged on these books yet.</p>}
             <p className="compass-why">{v.sentence}</p>
             <p className="muted small" style={{ margin: 0 }}>{STAGES[stageIdx].definition}</p>
           </div>
         </section>
+        {v.missing.length > 0 && <div className="note warn" role="note"><b>Can't tell yet on these books{v.provisional ? ' (the stage is provisional)' : ''}:</b><ul>{v.missing.map((m) => <li key={m.key}>{m.label}: needs {m.needs}.</li>)}</ul></div>}
         {ch.changed && <div className="note warn" role="status">{ch.message}</div>}
         <section className="figures" aria-label="Returns and cash">
           <Figure label="ROIC − WACC" value={<span className={v.company.spread === null ? undefined : v.company.spread >= 0 ? 'pos' : 'neg'}>{ptsS(v.company.spread)}</span>} note={v.company.spread === null ? 'No invested capital to measure' : v.company.spread >= 0 ? 'Creating value' : 'Earning less than the capital costs'} />
@@ -233,7 +234,7 @@ export function CompassPage() {
                 <tr><th scope="row">Deployable</th><td className="num">{usd(i.cash.deployable)}</td></tr>
                 <tr><th scope="row">DSCR today</th><td className="num">{i.capacity.dscr === null ? '–' : `${i.capacity.dscr.toFixed(2)}x`}</td></tr>
                 <tr><th scope="row">DSCR after {i.capacity.dealName ?? 'a new loan'}</th><td className="num">{v.capacity.dscrAfter === null ? '–' : `${v.capacity.dscrAfter.toFixed(2)}x`}</td></tr>
-                <tr><th scope="row">Leverage after the deal</th><td className="num">{Number.isFinite(v.capacity.leverageAfter) ? `${v.capacity.leverageAfter.toFixed(2)}x` : '∞'}</td></tr>
+                <tr><th scope="row">Leverage after the deal</th><td className="num">{v.capacity.leverageAfter === null ? "Can't tell yet" : `${v.capacity.leverageAfter.toFixed(2)}x`}</td></tr>
                 <tr><th scope="row">Newest store ramp{i.ramp ? ` (${i.ramp.code})` : ''}</th><td className="num">{i.ramp?.rows.at(-1) ? `${pc(i.ramp.rows.at(-1)!.gallonsPct)} gal · ${pc(i.ramp.rows.at(-1)!.insidePct)} inside` : 'No targets'}</td></tr>
               </tbody>
             </table></div>
