@@ -19,6 +19,10 @@ import { ForecastPage } from './app/pages/Forecast';
 import { FuelMarginPage, PricingPage, TanksPage } from './app/pages/Fuel';
 import { FuelInvoicesPage, SettlementPage, TruckLanePage } from './app/pages/FuelSettlement';
 import { PageHead } from './app/components/ui';
+import { registerCloseHooks } from './core/closeHooks';
+
+// Phase 7 inventory counts prove the close checklist's "inventory counted" step.
+registerCloseHooks();
 import { PayrollRunsPage, WeeklyReviewPage } from './app/pages/Payroll';
 import { CashPayPage, EmployeesPage, LaborPage, PayrollTaxPage } from './app/pages/People';
 import { DrawsPage, EliminationsPage, IntercompanyPage, PartyStatementPage, RentTemplatesPage } from './app/pages/Intercompany';
