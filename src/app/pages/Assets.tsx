@@ -130,7 +130,7 @@ function AssetDetail({ id, onSay }: { id: ID; onSay: (m: string) => void }) {
           {a.warrantyEnds && <><dt>Warranty</dt><dd>Ends {shortDate(a.warrantyEnds)}</dd></>}
           {a.vendor && <><dt>Vendor</dt><dd>{a.vendor}</dd></>}
           {a.notes && <><dt>Notes</dt><dd>{a.notes}</dd></>}
-          <dt>Tax depreciation</dt><dd className="muted">{a.tax ? `${a.tax.method}` : 'Not set up yet: Phase 11 (Tax) adds MACRS, §179 and bonus alongside book.'}</dd>
+          <dt>Tax depreciation</dt><dd>{a.tax ? `${a.tax.method === 'none' ? 'Not depreciated' : `${a.tax.recoveryYears ? `${a.tax.recoveryYears}-year ` : ''}${a.tax.method === 'straight_line' ? 'straight line' : 'MACRS'}`}${a.tax.section179 ? `, §179 ${formatMoney(a.tax.section179, { dollarSign: true })}` : ''}${a.tax.bonusPct ? `, bonus ${a.tax.bonusPct}%` : ''}` : <span className="muted">No elections recorded (class defaults)</span>} · <Link to="/tax/depreciation">Book vs tax</Link></dd>
           <dt>Documents</dt><dd><DocList items={a.attachments} say={onSay} />{can(user, 'assets.edit') && <AttachButton books={books} userId={user.id} label="Attach" say={onSay} onFile={(x) => { attachToAsset(books, user, { kind: 'asset', id: a.id }, x); onSay(`Attached ${x.name}.`); }} />}</dd>
           {a.disposal && <><dt>Disposed</dt><dd>{shortDate(a.disposal.date)}: {a.disposal.reason}. Proceeds <Money c={a.disposal.proceeds} dollar />, {a.disposal.gainLoss >= 0 ? 'loss' : 'gain'} <Money c={Math.abs(a.disposal.gainLoss)} dollar /> · <Link to={`/books/transactions/${a.disposal.txnId}`}>{state.transactions.find((t) => t.id === a.disposal!.txnId)?.ref}</Link></dd></>}
         </dl>

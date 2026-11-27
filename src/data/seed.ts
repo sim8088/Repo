@@ -35,6 +35,8 @@ import { seedJournals } from './seed-journals';
 import { seedQbo } from './seed-qbo';
 import { seedDebt } from './seed-debt';
 import { emptyDebt } from '../core/debt';
+import { seedTax } from './seed-tax';
+import { emptyTax } from '../core/tax';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -69,6 +71,7 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedPayroll,
   seedIntercompany, seedPayables, seedReceivables,
   seedAssets, seedCompliance,
+  seedTax,
   seedReports,
   seedInside, seedKitchen,
   seedBudgets, seedClose,
@@ -177,6 +180,7 @@ export function emptyState(): BooksState {
     compliance: emptyCompliance(),
     assets: emptyAssets(),
     debt: emptyDebt(),
+    tax: emptyTax(),
     reports: emptyReports(),
     inside: emptyInside(),
     kitchen: emptyKitchen(),

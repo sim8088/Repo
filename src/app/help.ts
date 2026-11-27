@@ -649,6 +649,57 @@ export const HELP = {
     steps: ['Record each loan\'s terms: rate, repayment schedule, start and maturity, and whether a signed note is on file.', 'At each month end, record the balance the other side confirmed. A difference needs a note.', 'Read the AFR flags with the CPA: imputed interest may be income to us (or a deduction) for tax.'],
     tips: ['Balances come straight from 1910 and 2400 by party, so they tie to the party statements.'],
   },
+  // Phase 11: tax. Working papers, not tax advice.
+  taxEntities: {
+    purpose: "Who files what: each entity's classification, masked EIN, owners and %, state registrations, fiscal year, preparer and where last year's return is kept. Disregarded entities roll into the return that carries them.",
+    steps: ["Check every return's owners add to 100%.", 'Edit a row to set owners, the parent return (disregarded entities), states, method and the prior-return location (a vault document id or a note).', 'Change the classification or EIN in Setup › Entities.'],
+    tips: ['EINs show the last four digits only.', 'The tie-out checks every owner draw went to an owner of the return it came from.'],
+  },
+  taxCalendar: {
+    purpose: 'Every tax return and payment with its status, plus each estimate installment. Payroll, 1099 and sales tax rows link to their trackers.',
+    steps: ['Start with "Overdue & due in 30 days".', 'Press Update on a return: status, filed date, confirmation, payment.', 'Pay estimates on the Estimates screen.', 'Tax notices from the Phase 9 tracker are listed below.'],
+    tips: ['Returns due within 30 days and estimates due within 14 reach the inbox.', 'Add a new kind of return on the compliance calendar; tax kinds appear here.'],
+  },
+  taxSalesTax: {
+    purpose: 'Taxable sales from the POS close against tax collected (2200 credits) and remitted (2200 debits), store by store, with the filing worksheet.',
+    steps: ['Pick the month.', 'Read the flags: tax collected that differs from rate × taxable sales, and collected ≠ remitted once the return is due.', 'Print or export the worksheet for the return.', 'Record the filing on the calendar.'],
+    tips: ['Fuel is excluded by default; the rate and taxable departments are in the tax tables.', 'A remittance pays the month named in its memo (e.g. "Sales tax for 2026-10"), else the month before its date.'],
+  },
+  taxBookToTax: {
+    purpose: 'Trial balance → book-to-tax adjustments → taxable income for each return, with Schedule M-1 and M-2 support.',
+    steps: ['Pick the return and year.', 'Enter book income from before these books if the year started on another system.', 'Open each workpaper: write what it is and where it comes from; follow the source link.', 'Add manual adjustments; have someone else review them.'],
+    tips: ['Standard adjustments (depreciation, meals, penalties, owner items, accrual-to-cash) recompute from the books.', 'Editing a workpaper clears its review.'],
+  },
+  taxDepreciation: {
+    purpose: 'Book and tax depreciation side by side for every asset, with the elections that drive the tax side.',
+    steps: ['Read the flags: assets without elections, cost-segregation candidates, lives that look wrong.', 'Set elections per asset: recovery period, convention, §179, bonus, QIP.', 'Check the mid-quarter test figure before year end.', 'The difference goes to the M-1.'],
+    tips: ['Tables are built the way Pub 946 builds them and tested against it.', 'Canopies, USTs and site work are usually 15-year; a building may be 15-year as a retail motor fuels outlet.'],
+  },
+  taxMethods: {
+    purpose: 'Cash vs accrual eligibility, inventory and UNICAP, from the gross-receipts test, plus Form 3115 tracking.',
+    steps: ['Enter gross receipts for years before these books.', 'Read whether the group passes the 3-year average test.', 'Track any method change and its §481(a) adjustment.'],
+    tips: ['All entities are aggregated (common control).', 'The threshold is in the tax tables on Planning.'],
+  },
+  taxEstimates: {
+    purpose: 'Quarterly estimates per owner and entity against the prior-year safe harbor, with payments.',
+    steps: ["Enter last year's total tax for each payer (the safe harbor).", 'Read what is required: the smaller of 90% of this year and 100% / 110% of last year.', 'Record each payment; when an entity pays, it posts from Trustmark.'],
+    tips: ["An owner's estimate paid by an entity posts as a distribution to that owner.", 'Overpayments carry forward to later quarters.'],
+  },
+  taxOwners: {
+    purpose: "Each owner's share of income, distributions, basis and capital, and the tax distributions they need.",
+    steps: ["Enter each owner's beginning basis and capital from last year's K-1 (Start).", 'Read the roll-forward; suspended losses and distributions over basis are flagged.', 'Compare tax distributions still to make with the distribution capacity.'],
+    tips: ['S corporation distributions out of proportion to ownership are flagged.', 'Partner basis here leaves out the share of liabilities.'],
+  },
+  taxPlanning: {
+    purpose: 'Projected year-end taxable income and the tax each lever would save, at the rates in the tax tables.',
+    steps: ['Pick the return.', 'Enter amounts for equipment, retirement contributions and owner salary.', 'Check and adjust the tax tables with the CPA.'],
+    tips: ["The projection annualizes income before depreciation and subtracts the full year's tax depreciation.", 'The restructuring line is information only.'],
+  },
+  taxCpa: {
+    purpose: 'The year-end package for the outside accountant, as one ZIP with a printable index.',
+    steps: ['Pick the year.', 'Check the tie-outs, then Download ZIP.', 'Print the index to send with it.'],
+    tips: ['Each file opens on screen from the index.', 'Downloads are logged.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

@@ -12,6 +12,8 @@ export interface TaxDepreciation {
   section179?: Cents;
   bonusPct?: number;
   costSegFlag?: boolean;
+  /** Phase 11: qualified improvement property (15-year, bonus-eligible). */
+  qip?: boolean;
   notes?: string;
 }
 

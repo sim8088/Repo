@@ -3,7 +3,9 @@ import type { Cents } from './money';
 
 // ── Compliance & documents (phase 9) ───────────────────────────────────
 /** What an obligation is. Phase 11 (Tax) adds kinds and kind-specific detail without changing the model. */
-export type ComplianceKind = 'sales_tax' | 'fuel_excise' | 'payroll' | 'income_tax' | 'property_tax' | 'annual_report' | 'other';
+export type ComplianceKind = 'sales_tax' | 'fuel_excise' | 'payroll' | 'income_tax' | 'property_tax' | 'annual_report' | 'other'
+  // Phase 11 (Tax) kinds.
+  | 'state_income' | 'estimated_tax' | 'tobacco_excise' | 'info_1099' | 'w2';
 export type ComplianceStatus = 'not_started' | 'in_prep' | 'filed' | 'paid' | 'accepted';
 export type RecurrenceEvery = 'once' | 'monthly' | 'quarterly' | 'annual';
 

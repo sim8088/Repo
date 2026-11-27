@@ -18,6 +18,7 @@ import { loanStatus, loansOf } from '../core/loans';
 import { insideInbox } from '../core/inside';
 import { kitchenInbox } from '../core/kitchen';
 import { debtInbox } from '../core/debt';
+import { taxInbox } from '../core/tax';
 
 /** Phase 9: compliance deadlines, licenses, notices, maintenance and warranties, and month-end postings for assets and debt. */
 function phase9Inbox(state: BooksState, visible: Set<ID>, today: string, seesBank: boolean): InboxItem[] {
@@ -144,6 +145,7 @@ export function buildInbox(state: BooksState, lines: FlatLine[], visible: Set<ID
     ...phase9Inbox(state, visible, today, seesBank),
     ...glInbox(state, lines, visible, today, seesBank),
     ...(seesBank ? debtInbox(state, today, visible) : []),
+    ...taxInbox(state, visible, today),
     { key: 'cashvar', count: flagged.length, title: 'Cash handoffs with variances', detail: mat + ' or more between a count and the step before it.', to: '/cash?show=flagged', action: 'Review' },
     { key: 'overdue', count: overdue.length, title: 'Cash picked up but not deposited', detail: 'Older than ' + state.settings.depositWithinDays + ' days since pickup.', to: '/cash?show=overdue', action: 'Deposit' },
     { key: 'uncat', count: uncat.length, title: 'Uncategorized transactions', detail: uncat.length ? 'Suggestions are ready where a rule matches.' : 'Everything has a category.', to: '/books/transactions?queue=uncat', action: 'Categorize' },

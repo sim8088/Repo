@@ -40,6 +40,7 @@ import { JournalDetailPage, JournalFormPage, JournalsPage } from './app/pages/Jo
 import { ReconDetailPage, ReconsPage } from './app/pages/Recons';
 import { ConsolidationPage } from './app/pages/Consolidation';
 import { QboDifferencesPage, QboLogPage, QboMappingPage, QboStatusPage, QboSyncPage } from './app/pages/Qbo';
+import { BookToTaxPage, CpaPackagePage, SalesTaxPage, TaxCalendarPage, TaxDepreciationPage, TaxEntitiesPage, TaxEstimatesPage, TaxMethodsPage, TaxOwnersPage, TaxPlanningPage } from './app/pages/Tax';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -161,6 +162,16 @@ function App() {
             <Route path="/qbo/sync" element={<QboSyncPage />} />
             <Route path="/qbo/differences" element={<QboDifferencesPage />} />
             <Route path="/qbo/log" element={<QboLogPage />} />
+            <Route path="/tax" element={<TaxEntitiesPage />} />
+            <Route path="/tax/calendar" element={<TaxCalendarPage />} />
+            <Route path="/tax/sales-tax" element={<SalesTaxPage />} />
+            <Route path="/tax/book-to-tax" element={<BookToTaxPage />} />
+            <Route path="/tax/depreciation" element={<TaxDepreciationPage />} />
+            <Route path="/tax/methods" element={<TaxMethodsPage />} />
+            <Route path="/tax/estimates" element={<TaxEstimatesPage />} />
+            <Route path="/tax/owners" element={<TaxOwnersPage />} />
+            <Route path="/tax/planning" element={<TaxPlanningPage />} />
+            <Route path="/tax/cpa" element={<CpaPackagePage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>
