@@ -169,3 +169,18 @@ describe('demo dataset and reports', () => {
     expect(s.periods['2026-09'].status).toBe('locked');
   });
 });
+
+describe('duplicates: recurring runs are not double entries', () => {
+  it('flags a pair, but not a run of four identical charges on one day', () => {
+    const s = emptyState();
+    const b = new Books(s, () => '2026-11-27T12:00:00.000Z');
+    const cfo = s.users.find((u) => u.id === CFO_ID)!;
+    const fee = (date: string) => b.createTransaction(cfo, { date, kind: 'money_out', description: 'OVERDRAFT FEE', lines: [
+      { accountId: 'acct_bank_fees', storeId: 'st_corp', debit: 3_600, credit: 0 }, { accountId: 'acct_trustmark', storeId: 'st_corp', debit: 0, credit: 3_600 }] });
+    for (let i = 0; i < 4; i++) fee('2026-06-24');
+    fee('2026-07-10'); fee('2026-07-11');
+    const d = findDuplicates(s.transactions);
+    expect(d).toHaveLength(1);
+    expect(d[0].a.date).toBe('2026-07-10');
+  });
+});
