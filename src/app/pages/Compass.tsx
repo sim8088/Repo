@@ -24,7 +24,16 @@ const GATE_LABEL: Record<GateStatus, string> = { pass: 'Pass', fail: 'Fail', na:
 const SS_MONTHS = 6;
 const ROLE_PILL = { grow: 'ok', harvest: '', fix: 'bad', watch: 'warn' } as const;
 
-function Panel({ id, title, extra, children }: { id: string; title: string; extra?: ReactNode; children: ReactNode }) {
+function Panel({ id, title, extra, fold, children }: { id: string; title: string; extra?: ReactNode; fold?: boolean; children: ReactNode }) {
+  // Detail sections fold to one line so the page reads verdict → moves → stores; open any of them for the working.
+  if (fold) return (
+    <section className="panel fold" aria-labelledby={id}>
+      <details>
+        <summary className="panel-head"><h2 id={id}>{title}</h2>{extra && <span className="muted small">{extra}</span>}</summary>
+        {children}
+      </details>
+    </section>
+  );
   return (
     <section className="panel" aria-labelledby={id}>
       <div className="panel-head"><h2 id={id}>{title}</h2>{extra && <span className="muted small">{extra}</span>}</div>
@@ -148,7 +157,7 @@ export function CompassPage() {
             <p className="muted small" style={{ margin: 0 }}>{STAGES[stageIdx].definition}</p>
           </div>
         </section>
-        {v.missing.length > 0 && <div className="note warn" role="note"><b>Can't tell yet on these books{v.provisional ? ' (the stage is provisional)' : ''}:</b><ul>{v.missing.map((m) => <li key={m.key}>{m.label}: needs {m.needs}.</li>)}</ul></div>}
+        {v.missing.length > 0 && <details className="note warn fold-note"><summary><b>{v.missing.length} thing{v.missing.length === 1 ? '' : 's'} can't be judged on these books yet{v.provisional ? ', so the stage is provisional' : ''}.</b> See what each needs</summary><ul>{v.missing.map((m) => <li key={m.key}>{m.label}: needs {m.needs}.</li>)}</ul></details>}
         {ch.changed && <div className="note warn" role="status">{ch.message}</div>}
         <section className="figures" aria-label="Returns and cash">
           <Figure label="ROIC − WACC" value={<span className={v.company.spread === null ? undefined : v.company.spread >= 0 ? 'pos' : 'neg'}>{ptsS(v.company.spread)}</span>} note={v.company.spread === null ? 'No invested capital to measure' : v.company.spread >= 0 ? 'Creating value' : 'Earning less than the capital costs'} />
@@ -158,7 +167,7 @@ export function CompassPage() {
           <Figure label="Bank vs floor" value={i.bank.accounts.length && i.bank.known ? <span className={i.bank.balance < i.bank.floor ? 'neg' : undefined}>{usd(i.bank.balance)}</span> : "Can't tell yet"} note={i.bank.accounts.length ? `Floor ${usd(i.bank.floor)}${i.bank.lastDate && i.bank.lastDate < i.asOf ? `; last entry ${shortDate(i.bank.lastDate)}` : ''}` : 'No floor set'} href="/bank" />
         </section>
 
-        <Panel id="cp-gates-h" title="The gates" extra={`${STAGES[stageIdx].next}: ${v.gates.filter((g) => g.stage === v.stage && g.status === 'pass').length} of ${v.gates.filter((g) => g.stage === v.stage).length} pass`}>
+        <Panel fold id="cp-gates-h" title="The gates" extra={`${STAGES[stageIdx].next}: ${v.gates.filter((g) => g.stage === v.stage && g.status === 'pass').length} of ${v.gates.filter((g) => g.stage === v.stage).length} pass`}>
           <div className="table-wrap"><table className="t">
             <thead><tr><th scope="col">Stage</th><th scope="col">Gate</th><th scope="col">Result</th><th scope="col">Now</th><th scope="col">Threshold</th><th scope="col">How it was measured</th></tr></thead>
             <tbody>{v.gates.map((g) => (
@@ -215,7 +224,7 @@ export function CompassPage() {
           <p className="panel-pad muted small" style={{ margin: 0 }}>Margin a transaction = average ticket × inside and kitchen margin, on the days with an imported POS customer count{v.stores.some((s) => s.input.traffic) ? ` (${Math.max(...v.stores.map((s) => s.input.traffic?.days ?? 0))} days on file)` : ''}. Break-even headroom is on the accrual basis (Budgets › Break-even).</p>
         </Panel>
 
-        <Panel id="cp-ss-h" title="Same-store growth" extra={i.hasPriorYear ? 'Month over month and against the budget' : `No prior year on these books: they start ${i.firstPeriod ? periodLabel(i.firstPeriod) : 'empty'}, so this is month over month and against the budget only`}>
+        <Panel fold id="cp-ss-h" title="Same-store growth" extra={i.hasPriorYear ? 'Month over month and against the budget' : `No prior year on these books: they start ${i.firstPeriod ? periodLabel(i.firstPeriod) : 'empty'}, so this is month over month and against the budget only`}>
           <div className="table-wrap"><table className="t">
             <thead><tr><th scope="col">Store</th>{(v.stores[0]?.input.monthly ?? []).slice(-SS_MONTHS).map((m) => <th key={m.period} scope="col" className="num">{periodLabel(m.period)} sales</th>)}<th scope="col" className="num">Month over month</th><th scope="col" className="num">Gallons, month over month</th><th scope="col" className="num">Vs budget</th><th scope="col">Trend</th></tr></thead>
             <tbody>{v.stores.map((s) => <tr key={s.input.storeId}>
@@ -230,7 +239,7 @@ export function CompassPage() {
         </Panel>
 
         <div className="grid-2">
-          <Panel id="cp-cash-h" title="Cash engine and capacity">
+          <Panel fold id="cp-cash-h" title="Cash engine and capacity">
             <div className="table-wrap"><table className="t">
               <tbody>
                 {i.cash.known ? <>
@@ -253,7 +262,7 @@ export function CompassPage() {
               { label: 'Free cash flow ties to the cash flow statement', ok: i.ties.cashFlow && i.ties.cashFlowNetIncome, detail: `operating ${usd(i.cash.operating)} and capex ${usd(i.cash.capex)} from the statement; its net income ${usd(i.tieDetail.cfNetIncome)} = the booked P&L ${usd(i.tieDetail.bookedNetIncome)}` },
             ]} />
           </Panel>
-          <Panel id="cp-trig-h" title={`Open store #${i.nextStoreNumber} when …`} extra={v.stage === 'replicate' || v.stage === 'scale' ? 'Ready for one store; these are the gates to a pipeline' : undefined}>
+          <Panel fold id="cp-trig-h" title={`Open store #${i.nextStoreNumber} when …`} extra={v.stage === 'replicate' || v.stage === 'scale' ? 'Ready for one store; these are the gates to a pipeline' : undefined}>
             {v.triggers.length ? <ul className="compass-triggers">{v.triggers.map((t) => (
               <li key={t.gate}>
                 <b>{t.label}</b>: {t.target} <span className="muted">(now {t.now})</span>
@@ -263,7 +272,7 @@ export function CompassPage() {
           </Panel>
         </div>
 
-        <Panel id="cp-sens-h" title="Sensitivity" extra="Which gate flips first if fuel margin or gallons move; costs, covenants and the reserve held">
+        <Panel fold id="cp-sens-h" title="Sensitivity" extra="Which gate flips first if fuel margin or gallons move; costs, covenants and the reserve held">
           <div className="table-wrap"><table className="t">
             <thead><tr><th scope="col">If</th><th scope="col">Stage</th><th scope="col">Gates that flip</th></tr></thead>
             <tbody>
@@ -278,7 +287,7 @@ export function CompassPage() {
           <p className="panel-pad small" style={{ margin: 0 }}>{sens.firstFlip ? <>First to flip: <b>{sens.firstFlip.label}</b>, at {sens.firstFlip.cpg! > 0 ? '+' : ''}{sens.firstFlip.cpg!.toFixed(1)}¢ a gallon.</> : 'No gate flips within ±10¢ of fuel margin.'} Gates not listed don't move within ±10¢ or ±30% gallons.</p>
         </Panel>
 
-        <Panel id="how-h" title="How this is calculated" extra={edit ? 'Every assumption is editable' : 'Read only for your role'}>
+        <Panel fold id="how-h" title="How this is calculated" extra={edit ? 'Every assumption is editable' : 'Read only for your role'}>
           <div className="table-wrap"><table className="t">
             <thead><tr><th scope="col">Item</th><th scope="col">Formula and source</th><th scope="col">Value</th></tr></thead>
             <tbody>{assumptions(v).map((a) => <tr key={a.key}><td>{a.label}</td><td className="small" style={{ minWidth: 280 }}>{a.formula}</td><td className="small">{a.value}</td></tr>)}</tbody>
@@ -303,7 +312,7 @@ export function CompassPage() {
           </div>}
         </Panel>
 
-        {hist.length > 0 && <Panel id="cp-hist-h" title="History">
+        {hist.length > 0 && <Panel fold id="cp-hist-h" title="History">
           <div className="table-wrap"><table className="t">
             <thead><tr><th scope="col">Month</th><th scope="col">Stage</th><th scope="col" className="num">ROIC</th><th scope="col" className="num">WACC</th><th scope="col">Ready to replicate</th><th scope="col">Recorded</th></tr></thead>
             <tbody>{hist.map((h) => <tr key={h.period}><td>{periodLabel(h.period)}</td><td>{STAGE_LABEL[h.stage]}</td><td className="num">{h.roicPct === null ? '–' : `${h.roicPct.toFixed(1)}%`}</td><td className="num">{h.waccPct === null ? '–' : `${h.waccPct.toFixed(1)}%`}</td><td>{h.replicateReady ? 'Yes' : 'No'}</td><td className="small">{shortDate(h.at.slice(0, 10))}</td></tr>)}</tbody>

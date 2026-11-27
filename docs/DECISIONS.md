@@ -2,6 +2,12 @@
 
 This file records the context and decisions behind the portal so they don't get lost between sessions. Add new entries at the top.
 
+## 2026-11-27 — Final clean-up: less on screen, same depth underneath
+- **Sidebar:** nine everyday screens at the top (My day, Approvals, Command center, Profit & loss, Bank, Cash forecast, Transactions, Month-end close, Growth compass). Every other screen sits under "All areas", one folding group per area; the group holding the current page opens by itself. Search (⌘K) still reaches every page.
+- **Today:** four numbers (Trustmark, lowest balance in 13 weeks, profit this month, to-do count), the compass line, then the to-do list: the top 8 kinds of work, "Show all" for the rest and the review queues, and the all-clear checks folded into one line. "Yesterday at a glance" shows only when the books have POS days. If nothing is sold yet this month, profit shows the latest month with sales.
+- **Growth compass:** verdict, headline figures, next three moves and store roles stay open; the gates, same-store growth, cash engine, store-#6 triggers, sensitivity, the formulas and assumptions, and the history fold to one line each.
+- **The role switcher** ("acting as") is hidden on phones.
+
 ## 2026-11-27 — Real bank feed from the bank bookkeeping sheet
 - **Bank lines ride along in the StationBooks export** (`bank: { name, lines }`). `scripts/stationbooks-snapshot.mjs … --bank <name> <values.json>…` reads the operating account's bank-ledger spreadsheet (Sheets "values" exports: Date, Description, Check #, Money out, Money in, Bank balance, Bucket, Store, Counterparty). The data stays out of the repo.
 - **Each bank line posts Trustmark (CORP) against settlement clearing (1095) at its store.** The P&L still comes from StationBooks only, so nothing is counted twice: clearing 1095 is the bridge between the P&L side and the cash side, and its balance is P&L activity not yet seen in this bank account (other accounts, store cash, timing). The Today "Supplier clearing" figure leaves it out.

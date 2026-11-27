@@ -1,9 +1,22 @@
 export interface NavItem { label: string; to: string; badge?: 'inbox' | 'uncat' | 'unmatched' | 'unclassified' | 'cash'; }
 export interface NavGroup { title: string; items: NavItem[]; }
 
-/** Built screens. The full information architecture, phase by phase, is on /roadmap. */
+/** The screens used every day: always shown at the top of the sidebar. */
+export const PRIMARY: NavItem[] = [
+  { label: 'My day', to: '/', badge: 'inbox' },
+  { label: 'Approvals', to: '/approvals' },
+  { label: 'Command center', to: '/reports/command' },
+  { label: 'Profit & loss', to: '/reports/pnl' },
+  { label: 'Bank', to: '/bank', badge: 'unmatched' },
+  { label: 'Cash forecast', to: '/cash/forecast' },
+  { label: 'Transactions', to: '/books/transactions', badge: 'uncat' },
+  { label: 'Month-end close', to: '/close' },
+  { label: 'Growth compass', to: '/growth/compass' },
+];
+
+/** Every built screen, by area (folded under "All areas" in the sidebar). The phase-by-phase plan is on /roadmap. */
 export const NAV: NavGroup[] = [
-  { title: 'Today', items: [{ label: 'My day', to: '/', badge: 'inbox' }, { label: 'Approvals', to: '/approvals' }, { label: 'Ask', to: '/ask' }] },
+  { title: 'Today', items: [{ label: 'My day', to: '/' }, { label: 'Approvals', to: '/approvals' }, { label: 'Ask', to: '/ask' }] },
   {
     title: 'Reports',
     items: [
@@ -20,7 +33,7 @@ export const NAV: NavGroup[] = [
   {
     title: 'Books',
     items: [
-      { label: 'Transactions', to: '/books/transactions', badge: 'uncat' },
+      { label: 'Transactions', to: '/books/transactions' },
       { label: 'New entry', to: '/books/new' },
       { label: 'Chart of accounts', to: '/books/accounts' },
       { label: 'Journal entries', to: '/books/journals' },
@@ -32,7 +45,7 @@ export const NAV: NavGroup[] = [
   {
     title: 'Bank & cash',
     items: [
-      { label: 'Bank feed & reconciliation', to: '/bank', badge: 'unmatched' },
+      { label: 'Bank feed & reconciliation', to: '/bank' },
       { label: 'Checks register', to: '/bank/checks' },
       { label: 'Deposits', to: '/bank/deposits', badge: 'unclassified' },
       { label: 'Cash chain', to: '/cash', badge: 'cash' },
@@ -219,6 +232,7 @@ export const NAV: NavGroup[] = [
       { label: 'Users & roles', to: '/setup/users' },
       { label: 'Audit log', to: '/setup/audit' },
       { label: 'Settings', to: '/setup/settings' },
+      { label: 'Build status', to: '/roadmap' },
     ],
   },
 ];

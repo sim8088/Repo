@@ -130,6 +130,7 @@ test('store manager only sees their store', async ({ page }) => {
   await page.locator('#acting-as').selectOption('usr_mgr11');
   await open(page, '/books/transactions');
   await expect(page.locator('#f-store option')).toHaveCount(2);
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Reports' }).click();
   await expect(page.getByRole('link', { name: 'Trial balance' })).toBeVisible();
   await open(page, '/reports/trial-balance');
   await expect(page.locator('h1 + p')).toContainText("doesn't include");
@@ -519,6 +520,7 @@ test('inside store: enter a count that shows shrink, post it, and 1310 still tie
   await expect(hist.locator('tr', { hasText: 'Nov 26, 2026' }).first().locator('.pill.bad')).toBeVisible();
   await expect(page.locator('.tie.ok', { hasText: 'HM11 1310 ties to the latest counts' })).toBeVisible();
   await open(page, '/');
+  await page.getByRole('button', { name: /^Show all/ }).click();
   await expect(page.getByText('Shrink over threshold')).toBeVisible();
 });
 
@@ -720,6 +722,7 @@ test('debt: the covenant monitor shows the liquidity near-breach from the foreca
   await expect(page.locator('.tie.ok', { hasText: 'Scheduled interest equals 6500 on the ledger' })).toBeVisible();
   await expect(page.getByText('annualized (× 6.00)')).toBeVisible();
   await open(page, '/');
+  await page.getByRole('button', { name: /^Show all/ }).click();
   await expect(page.locator('.inbox li', { hasText: 'Covenant breach forecast within 2 quarters' })).toBeVisible();
   await open(page, '/debt');
   await expect(page.locator('.tie.ok', { hasText: '2310 Notes payable – equipment ties to its loan schedules' })).toBeVisible();
@@ -743,6 +746,7 @@ test('tax: the October sales tax worksheet ties to 2200 and flags the $105 colle
   await expect(page.locator('.tie.ok', { hasText: 'M-1 reconciles book income to taxable income' })).toBeVisible();
   await expect(page.locator('.tie.ok', { hasText: 'Book depreciation in these books ties to the asset register (6400)' })).toBeVisible();
   await open(page, '/');
+  await page.getByRole('button', { name: /^Show all/ }).click();
   await expect(page.getByText('Sales tax collected ≠ remitted')).toBeVisible();
 });
 
@@ -821,6 +825,7 @@ test('growth compass: a stage, three moves, and the spread moves with the cost o
   await expect(page.getByTestId('compass-stage')).toHaveText('Fix');
   await expect(page.locator('.compass-ladder [aria-current="step"]')).toContainText('Fix');
   await expect(page.locator('.compass-moves > li')).toHaveCount(3);
+  for (const t of ['The gates', 'Cash engine and capacity', 'How this is calculated']) await page.locator('summary', { hasText: t }).click();
   const gates = page.getByRole('region', { name: 'The gates' });
   await expect(gates.locator('tr', { hasText: 'No covenant broken or forecast to break' }).locator('.pill')).toHaveText('Fail');
   await expect(gates.locator('tr', { hasText: 'Bank at or above its floor' }).locator('.pill')).toHaveText('Pass');

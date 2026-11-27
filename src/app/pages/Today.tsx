@@ -1,15 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useBooks } from '../store';
 import { buildInbox } from '../inbox';
-import { CountUp, Figure, Forecourt, Gauge, Help, Money, PageHead, TieOut } from '../components/ui';
+import { CountUp, Forecourt, Gauge, Help, Money, PageHead, TieOut } from '../components/ui';
 import { balanceAsOf, pnl } from '../../core/reports';
 import { periodOf, shortDate, todayInChicago, addDays, periodLabel } from '../../core/dates';
 import { formatMoney } from '../../core/money';
-import { checksRegister } from '../../core/bank';
-import { poolBalance } from '../../core/cash';
 import { forecast } from '../../core/forecast';
 import { CompassLine } from './Compass';
+
+/** To-do kinds shown before "Show all". */
+const TOP = 8;
 
 /** Morning, afternoon or evening at the stores (America/Chicago). */
 function partOfDay(now = new Date()): string {
@@ -26,13 +27,8 @@ export function Today() {
   const bankBal = bank ? balanceAsOf(state, bank.id, today, lines) : 0;
   const floor = bank?.floorCents ?? 0;
   const cashIds = state.accounts.filter((a) => a.subtype === 'cash').map((a) => a.id);
-  // Supplier and card clearing only: the StationBooks settlement account is the import's P&L-vs-cash bridge, not money owed.
-  const clearIds = state.accounts.filter((a) => a.subtype === 'clearing' && a.id !== 'acct_sb_settlement').map((a) => a.id);
   const cash = cashIds.reduce((a, id) => a + balanceAsOf(state, id, today, lines), 0);
-  const clearing = clearIds.reduce((a, id) => a + balanceAsOf(state, id, today, lines), 0);
   const canSeeBank = visible.has('st_corp');
-  const hq = poolBalance(state, today);
-  const outstanding = useMemo(() => (canSeeBank ? checksRegister(state, today).filter((c) => c.status === 'outstanding' || c.status === 'stale') : []), [state, today, canSeeBank, lines]); // eslint-disable-line react-hooks/exhaustive-deps
   const fc = useMemo(() => (canSeeBank && bank ? forecast(state, bank.id, today) : null), [state, bank, today, canSeeBank, lines]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Yesterday, or the latest day with sales if yesterday has none.
@@ -64,9 +60,23 @@ export function Today() {
   }, [state, lines, glance]);
   const dayTotal = [...day.values()].reduce((a, r) => a + r.fuel + r.inside + r.kitchen, 0);
 
-  const month = periodOf(glance);
-  const mtd = useMemo(() => pnl(state, { from: month, to: month, storeIds: stores.map((s) => s.id), lines }), [state, stores, lines, month]);
+  // This month to date; if nothing has been sold yet this month (sales not entered), the latest month with sales.
+  const { month, mtd, partial } = useMemo(() => {
+    const ids = stores.map((s) => s.id);
+    let m = periodOf(salesDays.length ? glance : today);
+    for (let i = 0; i < 3; i++) {
+      const r = pnl(state, { from: m, to: m, storeIds: ids, lines });
+      if (r.netSales.total !== 0 || i === 2) return { month: m, mtd: r, partial: m === periodOf(today) };
+      m = periodOf(addDays(`${m}-01`, -1));
+    }
+    throw new Error('unreachable');
+  }, [state, stores, lines, glance, today, salesDays]);
   const open = inbox.filter((i) => !i.review).reduce((a, i) => a + i.count, 0);
+  const todo = inbox.filter((i) => !i.review && i.count > 0);
+  const [all, setAll] = useState(false);
+  const shown = all ? todo : todo.slice(0, TOP);
+  const later = inbox.filter((i) => i.review && i.count > 0);
+  const clear = inbox.filter((i) => i.count === 0);
   // Independent check: sum the POS entries' revenue lines straight from the transactions.
   const posTotal = useMemo(() => {
     const rev = new Set(state.accounts.filter((a) => a.type === 'revenue').map((a) => a.id));
@@ -82,75 +92,99 @@ export function Today() {
     <>
       <PageHead eyebrow={new Date(today + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })} title={`Good ${partOfDay()}, ${user.name.split(' ')[0]}`}
         icon={<Forecourt />}
-        lede={open ? `${open} item${open === 1 ? '' : 's'} need you today. Start at the top of the inbox.` : 'Nothing needs you right now. The books are clean.'}>
+        lede={open ? `${open} item${open === 1 ? '' : 's'} need you today. Start at the top of the list.` : 'Nothing needs you right now. The books are clean.'}>
         <Link className="btn primary" to="/books/new">New entry</Link>
       </PageHead>
 
       <div className="stack">
-        <CompassLine />
         <section className="sign-strip" aria-label="Headline numbers">
           {canSeeBank && (
-            <Link className="sign-cell" to="/cash/forecast">
-              <span className="sign-label">Bank vs floor</span>
-              <span className={'sign-digits' + (bankBal < floor ? ' neg' : '')}><CountUp value={bankBal - floor} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
+            <Link className="sign-cell" to="/bank">
+              <span className="sign-label">Trustmark today</span>
+              <span className={'sign-digits' + (bankBal < floor ? ' neg' : '')}><CountUp value={bankBal} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
               <Gauge value={bankBal} min={0} max={Math.max(floor * 3, bankBal)} target={floor} width={78} label="Trustmark against its floor"
                 valueText={bankBal < floor ? `${formatMoney(floor - bankBal, { whole: true, dollarSign: true })} below the floor` : `${formatMoney(bankBal - floor, { whole: true, dollarSign: true })} above the floor`} />
-              <span className="sign-note">{bankBal < floor ? 'Below the floor: top it up' : `Over the ${formatMoney(floor, { whole: true, dollarSign: true })} floor`}</span>
+              <span className="sign-note">{bankBal < floor ? `${formatMoney(floor - bankBal, { whole: true, dollarSign: true })} under the floor: top it up` : `${formatMoney(bankBal - floor, { whole: true, dollarSign: true })} above the ${formatMoney(floor, { whole: true, dollarSign: true })} floor`}</span>
             </Link>
           )}
-          <Link className="sign-cell" to="/cash">
-            <span className="sign-label">Cash in the stores</span>
-            <span className="sign-digits"><CountUp value={cash} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
-            <span className="sign-note">Registers, safes and HQ</span>
-          </Link>
-          <Link className="sign-cell" to={`/reports/pnl?from=${month}&to=${month}`}>
-            <span className="sign-label">Profit so far in {periodLabel(month).split(' ')[0]}</span>
-            <span className={'sign-digits' + (mtd.netIncome.total < 0 ? ' neg' : ' pos')}><CountUp value={mtd.netIncome.total} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
-            <span className="sign-note">All stores, month to date</span>
-          </Link>
-          <div className="sign-cell">
-            <span className="sign-label">Waiting in the inbox</span>
-            <span className="sign-digits"><CountUp value={open} format={(n) => String(n)} /></span>
-            <span className="sign-note">{open ? 'Start at the top of the inbox below' : 'All pumps clear: nothing waiting'}</span>
-          </div>
-        </section>
-
-        <section className="figures" aria-label="Cash position">
-          {canSeeBank && (
-            <Figure label="Trustmark balance" href="/books/accounts/acct_trustmark" value={<Money c={bankBal} whole dollar className={bankBal < floor ? 'neg' : undefined} />}
-              note={bankBal < floor ? <span className="neg">Below the {formatMoney(floor, { whole: true, dollarSign: true })} floor by {formatMoney(floor - bankBal, { dollarSign: true })}</span> : <>{formatMoney(bankBal - floor, { whole: true, dollarSign: true })} above the {formatMoney(floor, { whole: true, dollarSign: true })} floor</>} />
+          {fc && (
+            <Link className="sign-cell" to="/cash/forecast">
+              <span className="sign-label">Lowest in 13 weeks</span>
+              <span className={'sign-digits' + (fc.minBalance < fc.floor ? ' neg' : '')}><CountUp value={fc.minBalance} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
+              <span className="sign-note">{fc.minBalance < fc.floor ? `Under the floor on ${shortDate(fc.minDate)}` : `On ${shortDate(fc.minDate)}, still above the floor`}</span>
+            </Link>
           )}
-          <Figure label="Cash on hand" href="/cash" value={<Money c={cash} whole dollar />} note={canSeeBank ? <>{formatMoney(hq, { whole: true, dollarSign: true })} at HQ waiting to deposit; the rest in registers</> : 'Registers and safe'} />
-          <Figure label="Supplier clearing" href="/books/accounts/acct_craddock" value={<Money c={clearing} whole dollar />} note="Craddock, Dash and Fiserv, net. Positive is owed to us." />
-          {canSeeBank && <Figure label="Checks outstanding" href="/bank/checks?status=outstanding" value={<Money c={outstanding.reduce((a, c) => a + c.amount, 0)} whole dollar />} note={`${outstanding.length} check${outstanding.length === 1 ? '' : 's'} written, not cleared`} />}
-          <Figure label={`${periodLabel(month)} net profit`} href={`/reports/pnl?from=${month}&to=${month}`} value={<Money c={mtd.netIncome.total} whole dollar signed />} note={`On ${formatMoney(mtd.netSales.total, { whole: true, dollarSign: true })} net sales, to date`} />
+          {!canSeeBank && (
+            <Link className="sign-cell" to="/cash">
+              <span className="sign-label">Cash in the store</span>
+              <span className="sign-digits"><CountUp value={cash} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
+              <span className="sign-note">Registers and safe</span>
+            </Link>
+          )}
+          <Link className="sign-cell" to={`/reports/pnl?from=${month}&to=${month}`}>
+            <span className="sign-label">{partial ? `Profit so far in ${periodLabel(month).split(' ')[0]}` : `Profit in ${periodLabel(month)}`}</span>
+            <span className={'sign-digits' + (mtd.netIncome.total < 0 ? ' neg' : ' pos')}><CountUp value={mtd.netIncome.total} format={(c) => formatMoney(c, { whole: true, dollarSign: true })} /></span>
+            <span className="sign-note">On {formatMoney(mtd.netSales.total, { whole: true, dollarSign: true })} net sales</span>
+          </Link>
+          <a className="sign-cell" href="#inbox-h">
+            <span className="sign-label">To do</span>
+            <span className="sign-digits"><CountUp value={open} format={(n) => String(n)} /></span>
+            <span className="sign-note">{open ? `${todo.length} kind${todo.length === 1 ? '' : 's'} of work, below` : 'All clear: nothing waiting'}</span>
+          </a>
         </section>
 
-        {fc && (
-          <section className="figures" aria-label="Projected bank balance">
-            {[7, 14, 30].map((n) => (
-              <Figure key={n} label={`Projected in ${n} days`} href="/cash/forecast" value={<Money c={fc.at(n)} whole dollar className={fc.at(n) < fc.floor ? 'neg' : undefined} />} note={fc.at(n) < fc.floor ? <span className="neg">Below the floor</span> : `${formatMoney(fc.at(n) - fc.floor, { whole: true, dollarSign: true })} above the floor`} />
-            ))}
-            <Figure label="Lowest in 13 weeks" href="/cash/forecast" value={<Money c={fc.minBalance} whole dollar className={fc.minBalance < fc.floor ? 'neg' : undefined} />} note={shortDate(fc.minDate)} />
-          </section>
-        )}
+        <CompassLine />
 
-        <div className="grid-2">
+        <div className={salesDays.length ? 'grid-2' : undefined}>
           <section className="panel" aria-labelledby="inbox-h">
-            <div className="panel-head"><h2 id="inbox-h">Inbox</h2><span className="muted small">{open} to do{inbox.some((i) => i.review && i.count) && ' · plus review queues'}</span></div>
-            <ul className="inbox">
-              {inbox.map((i) => (
-                <li key={i.key}>
-                  <span className={'n' + (i.count ? '' : ' zero')}>{i.count}</span>
-                  <span className="what"><b>{i.title}</b><span>{i.detail}</span></span>
-                  {i.count > 0 ? <Link className="btn sm" to={i.to} aria-label={`${i.action}: ${i.title}`}>{i.action}</Link> : <span className="pill ok">Clear</span>}
-                </li>
-              ))}
-            </ul>
-            <div className="tieout"><span className="muted">Bank matching, fuel notices, cash handoffs, bills, payroll and compliance deadlines join this inbox as their phases ship. <Link to="/roadmap">See the roadmap</Link>.</span></div>
+            <div className="panel-head"><h2 id="inbox-h">To do</h2><span className="muted small">{open ? `${open} item${open === 1 ? '' : 's'}` : 'Nothing waiting'}</span></div>
+            {todo.length ? (
+              <ul className="inbox">
+                {shown.map((i) => (
+                  <li key={i.key}>
+                    <span className="n">{i.count}</span>
+                    <span className="what"><b>{i.title}</b><span>{i.detail}</span></span>
+                    <Link className="btn sm" to={i.to} aria-label={`${i.action}: ${i.title}`}>{i.action}</Link>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="empty-line">All the lights are green. Nothing needs you right now.</p>}
+            {todo.length > TOP && (
+              <button type="button" className="btn show-all" aria-expanded={all} onClick={() => setAll((a) => !a)}>
+                {all ? 'Show the top 8 only' : `Show all ${todo.length} kinds of work`}
+              </button>
+            )}
+            {all && later.length > 0 && (
+              <>
+                <h3 className="inbox-sub">When you have time</h3>
+                <ul className="inbox">
+                  {later.map((i) => (
+                    <li key={i.key}>
+                      <span className="n">{i.count}</span>
+                      <span className="what"><b>{i.title}</b><span>{i.detail}</span></span>
+                      <Link className="btn sm" to={i.to} aria-label={`${i.action}: ${i.title}`}>{i.action}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {clear.length > 0 && (
+              <details className="inbox-clear">
+                <summary>{clear.length} other check{clear.length === 1 ? ' is' : 's are'} clear</summary>
+                <ul className="inbox">
+                  {clear.map((i) => (
+                    <li key={i.key}>
+                      <span className="n zero">0</span>
+                      <span className="what"><b>{i.title}</b><span>{i.detail}</span></span>
+                      <span className="pill ok">Clear</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </section>
 
-          <section className="panel" aria-labelledby="glance-h">
+          {salesDays.length > 0 && <section className="panel" aria-labelledby="glance-h">
             <div className="panel-head">
               <h2 id="glance-h">{glance === yesterday ? 'Yesterday' : 'Latest sales day'} at a glance</h2>
               <span className="muted small">{shortDate(glance)}{glance !== yesterday && ' · nothing posted for yesterday yet'}</span>
@@ -177,7 +211,7 @@ export function Today() {
               </table>
             </div>
             <TieOut items={[{ label: posTotal === dayTotal ? 'Ties to the POS daily close entries' : `Off from the POS entries by ${formatMoney(Math.abs(posTotal - dayTotal), { dollarSign: true })}`, ok: posTotal === dayTotal, detail: 'sales before tax' }]} />
-          </section>
+          </section>}
         </div>
       </div>
       <Help k="today" />

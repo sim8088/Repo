@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useBooks } from '../store';
-import { NAV } from './nav';
+import { NAV, PRIMARY, type NavItem } from './nav';
 import { CommandBar } from './CommandBar';
 import { buildInbox } from '../inbox';
 import { ROLE_LABEL } from '../../core/permissions';
@@ -71,6 +71,20 @@ export function Shell({ children }: { children: ReactNode }) {
   });
 
   const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : ['/bank', '/cash', '/fuel', '/assets', '/budgets', '/close', '/qbo', '/debt', '/controls'].includes(to) ? loc.pathname === to : loc.pathname.startsWith(to));
+  // "All areas": the group holding the current page starts open; any group opens or closes on click.
+  const here = NAV.find((g) => g.title !== 'Today' && g.items.some((x) => isActive(x.to)))?.title;
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const isOpen = (t: string) => toggled[t] ?? t === here;
+  const count = (i: NavItem) => (i.badge === 'inbox' ? inboxCount : i.badge === 'uncat' ? badge('uncat') : i.badge === 'unmatched' ? badge('unmatched') : i.badge === 'unclassified' ? badge('unclassified') : i.badge === 'cash' ? badge('cashvar') + badge('overdue') : 0);
+  const item = (i: NavItem, sub?: boolean) => {
+    const n = count(i);
+    return (
+      <NavLink key={i.to} to={i.to} end={i.to === '/'} className={'nav-link' + (sub ? ' sub' : '')} aria-current={isActive(i.to) ? 'page' : undefined}>
+        <span>{i.label}</span>
+        {n > 0 && <span className="count" aria-label={`${n} to do`}>{n}</span>}
+      </NavLink>
+    );
+  };
 
   return (
     <>
@@ -79,23 +93,26 @@ export function Shell({ children }: { children: ReactNode }) {
         {drawer && <div className="scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
         <nav className={'side' + (drawer ? ' open' : '')} aria-label="Main">
           <Link to="/" className="brand"><span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"><path d="M4 17V4.5A1.5 1.5 0 0 1 5.5 3h5A1.5 1.5 0 0 1 12 4.5V17M3 17h10M6 6h4v3H6zM12 8h1.5a1.5 1.5 0 0 1 1.5 1.5V14a1 1 0 0 0 2 0V7.5L15 5.5" /></svg></span><b>CFO Portal</b><span className="brand-sub">{state.settings.companyName}</span></Link>
-          {NAV.map((g) => (
-            <div className="nav-group" key={g.title}>
-              <h2>{g.title}</h2>
-              {g.items.map((i) => {
-                const n = i.badge === 'inbox' ? inboxCount : i.badge === 'uncat' ? badge('uncat') : i.badge === 'unmatched' ? badge('unmatched') : i.badge === 'unclassified' ? badge('unclassified') : i.badge === 'cash' ? badge('cashvar') + badge('overdue') : 0;
-                return (
-                  <NavLink key={i.to} to={i.to} end={i.to === '/'} className="nav-link" aria-current={isActive(i.to) ? 'page' : undefined}>
-                    <span>{i.label}</span>
-                    {n > 0 && <span className="count" aria-label={`${n} to do`}>{n}</span>}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
+          <div className="nav-group nav-primary">
+            {PRIMARY.map((i) => item(i))}
+          </div>
           <div className="nav-group">
-            <h2>About</h2>
-            <NavLink to="/roadmap" className="nav-link">Build status</NavLink>
+            <h2>All areas</h2>
+            {NAV.filter((g) => g.title !== 'Today').map((g) => {
+              const open = isOpen(g.title);
+              const id = 'nav-' + g.title.toLowerCase().replace(/[^a-z]+/g, '-');
+              return (
+                <div className="nav-area" key={g.title}>
+                  <button type="button" className="nav-area-btn" aria-expanded={open} aria-controls={id} onClick={() => setToggled((t) => ({ ...t, [g.title]: !open }))}>
+                    <span>{g.title}</span>
+                    <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2.5 7.5 6 4 9.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </button>
+                  <div id={id} hidden={!open}>
+                    {g.items.map((i) => item(i, true))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </nav>
         <div className="main">
@@ -110,7 +127,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </button>
             <div className="top-right">
               <label className="sr-only" htmlFor="acting-as">Acting as</label>
-              <select id="acting-as" value={user.id} onChange={(e) => setUserId(e.target.value)} style={{ width: 'auto', maxWidth: 220 }} title="Acting as">
+              <select id="acting-as" className="hide-phone" value={user.id} onChange={(e) => setUserId(e.target.value)} style={{ width: 'auto', maxWidth: 220 }} title="Acting as">
                 {state.users.filter((u) => u.active).map((u) => <option key={u.id} value={u.id}>{u.name} · {ROLE_LABEL[u.role]}</option>)}
               </select>
               <label className="sr-only" htmlFor="theme">Theme</label>

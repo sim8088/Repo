@@ -137,6 +137,18 @@ p { margin: 0 0 8px; }
 .nav-link:hover { background: var(--asphalt-2); color: var(--on-asphalt); }
 .nav-link[aria-current='page'] { border-left-color: var(--hotspot); color: var(--on-asphalt); font-weight: 600; background: var(--asphalt-2); }
 .nav-link .count { font-size: 12px; background: var(--caution); color: var(--caution-ink); border-radius: 4px; padding: 0 6px; line-height: 18px; font-weight: 700; }
+.nav-primary { border-bottom: 1px solid var(--asphalt-rule); padding-bottom: 10px; }
+.nav-primary .nav-link { padding-top: 8px; padding-bottom: 8px; font-size: 16px; }
+.nav-area-btn {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 7px 20px; background: none; border: 0;
+  color: var(--on-asphalt-2); font: 500 15px/1.3 var(--sans); text-align: left; cursor: pointer; border-radius: 0;
+}
+.nav-area-btn:hover { background: var(--asphalt-2); color: var(--on-asphalt); }
+.nav-area-btn svg { width: 12px; height: 12px; flex: none; transition: transform 0.15s ease; }
+.nav-area-btn[aria-expanded='true'] { color: var(--on-asphalt); }
+.nav-area-btn[aria-expanded='true'] svg { transform: rotate(90deg); }
+.nav-link.sub { font-size: 14px; padding-left: 33px; }
+@media (prefers-reduced-motion: reduce) { .nav-area-btn svg { transition: none; } }
 .nav-soon { padding: 4px 20px 0; font-size: 13px; color: var(--on-asphalt-muted); }
 
 .main { min-width: 0; display: flex; flex-direction: column; }
@@ -290,6 +302,14 @@ input[type='checkbox'] { width: 18px; height: 18px; min-height: 0; accent-color:
 .inbox .n.zero { color: var(--muted); }
 .inbox .what b { display: block; font-weight: 600; }
 .inbox .what span { font-size: 13px; color: var(--muted); }
+.inbox-sub { font: 600 14px/1.3 var(--sans); color: var(--ink-2); padding: 14px 20px 6px; border-top: 1px solid var(--rule); margin: 0; }
+.inbox-clear { border-top: 1px solid var(--rule); }
+.inbox-clear > summary { padding: 12px 20px; cursor: pointer; color: var(--muted); font-size: 14px; }
+.inbox-clear > summary:hover { color: var(--ink); }
+.inbox-clear .inbox li { padding-top: 8px; padding-bottom: 8px; }
+.inbox-clear .inbox .n { font-size: 20px; }
+.show-all { margin: 4px 20px 14px; }
+.empty-line { padding: 16px 20px; margin: 0; color: var(--muted); }
 
 /* help */
 details.help { margin-top: 28px; border-top: 1px solid var(--rule); padding-top: 14px; }
@@ -549,3 +569,13 @@ tr.compass-current > td { background: var(--hover); }
   .compass-ladder li { font-size: 12px; padding: 4px 5px; }
   .compass-stage { font-size: 34px; }
 }
+
+/* Folded detail sections: one line until opened. */
+.panel.fold > details > summary { cursor: pointer; list-style: none; }
+.panel.fold > details > summary::-webkit-details-marker { display: none; }
+.panel.fold > details > summary h2::before { content: '▸'; display: inline-block; width: 1.1em; color: var(--muted); transition: transform 0.15s ease; }
+.panel.fold > details[open] > summary h2::before { transform: rotate(90deg); }
+.panel.fold > details:not([open]) > summary { border-bottom: 0; }
+.fold-note > summary { cursor: pointer; }
+.fold-note ul { margin: 8px 0 0; }
+@media (prefers-reduced-motion: reduce) { .panel.fold > details > summary h2::before { transition: none; } }
