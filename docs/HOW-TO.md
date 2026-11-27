@@ -426,3 +426,35 @@ Projected year-end taxable income for a return and the levers: equipment bought 
 
 ## CPA package (`/tax/cpa`)
 The year-end ZIP: entity map, trial balance per entity, fixed assets book and tax, loan schedules, payroll summary, 1099 list, owner draws, intercompany balances, inventory, tax workpapers with M-1/M-2, sales tax, estimates and K-1 support, plus a printable index (HTML and CSV). Each line opens its screen. Downloads are logged.
+
+# Phase 13: Growth & owners
+
+## Expansion readiness (`/growth/readiness`)
+Eight checks, each green, amber or red, with how each was measured and a link to the screen behind it. The overall is red if any check is red, green only if all are green. Add a fix plan for a store below break-even (red becomes amber), mark a manager ready to promote, and press **Record** once a month: the history keeps one row a month and the inbox flags a change to green or to red. The ramp table compares the newest store with its targets, prorating a month in progress by the days with sales.
+
+## Sites (`/growth/sites`)
+Each prospect and each of our stores scored 0–100 on eleven factors and weighted. Add competitors within three miles (brand, distance, regular price, amenities), change the weights, or add a site. Strong = at or above our stores' average; weak = 15 or more below. Tie-out: every score recomputes from its factors.
+
+## Pro forma (`/growth/pro-forma`)
+Pick a pro forma or prefill one from a store's statements over a range of months. Edit the stabilized monthly inputs, the ramp, capital lines, incentives and financing; the returns, the annual P&L (with the 120 months below it), the IRR cash flows, the break-evens and the sensitivity tables update as you type. Save, save a copy, or export CSV / Excel (annual, monthly and the IRR flows). Tie-outs: annual = sum of months; NPV at the IRR is zero; year-0 equity = capital − incentives − loan.
+
+## Buy / build / lease (`/growth/compare`)
+Every option for a site (or all of them, with acquisitions as a buy) side by side: levered and unlevered IRR, NPV, upfront cash, months to open, stabilized EBITDA, residual real estate, IRR with the construction overrun and the risks.
+
+## Acquisitions (`/growth/acquisitions`)
+The seller's P&L to normalized EBITDA, the three valuation methods, cash at closing, the gallon check (enter supplier statement gallons; more than 2% off is flagged), the QoE checklist and the diligence tracker (status, owner, due date, documents; done needs a document, an issue needs a note; documents show in the vault). **Evaluate this deal** opens the go / no-go.
+
+## Capital allocation (`/growth/capital`)
+Every use of cash ranked by risk-adjusted return (× 1.0 / 0.75 / 0.5 by risk) with payback and strategic value, and cash above the reserve allocated down the list (ideas are ranked but not funded). Add projects here; approved ones starting soon reduce the safe distribution.
+
+## Valuation (`/growth/valuation`)
+Equity value = EBITDA × the multiple range + real estate at its latest appraised value − every loan against it, with the per-gallon cross-check. Set the multiples, then **Record** the quarter for the trend.
+
+## Owner returns & distributions (`/growth/owners`)
+The safe distribution build-up (cash − reserve − near-term capex − tax estimates due − debt-service cushion), its month-end history, distributions by owner YTD and lifetime (with what came before these books), the record of each distribution with its entry, tax distributions from Phase 11 and ROE / ROIC by store. **Post distribution** posts Dr 3100 Owner draws / Cr Trustmark; above the safe amount it asks for a reason.
+
+## Quarterly CFO review (`/growth/review`)
+The quarter to date on one screen: results vs budget, KPI trend, covenant headroom, refinance triggers and paydown, the expansion scorecard, tax estimates and distribution capacity. Print it as the owner / bank pack or export the Excel workbook.
+
+## Evaluate a deal (`/growth/evaluate`)
+Pick a pro forma or an acquisition, try other financing, and read the effect on company EBITDA, debt service, DSCR, debt, leverage and cash above the reserve, then the tests and the decision: a failed critical test is a no-go, a failed other test makes it conditional.

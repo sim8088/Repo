@@ -10,6 +10,8 @@ import type { TaxState } from './taxTypes';
 export type * from './complianceTypes';
 export type * from './assetTypes';
 export type * from './taxTypes';
+import type { GrowthState } from './growthTypes';
+export type * from './growthTypes';
 import type { InsideState, KitchenState } from './insideTypes';
 
 export type ID = string;
@@ -168,7 +170,7 @@ export interface AuditEntry {
   userId: ID;
   action: string;
   objectType: 'transaction' | 'account' | 'store' | 'entity' | 'party' | 'period' | 'user' | 'rule' | 'settings' | 'export' | 'data' | 'bank' | 'reconciliation' | 'cash' | 'forecast' | 'people' | 'fuel'
-    | 'bill' | 'intercompany' | 'receivable' | 'report' | 'inside' | 'kitchen' | 'compliance' | 'document' | 'asset' | 'loan' | 'budget' | 'close' | 'journal' | 'recon' | 'qbo' | 'debt' | 'tax';
+    | 'bill' | 'intercompany' | 'receivable' | 'report' | 'inside' | 'kitchen' | 'compliance' | 'document' | 'asset' | 'loan' | 'budget' | 'close' | 'journal' | 'recon' | 'qbo' | 'debt' | 'tax' | 'growth';
   objectId: string;
   summary: string;
   before?: unknown;
@@ -474,6 +476,8 @@ export interface BooksState {
   debt?: DebtState;
   /** Tax working papers (phase 11). Read it through `taxOf(state)`. */
   tax?: TaxState;
+  /** Growth & owners (phase 13). Read it through `growthOf(state)`. */
+  growth?: GrowthState;
   /** Inside store (phase 7). Older books lack it: read it through `insideOf(state)`. */
   inside: InsideState;
   /** Kitchen (phase 7). Older books lack it: read it through `kitchenOf(state)`. */

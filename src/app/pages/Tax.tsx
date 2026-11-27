@@ -6,12 +6,13 @@ import { ExportButtons } from '../components/reportkit';
 import { OccurrenceForm } from './Compliance';
 import {
   ADJ_LABEL, CLASS_FORM, CLASS_LABEL_TAX, DISCLAIMER, INVENTORY_LABEL, LEVER_LABEL, M1_LABEL, RATE_NOTES, adjustments, bookDepTie, bookToTax, bookVsTax, bookReceipts,
-  distributionCapacity, estimates, k1Allocation, m2, macrsTable, maskEin, methodsPanel, midQuarterTest, planning, profileOf, ratesOf, recordEstimatePayment, returnUnits,
+  estimates, k1Allocation, m2, macrsTable, maskEin, methodsPanel, midQuarterTest, planning, profileOf, ratesOf, recordEstimatePayment, returnUnits,
   reviewAdjustment, salesTaxPeriod, salesTaxPeriods, salesTaxTie, salesTaxWorksheet, saveAdjustment, saveAssetTax, saveEstimatePlan, saveMethodChange, saveTaxProfile,
   saveTaxRates, setLever, setOwnerStart, setPriorIncome, setReceipts, slMidMonthTable, taxCalendar, taxDistributions, taxNotices, taxOf, priorIncomeOf, ownerStartOf,
   type AdjRow, type EstimateStatus,
 } from '../../core/tax';
 import { cpaPackage, cpaPackageZip } from '../../core/taxPackage';
+import { safeDistribution } from '../../core/growth';
 import { CLASS_LABEL, assetsOf } from '../../core/assets';
 import { ownerDraws } from '../../core/intercompany';
 import { ledgerDeptSales } from '../../core/inside';
@@ -812,7 +813,8 @@ export function TaxOwnersPage() {
   const units = useMemo(() => returnUnits(state).filter((u) => u.entity.taxClass !== 'c_corp_1120'), [state, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const k1s = useMemo(() => units.map((u) => k1Allocation(state, u.entity.id, t.year, t.asOf)), [state, units, t.year, t.asOf, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const td = useMemo(() => taxDistributions(state, { year: t.year, asOf: t.asOf }), [state, t.year, t.asOf, version]); // eslint-disable-line react-hooks/exhaustive-deps
-  const cap = useMemo(() => distributionCapacity(state, { year: t.year, asOf: t.asOf }), [state, t.year, t.asOf, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phase 13: the safe distribution (cash above the reserve less capex, tax due and a debt-service cushion) replaces the Phase 11 placeholder.
+  const cap = useMemo(() => { const sd = safeDistribution(state, t.asOf); const still = td.rows.reduce((a, r) => a + r.remaining, 0); return { ...sd, capacity: sd.safe, taxStillToDistribute: still, covered: sd.safe >= still }; }, [state, td, t.asOf, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const [edit, setEdit] = useState<string | null>(null);
   const [st, setSt] = useState({ basis: '', capital: '', contributions: '' });
   const [errors, setErrors] = useState<string[]>([]);
@@ -832,7 +834,7 @@ export function TaxOwnersPage() {
         <Figure label="Income allocated to owners" value={<Money c={allocated} whole dollar />} note={`${t.year} to date, ${k1s.length} returns`} />
         <Figure label="Distributions" value={<Money c={dist} whole dollar />} href="/intercompany/draws" />
         <Figure label="Tax distributions needed" value={<Money c={td.total} whole dollar />} note={`Projected income × ${pctBps(td.rows[0]?.rateBps ?? 0)}`} />
-        <Figure label="Distribution capacity" value={<Money c={cap.capacity} whole dollar />} note={cap.covered ? 'Covers the tax still to distribute' : `Short of ${$(cap.taxStillToDistribute)} still to distribute`} />
+        <Figure label="Safe distribution" value={<Money c={cap.capacity} whole dollar />} note={cap.covered ? 'Covers the tax still to distribute' : `Short of ${$(cap.taxStillToDistribute)} still to distribute`} />
       </section>
       <Errors errors={errors} />
       <div className="stack">
@@ -877,11 +879,12 @@ export function TaxOwnersPage() {
             <tbody>{td.rows.map((r) => <tr key={r.entityId + r.partyId}><td>{state.entities.find((e) => e.id === r.entityId)?.code}</td><td>{r.name}</td><td className="num"><Money c={r.projectedShare} /></td><td className="num">{pctBps(r.rateBps)}</td><td className="num"><Money c={r.taxDistribution} /></td><td className="num"><Money c={r.paid} /></td><td className="num"><Money c={r.remaining} /></td></tr>)}</tbody>
           </table></div>
           <div className="panel-pad"><dl className="kv">
-            <dt>Bank (all bank accounts)</dt><dd><Money c={cap.bank} dollar /></dd>
-            <dt>Less floor</dt><dd><Money c={-cap.floor} dollar /></dd>
-            <dt>Less entity estimates due in 90 days</dt><dd><Money c={-cap.estimatesDue} dollar /></dd>
-            <dt>Distribution capacity</dt><dd><b><Money c={cap.capacity} dollar /></b> vs <Money c={cap.taxStillToDistribute} dollar /> still to distribute · <span className={'pill ' + (cap.covered ? 'ok' : 'warn')}>{cap.covered ? 'Covered' : 'Not covered'}</span></dd>
-          </dl><p className="muted small">The full safe-distribution figure (reserve, capex, debt-service cushion) arrives with Phase 13.</p></div>
+            <dt>Cash above the reserve target</dt><dd><Money c={cap.aboveReserve} dollar /></dd>
+            <dt>Less near-term capex</dt><dd><Money c={-cap.capexTotal} dollar /></dd>
+            <dt>Less entity tax estimates due</dt><dd><Money c={-cap.taxTotal} dollar /></dd>
+            <dt>Less debt-service cushion</dt><dd><Money c={-cap.cushion} dollar /></dd>
+            <dt>Safe distribution</dt><dd><b><Money c={cap.capacity} dollar /></b> vs <Money c={cap.taxStillToDistribute} dollar /> still to distribute · <span className={'pill ' + (cap.covered ? 'ok' : 'warn')}>{cap.covered ? 'Covered' : 'Not covered'}</span></dd>
+          </dl><p className="muted small">The build-up and the record of each distribution are on <Link to="/growth/owners">Owner returns &amp; distributions</Link>.</p></div>
           <TieOut items={[{ label: dist === drawsTotal ? 'Distributions tie to the owner draws in the books' : 'Distributions do not tie to the owner draws', ok: dist === drawsTotal, detail: <Money c={drawsTotal} dollar /> }]} />
         </section>
       </div>

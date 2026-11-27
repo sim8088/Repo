@@ -176,7 +176,10 @@ describe('Phase 5 intercompany demo data', () => {
   });
   it('owner draws year to date find the withdrawals booked as Corporate · Miscellaneous', () => {
     const d = drawsYtd(s, T);
-    expect(d.rows.every((r) => r.via === 'expense')).toBe(true);
-    expect(d.total).toBe(1_350_000);
+    // Phase 13's recorded owner distributions post to 3100 Owner draws (tagged 'distribution'); the withdrawals stay expense.
+    const withdrawals = d.rows.filter((r) => !r.t.tags.includes('distribution'));
+    expect(withdrawals.every((r) => r.via === 'expense')).toBe(true);
+    expect(withdrawals.reduce((a, r) => a + r.amount, 0)).toBe(1_350_000);
+    expect(d.rows.filter((r) => r.t.tags.includes('distribution')).every((r) => r.via === 'draw')).toBe(true);
   });
 });

@@ -343,7 +343,7 @@ export function attachToCompliance(books: Books, actor: User, target: Compliance
 
 // ── Document vault ───────────────────────────────────────────────────────
 export interface VaultSource {
-  kind: 'transaction' | 'bill' | 'fuel_invoice' | 'fuel_notice' | 'license' | 'policy' | 'lease' | 'notice' | 'filing' | 'asset' | 'loan' | 'maintenance' | 'upload';
+  kind: 'transaction' | 'bill' | 'fuel_invoice' | 'fuel_notice' | 'license' | 'policy' | 'lease' | 'notice' | 'filing' | 'asset' | 'loan' | 'maintenance' | 'due_diligence' | 'upload';
   id: ID;
   label: string;
   to: string;
@@ -383,6 +383,7 @@ function guessType(name: string, source: VaultSource['kind']): string {
   if (/check/.test(n)) return 'Check image';
   if (source === 'asset' || source === 'maintenance') return 'Asset record';
   if (source === 'loan') return 'Loan document';
+  if (source === 'due_diligence') return 'Due diligence';
   return 'Other';
 }
 
@@ -391,6 +392,8 @@ function guessType(name: string, source: VaultSource['kind']): string {
  * records, and standalone uploads. The same file on two records (a bill's invoice copied onto its posting) is one entry
  * with both sources. Only documents on records the viewer may see are listed.
  */
+function growthAcquisitions(state: BooksState) { return state.growth?.acquisitions ?? []; }
+
 export function vaultIndex(state: BooksState, visible?: Set<ID>): VaultEntry[] {
   const map = new Map<ID, VaultEntry>();
   const see = (storeIds: ID[]) => !visible || storeIds.some((s) => visible.has(s));
@@ -432,6 +435,8 @@ export function vaultIndex(state: BooksState, visible?: Set<ID>): VaultEntry[] {
   for (const x of as?.assets ?? []) for (const a of x.attachments) add(a, { kind: 'asset', id: x.id, label: `${x.tag} ${x.name}`, to: `/assets?q=${x.tag}` }, { storeIds: [x.storeId] });
   for (const m of as?.maintenance ?? []) for (const a of m.attachments) add(a, { kind: 'maintenance', id: m.id, label: m.description, to: '/assets/maintenance' }, { storeIds: [m.storeId], month: periodOf(m.date) });
   for (const l of as?.loans ?? []) for (const a of l.attachments) add(a, { kind: 'loan', id: l.id, label: l.name, to: `/assets/loans/${l.id}` }, { storeIds: [l.storeId] });
+  // Phase 13: acquisition due-diligence documents (read from the growth slice directly to keep imports one way).
+  for (const q of growthAcquisitions(state)) for (const d of q.dd) for (const a of d.attachments) add(a, { kind: 'due_diligence', id: `${q.id}:${d.id}`, label: `${q.name}: ${d.title}`, to: `/growth/acquisitions?id=${q.id}` }, { storeIds: [corp] });
   // Vault metadata: standalone uploads, tags, types and extra links.
   for (const d of c.docs) {
     const linkStores = d.links.filter((l) => l.kind === 'store').map((l) => l.id);

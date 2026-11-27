@@ -1037,7 +1037,8 @@ export function ownerBasis(state: BooksState, opts: { year: number; asOf: string
   return returnUnits(state).flatMap((u) => k1Allocation(state, u.entity.id, opts.year, opts.asOf).rows.map((r) => ({ entityId: u.entity.id, partyId: r.partyId, name: r.name, start: r.basisStart, end: r.basisEnd, suspended: r.suspendedLoss, excess: r.excessDistribution, capitalEnd: r.capitalEnd })));
 }
 
-/** Cash available for distributions vs the tax still to distribute: shared bank above its floor less entity estimates due in 90 days. */
+/** Cash available for distributions vs the tax still to distribute: shared bank above its floor less entity estimates due in 90 days.
+ * @deprecated Phase 13: screens use `safeDistribution` in growth.ts (reserve, capex, tax and debt-service cushion). Kept for its tests. */
 export function distributionCapacity(state: BooksState, opts: { year: number; asOf: string }): { bank: Cents; floor: Cents; estimatesDue: Cents; capacity: Cents; taxStillToDistribute: Cents; covered: boolean } {
   const banks = state.accounts.filter((a) => a.subtype === 'bank' && a.active);
   const bank = banks.reduce((a, acct) => a + acctNet(state, [acct.id], undefined, '0000-01-01', opts.asOf), 0);
