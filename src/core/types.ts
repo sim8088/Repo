@@ -473,6 +473,8 @@ export interface BooksState {
   /** Duplicate pairs the CFO marked "not a duplicate". */
   dismissedDuplicates: string[];
   seq: number;
+  /** Where these books came from: the demo dataset, or a StationBooks export (real data, never committed). */
+  source?: { kind: 'demo' | 'stationbooks'; exportedAt?: string; report?: unknown };
   /** People & payroll (phase 6). Books saved before phase 6 lack it: read it through `peopleOf(state)`. */
   people: PeopleState;
   /** Compliance & documents (phase 9). Books saved before phase 9 lack it: read it through `complianceOf(state)`. */
