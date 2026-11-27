@@ -567,10 +567,7 @@ test('close: work October to the lock gate, then lock it', async ({ page }) => {
   test.setTimeout(180_000);
   await open(page, '/close?month=2026-10');
   await expect(page.getByRole('button', { name: 'Lock October 2026' })).toBeDisabled();
-  await page.getByRole('button', { name: /^9\. Inventory counted · HM15: Blocked/ }).click();
-  await page.getByLabel('Status', { exact: true }).selectOption('done');
-  await page.getByLabel('Note').fill('Recount received and signed.');
-  await page.getByRole('button', { name: 'Save step' }).click();
+  // HM15's October month-end count is posted, so the inventory step is proved by the data (closeHooks).
   await expect(page.getByRole('button', { name: /^9\. Inventory counted · HM15: Done/ })).toBeVisible();
   await page.getByRole('button', { name: /^8\. Accruals booked: In progress/ }).click();
   await page.getByLabel('Status', { exact: true }).selectOption('done');
