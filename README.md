@@ -70,6 +70,7 @@ src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   debt.ts, debtTypes.ts   phase 12: debt dashboard, covenants, refinance, paydown vs invest, reserve, related-party loans (seed-debt.ts)
   tax.ts, taxPackage.ts, taxTypes.ts   phase 11: entity map, MACRS, book-to-tax, sales tax, estimates, K-1, CPA package (seed-tax.ts)
   growth.ts, growthTypes.ts   phase 13: expansion scorecard, sites, pro forma, IRR/NPV, acquisitions, capital allocation, valuation, safe distribution, deal evaluation (seed-growth.ts)
+  compass.ts, compassTypes.ts   growth compass: ROIC vs WACC, stage gates, store roles, moves, triggers, sensitivity (seed-compass.ts)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
 docs/          HOW-TO.md (one note per screen), DECISIONS.md
@@ -141,6 +142,22 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Owner returns | Distributions by owner YTD and lifetime (tied to the ledger), recorded distributions posted Dr 3100 / Cr bank, the safe distribution amount (replaces the Phase 11 placeholder on the tax screen), tax distributions, ROE and ROIC by store. |
 | Workflows | Quarterly CFO review (printable owner / bank pack and a multi-sheet Excel workbook) and Evaluate a deal (go / no-go with reasons). |
 | Inbox | Expansion scorecard changed, month not yet recorded, due diligence overdue or with an issue; Phase 12's "cash above the reserve 2+ months" now suggests where to put it. |
+
+## Growth compass
+
+| Area | What works |
+|---|---|
+| Growth compass | `/growth/compass`, first in Growth: the stage on a five-step ladder (Fix → Stabilize → Optimize → Replicate → Scale) with why, the ROIC − WACC spread, the gates (value vs threshold), store roles (Grow / Fix with its lever / Harvest / Watch), the next three moves, "Open store #N when …" with estimated dates, the sensitivity, and every formula and assumption editable. Monthly snapshots; the inbox flags a stage change; a one-line summary on Today. |
+
+### How big-company CFOs decide to grow, and how this maps
+- **Return on capital beats the cost of capital.** A store is only worth copying if it earns more on the money tied up in it than that money costs. Here: ROIC (after-tax operating profit ÷ fixed assets, inventory and working capital) against WACC (the blend of after-tax debt cost and a cost of equity the CFO sets). The spread is the headline number.
+- **Unit economics before expansion.** Profit a gallon, a store-month and a transaction, labor against target and break-even headroom, per store. Weak stores get a named lever and a dollar value before a new one is opened.
+- **Cash, not just profit.** Free cash flow and how much of EBITDA becomes cash; the reserve first; months until the next store's equity is on hand.
+- **Capacity.** The bank's view: DSCR and leverage after a typical new-store loan.
+- **Stage gates.** Explicit, written-down thresholds, each pass or fail with the actual number, so the decision to grow is a checklist rather than a feeling. The thresholds are editable and logged.
+- **Prove it twice.** Scale (a pipeline of stores) needs the gates to hold for months in a row and cash to fund the next store quickly.
+- **Decide on evidence, not on zeros.** A gate whose input isn't on the books (no loans, no asset register, no bank activity) says "can't tell yet" and what it needs; the stage stops at the first rung the evidence can't confirm.
+- **Cash first.** Before anything else: the bank above its floor and no overdraft fees; below the floor the stage is Fix and protecting cash is the first move.
 
 ## What Phase 12 adds
 
@@ -263,5 +280,6 @@ Working papers for the CPA, not tax advice: rates, lives and thresholds are conf
 - Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation and the covenant monitor come in phases 11 and 12.
 - QuickBooks syncs by file: the live QBO API (OAuth, webhooks, real ids) needs the hosted back end. Recurring entries and reversals are generated when someone presses the button (the inbox says when), not on a timer.
 - Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). The covenant monitor and the risk register come in phases 12 and 14.
+- Growth compass: store ROIC is before corporate overhead; with fewer than 3 complete months there is no EBITDA trend, so most trigger dates say no estimate; the cost of equity is a judgement call; books with no loans on file can't pass the covenant gate yet (there is no "no debt" declaration).
 - Growth: pro formas are pre-tax and assume a balloon is refinanced on the same amortization; same-store and TTM checks need more history than the demo has; valuation multiples are entered, not market data.
 - Tax: only ordinary income is allocated to owners (no separately stated items, QBI or state apportionment); partner basis leaves out liabilities; the books start in September, so earlier book income is entered.

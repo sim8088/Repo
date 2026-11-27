@@ -9,6 +9,7 @@ import { formatMoney } from '../../core/money';
 import { checksRegister } from '../../core/bank';
 import { poolBalance } from '../../core/cash';
 import { forecast } from '../../core/forecast';
+import { CompassLine } from './Compass';
 
 /** Morning, afternoon or evening at the stores (America/Chicago). */
 function partOfDay(now = new Date()): string {
@@ -86,6 +87,7 @@ export function Today() {
       </PageHead>
 
       <div className="stack">
+        <CompassLine />
         <section className="sign-strip" aria-label="Headline numbers">
           {canSeeBank && (
             <Link className="sign-cell" to="/cash/forecast">

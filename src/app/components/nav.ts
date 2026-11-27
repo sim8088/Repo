@@ -173,6 +173,7 @@ export const NAV: NavGroup[] = [
   {
     title: 'Growth',
     items: [
+      { label: 'Growth compass', to: '/growth/compass' },
       { label: 'Expansion readiness', to: '/growth/readiness' },
       { label: 'Sites', to: '/growth/sites' },
       { label: 'Pro forma', to: '/growth/pro-forma' },
