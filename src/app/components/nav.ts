@@ -83,9 +83,23 @@ export const NAV: NavGroup[] = [
       { label: 'Transactions', to: '/books/transactions', badge: 'uncat' },
       { label: 'New entry', to: '/books/new' },
       { label: 'Chart of accounts', to: '/books/accounts' },
+      { label: 'Journal entries', to: '/books/journals' },
+      { label: 'GL detail', to: '/books/gl' },
+      { label: 'Account reconciliations', to: '/books/recons' },
+      { label: 'Consolidation', to: '/books/consolidation' },
     ],
   },
   { title: 'Close', items: [{ label: 'Periods', to: '/close/periods' }] },
+  {
+    title: 'QuickBooks',
+    items: [
+      { label: 'Sync status', to: '/qbo' },
+      { label: 'Mapping', to: '/qbo/mapping' },
+      { label: 'Pull & push', to: '/qbo/sync' },
+      { label: 'Differences report', to: '/qbo/differences' },
+      { label: 'Sync log', to: '/qbo/log' },
+    ],
+  },
   {
     title: 'Setup',
     items: [

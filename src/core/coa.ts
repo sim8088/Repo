@@ -27,6 +27,8 @@ const ROWS: Row[] = [
   ['2000', 'acct_ap', 'Accounts payable', 'liability', 'payable'],
   ['2100', 'acct_accrued_payroll', 'Accrued payroll', 'liability', 'accrued'],
   ['2110', 'acct_payroll_tax', 'Payroll taxes payable', 'liability', 'accrued'],
+  ['2120', 'acct_accrued_exp', 'Accrued expenses', 'liability', 'accrued'],
+  ['2130', 'acct_fuel_rni', 'Fuel received, not invoiced', 'liability', 'accrued'],
   ['2200', 'acct_sales_tax', 'Sales tax payable', 'liability', 'accrued'],
   ['2300', 'acct_mortgages', 'Notes payable – mortgages', 'liability', 'loan'],
   ['2400', 'acct_due_related', 'Due to related parties (Dhunna / SKD)', 'liability', 'intercompany'],
@@ -51,6 +53,7 @@ const ROWS: Row[] = [
   ['4310', 'acct_atm_income', 'ATM income', 'revenue', 'general', 'other'],
   ['4320', 'acct_rebates', 'Rebates & programs', 'revenue', 'general', 'other'],
   ['4390', 'acct_other_income', 'Other income', 'revenue', 'general', 'other'],
+  ['4395', 'acct_ic_fee_income', 'Management fee income – intercompany', 'revenue', 'general', 'other'],
   ['4999', SYS.uncatIncome, 'Uncategorized income', 'revenue', 'uncategorized', 'other', true],
   // Contra revenue
   ['4900', 'acct_fuel_discounts', 'Fuel discounts', 'contra_revenue', 'general', 'fuel'],
@@ -77,9 +80,11 @@ const ROWS: Row[] = [
   ['6320', 'acct_supplies', 'Store supplies', 'expense', 'general'],
   ['6330', 'acct_licenses', 'Licenses & permits', 'expense', 'general'],
   ['6340', 'acct_over_short', 'Cash over / short', 'expense', 'general'],
+  ['6350', 'acct_bad_debt', 'Bad debt expense', 'expense', 'general'],
   ['6400', 'acct_depreciation', 'Depreciation', 'expense', 'general'],
   ['6500', 'acct_interest', 'Interest expense', 'expense', 'general'],
   ['6900', 'acct_misc', 'Miscellaneous', 'expense', 'general'],
+  ['6950', 'acct_ic_fees', 'Management fees – intercompany', 'expense', 'general'],
   ['6999', SYS.uncatExpense, 'Uncategorized expense', 'expense', 'uncategorized', undefined, true],
 ];
 

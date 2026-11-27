@@ -40,14 +40,68 @@ export const HELP = {
     tips: ['System accounts (intercompany, retained earnings, uncategorized) cannot be removed.'],
   },
   accountDetail: {
-    purpose: 'General ledger detail for one account with a running balance.',
-    steps: ['Pick the date range and, if needed, a store.', 'Click a reference to open the transaction.'],
-    tips: ['The tie-out proves opening + activity = closing, and that closing matches the trial balance.'],
+    purpose: 'General ledger detail for any account and date range, with a running balance and a drill to the source of every line.',
+    steps: ['Pick the account, the dates and, if needed, an entity or a store.', 'Click a reference to open the transaction; the Source column opens the journal entry, bill or other record behind it.', 'Export to CSV or Excel for the CPA.'],
+    tips: ['The tie-out proves opening + activity = closing, and that closing matches the trial balance (for the same entity).'],
   },
   trialBalance: {
-    purpose: 'Every account balance as of a date, by entity or for all entities together.',
-    steps: ['Pick the as-of date and the entity.', 'Click an account to see its detail.', 'Export to CSV for the CPA.'],
-    tips: ['Each entity balances on its own because intercompany lines are booked automatically.', 'Prior-year profit rolls into retained earnings.'],
+    purpose: 'Every account balance as of a date, by entity or for all entities together, in three columns: unadjusted, adjusting and adjusted, with the prior month end beside it.',
+    steps: ['Pick the as-of date and the entity.', 'Read the adjusting column: entries tagged adjusting dated this month (accruals, reclasses, count adjustments).', 'Compare with the prior month end in the last two columns.', 'Click an account to see its detail. Export to CSV or Excel for the CPA.'],
+    tips: ['Unadjusted + adjusting = adjusted on every row, and each column balances; the tie-out checks both.', 'Each entity balances on its own because intercompany lines are booked automatically. For the group with eliminations, open Consolidation.', 'Prior-year profit rolls into retained earnings.'],
+  },
+  journals: {
+    purpose: 'Every manual journal entry: what waits for approval, what posted, the templates, recurring schedules and reversing entries.',
+    steps: ['Start a new entry, or pick a template (accruals, prepaids, depreciation, intercompany, reclass, owner, inventory, write-offs).', 'Entries over the approval limit wait here and on Approvals until someone other than the preparer approves them; nothing posts before that.', 'Recurring: set a schedule, then generate the runs that are due. Each month runs once.', 'Reversing: post the reversals that have come due; each posts once, on its own date.'],
+    tips: ['The limit is in Setup › Settings (journal entry approval limit).', 'Accrual templates reverse on the 1st of the next month automatically.'],
+  },
+  journalForm: {
+    purpose: 'Prepare a balanced journal entry with a memo, an entity and store on every line, and support attached.',
+    steps: ['Pick a template to fill the accounts and sides, then give the amounts, stores and date. Or leave it on None and enter the lines.', 'Check the lines: each one\'s entity comes from its store; cross-entity lines get their due-to / due-from automatically.', 'Write the memo (required), tick Adjusting where it applies, and set an auto-reverse date for accruals.', 'Post. Over the limit it goes for approval instead.'],
+    tips: ['Locked months refuse the entry and the reversal date.', 'Prepaid amortization and depreciation schedules arrive with Phase 9; the templates here are for one-off entries.'],
+  },
+  journalDetail: {
+    purpose: 'One journal entry: its lines, who prepared and approved it, the posting and the reversal.',
+    steps: ['If it is waiting and you can approve, approve it (it posts on its own date) or reject it with a reason.', 'Open the posted transaction to attach support or see the automatic intercompany lines.'],
+    tips: ['The preparer can never approve their own entry.'],
+  },
+  recons: {
+    purpose: 'The monthly reconciliation of every balance-sheet account: GL against support, the difference and two sign-offs.',
+    steps: ['Pick the month (it defaults to the last month that has ended).', 'Work the accounts marked To prepare: support comes from the subledger where one exists (bank rec, Craddock, Dash, party ledgers, bills, payroll) or is entered by hand with its document.', 'The preparer signs; someone else with approval rights reviews.', 'Fix or explain every difference before signing.'],
+    tips: ['A sign-off lapses (GL changed after sign-off) when anything posts to the account in that month afterwards; prepare it again.', 'Loans and fixed assets are entered by hand until the Phase 9 schedules merge.'],
+  },
+  reconDetail: {
+    purpose: 'One account\'s reconciliation for a month.',
+    steps: ['Read the support: each line shows where its number comes from, and the link opens the subledger.', 'Where the support is manual, enter the balance with what it is and attach the document.', 'Sign as preparer (explain any difference), then a reviewer signs.'],
+    tips: ['The tie-outs prove the support detail adds up and the GL ties to the account detail.'],
+  },
+  consolidation: {
+    purpose: 'The group: each entity\'s books side by side, the eliminations and the consolidated trial balance.',
+    steps: ['Pick the date.', 'Read the elimination entries: each pair of entities\' due-to / due-from, and intercompany management fees income against expense.', 'Check the tie-outs: eliminations net to zero, nothing intercompany is left, net income unchanged.', 'Record the consolidation to keep its elimination entries in the log.'],
+    tips: ['Eliminations never post to an entity\'s ledger.', 'Related parties outside the group (Dhunna, SKD, Cheers…) are real balances and stay.'],
+  },
+  qboStatus: {
+    purpose: 'Where each entity\'s QuickBooks Online sync stands.',
+    steps: ['Read the status: the live connection needs the hosted back end, so syncing runs by file for now.', 'Set each entity\'s QBO company and QBO\'s closing date.', 'Follow the steps below the table: map, pull, push, prove.'],
+    tips: ['The sync model is the same one the API connector will use once the back end ships.'],
+  },
+  qboMapping: {
+    purpose: 'Line up the portal\'s accounts, stores and vendors with their QuickBooks names.',
+    steps: ['Load QBO\'s account list if it changed.', 'Accept the suggestions you agree with, or pick names one by one.', 'Clear the unmapped list: entries touching an unmapped account are held back from pushes.'],
+    tips: ['Suggestions match the account number first, then the name.'],
+  },
+  qboSync: {
+    purpose: 'Move data between the portal and QuickBooks by file.',
+    steps: ['Push: pick the entity and month, check the entries (approved journal entries and the sales, fuel COGS, card fees and payroll summaries), push and import the downloaded CSV in QBO.', 'Pull: paste or choose QBO\'s Transaction List export; duplicates of portal entries are skipped, new ones post with the batch id.', 'QBO trial balance: import it each month end, then open the Differences report.'],
+    tips: ['Locked months and QBO\'s closing date refuse pushes.', 'Re-pushing an unchanged entry or re-pulling a file does nothing.'],
+  },
+  qboDifferences: {
+    purpose: 'The portal\'s trial balance against QuickBooks\' for an entity and month, with the likely cause of each difference.',
+    steps: ['Pick the entity and month (an imported QBO trial balance is needed).', 'Work each difference by its cause: map an unmapped account, push what isn\'t pushed, agree dates for timing.', 'Re-import QBO\'s trial balance after fixing and check it clears.'],
+    tips: ['Differences over $5 go to the inbox.'],
+  },
+  qboLog: {
+    purpose: 'The record of every sync: what moved, when, who did it, who approved it, errors and fixes.',
+    steps: ['Filter by kind.', 'Open a push to see each entry\'s QBO id.', 'Export it for the CPA.'],
   },
   pnl: {
     purpose: 'Profit and loss by store on three bases. Booked is the ledger as posted. Cash puts every line on the day its cash moved. Accrual puts every line on its transaction date and replaces paid fuel invoices with accrual fuel cost of sales. Compare shows cash and accrual side by side with the bridge between them.',
@@ -368,7 +422,7 @@ export const HELP = {
   approvals: {
     purpose: 'Everything waiting for a yes or no.',
     steps: ['Read the item and open it if you need the detail.', 'Approve (with an optional note) or reject with a reason.'],
-    tips: ['Bills are here now. Rate changes, write-offs and adjusting entries join as their phases ship; amount limits by role come with controls.'],
+    tips: ['Bills and journal entries over the approval limit are here; the preparer of a journal entry can never approve it. Amount limits by role come with controls.'],
   },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 

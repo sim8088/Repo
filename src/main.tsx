@@ -27,6 +27,10 @@ import { OtherReceivablesPage, RentRollPage } from './app/pages/Receivables';
 import { ApprovalsPage } from './app/pages/Approvals';
 import { BalanceSheetPage, CashFlowPage, CommandCenterPage, DrillPage } from './app/pages/Statements';
 import { BoardPackPage, ReportBuilderPage, ScorecardsPage } from './app/pages/ReportTools';
+import { JournalDetailPage, JournalFormPage, JournalsPage } from './app/pages/Journals';
+import { ReconDetailPage, ReconsPage } from './app/pages/Recons';
+import { ConsolidationPage } from './app/pages/Consolidation';
+import { QboDifferencesPage, QboLogPage, QboMappingPage, QboStatusPage, QboSyncPage } from './app/pages/Qbo';
 
 function ScrollTop() {
   const { pathname } = useLocation();
@@ -98,6 +102,18 @@ function App() {
             <Route path="/payables/1099" element={<Ten99Page />} />
             <Route path="/receivables/rent" element={<RentRollPage />} />
             <Route path="/receivables/other" element={<OtherReceivablesPage />} />
+            <Route path="/books/journals" element={<JournalsPage />} />
+            <Route path="/books/journals/new" element={<JournalFormPage />} />
+            <Route path="/books/journals/:id" element={<JournalDetailPage />} />
+            <Route path="/books/gl" element={<AccountDetailPage />} />
+            <Route path="/books/recons" element={<ReconsPage />} />
+            <Route path="/books/recons/:id" element={<ReconDetailPage />} />
+            <Route path="/books/consolidation" element={<ConsolidationPage />} />
+            <Route path="/qbo" element={<QboStatusPage />} />
+            <Route path="/qbo/mapping" element={<QboMappingPage />} />
+            <Route path="/qbo/sync" element={<QboSyncPage />} />
+            <Route path="/qbo/differences" element={<QboDifferencesPage />} />
+            <Route path="/qbo/log" element={<QboLogPage />} />
             <Route path="/roadmap" element={<Roadmap />} />
             <Route path="*" element={<PageHead title="Page not found" lede="Use ⌘K to jump anywhere." />} />
           </Routes>

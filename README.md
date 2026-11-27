@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables) and 6 (People & payroll). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll) and 10 (GL toolkit & QuickBooks). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -53,6 +53,10 @@ src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (Ind
   intercompany.ts, payables.ts, receivables.ts, approvals.ts   phase 5
   statements.ts  phase 4: booked / cash / accrual P&L and the bridge, balance sheet, cash flow, command center, scorecards, report builder
   xlsx.ts        minimal .xlsx (OOXML) writer for Excel exports
+  journals.ts    phase 10: journal entries, approval limit, reversing / recurring, templates, trial balance columns
+  recons.ts      phase 10: monthly account reconciliations with subledger support and sign-offs
+  consolidation.ts  phase 10: consolidated trial balance with elimination entries
+  qbo.ts         phase 10: QuickBooks connector interface, file connector, mapping, pull, push, differences
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
 src/app/       React UI (screens in pages/, shell, ⌘K and shared components in components/)
 e2e/           Playwright tests: accessibility, layout and workflows
@@ -128,6 +132,19 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Receivables | Tenant rent roll (due vs received, late), rebates and programs, ATM income, insurance claims and refunds owed to us. |
 | Approvals | One queue under Today for everything waiting on a yes; bills now, other kinds plug in later. |
 
+## What Phase 10 adds
+
+| Area | What works |
+|---|---|
+| Journal entries | Multi-line, balanced, entity and store per line, required memo, attachments. Over the approval limit an entry waits (posts nothing) until someone other than the preparer approves it; it shows on Approvals. Adjusting flag. |
+| Templates | Accruals (payroll, utilities, fuel received not invoiced, interest), prepaids (insurance, property tax, licenses), depreciation, intercompany fee, reclass, owner draw / contribution, inventory (fuel book-to-physical, inside count), bad-debt write-off: amounts, stores and a date. |
+| Reversing & recurring | Auto-reverse date, posted once on that date. Monthly or quarterly schedules generating each period once. |
+| GL detail & trial balance | Any account and range with running balance, entity filter, drill to source, Excel. Trial balance unadjusted / adjusting / adjusted by entity with the prior month end. |
+| Account reconciliations | Every balance-sheet account monthly: GL vs support from the subledger (bank rec, Craddock, Dash, party ledgers, bills, payroll) or entered with its document; preparer and reviewer sign-off, invalidated if the GL moves. |
+| Consolidation | Entities side by side, elimination entries (due-to / due-from by pair, intercompany fees), proof they net to zero, an elimination entry log. |
+| QuickBooks | Pluggable connector with a working file connector (the live API needs the hosted back end): connections per entity, mapping with suggestions, pull with de-dupe and batch ids, push of approved entries and monthly summaries as a QBO journal CSV with QBO ids (never into a locked month), differences report with causes and a $5 alert, sync log. |
+| Inbox | Journal entries awaiting approval, recurring entries and reversals due, account recs not signed off after month end, QBO differences over $5, unmapped accounts. |
+
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
@@ -138,3 +155,4 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 - Inbox items for bills, payroll and compliance deadlines arrive with their phases. Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.
 - Inbox items for fuel notices, payroll and compliance deadlines arrive with their phases.
 - Bills: one payment per bill (no partial payments), no OCR, and approval limits by amount arrive with Controls (phase 14).
+- QuickBooks syncs by file: the live QBO API (OAuth, webhooks, real ids) needs the hosted back end. Recurring entries and reversals are generated when someone presses the button (the inbox says when), not on a timer.

@@ -70,7 +70,7 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => { window.clearTimeout(id); window.removeEventListener('resize', mark); };
   });
 
-  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : to === '/bank' || to === '/cash' || to === '/fuel' ? loc.pathname === to : loc.pathname.startsWith(to));
+  const isActive = (to: string) => (to === '/' ? loc.pathname === '/' : to === '/bank' || to === '/cash' || to === '/fuel' || to === '/qbo' ? loc.pathname === to : loc.pathname.startsWith(to));
 
   return (
     <>

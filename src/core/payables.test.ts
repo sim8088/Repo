@@ -242,7 +242,7 @@ describe('Phase 5 payables demo data', () => {
     expect(unscheduledDueSoon(s, T).map((b) => b.invoiceNo)).toEqual(['SM-7874']);
     expect(pastDue(s, T).map((b) => b.invoiceNo).sort()).toEqual(['IC-2364', 'W2013-1026', 'W2013-1126']);
     expect(awaitingApproval(s).map((b) => b.invoiceNo)).toEqual(['KS-3318']);
-    expect(approvalQueue(s).map((i) => i.kind)).toEqual(['bill']);
+    expect(approvalQueue(s).filter((i) => i.kind === 'bill').map((i) => i.kind)).toEqual(['bill']);
   });
   it('utilities: HM15 water jumps, HM13 water is past due with a disconnect notice', () => {
     const rows = utilityRows(s, T);

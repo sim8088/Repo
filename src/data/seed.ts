@@ -17,6 +17,10 @@ import { seedPayables } from './seed-payables';
 import { seedReceivables } from './seed-receivables';
 import { seedReports } from './seed-reports';
 import { emptyReports } from '../core/statements';
+import { emptyGl } from '../core/journals';
+import { emptyQbo } from '../core/qbo';
+import { seedJournals } from './seed-journals';
+import { seedQbo } from './seed-qbo';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -51,6 +55,8 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedPayroll,
   seedIntercompany, seedPayables, seedReceivables,
   seedReports,
+  // Phase 10 last: account recs are signed off against the October balances, and QBO pushes cover every entry.
+  seedJournals, seedQbo,
 ];
 
 function rng(seed: number) {
@@ -151,6 +157,8 @@ export function emptyState(): BooksState {
     payables: { bills: [], utilities: [], statements: [] },
     receivables: { rent: [], items: [] },
     reports: emptyReports(),
+    gl: emptyGl(),
+    qbo: emptyQbo(),
     seq: 0,
   };
 }
