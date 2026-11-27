@@ -275,10 +275,11 @@ export function invoiceFlags(state: BooksState, today: string): Map<ID, InvoiceF
   for (const i of live) {
     const f: InvoiceFlags = { missingInvoice: !i.invoiceNo, outliers: [], unsettledPastDue: false };
     const kNo = i.invoiceNo ? `${i.supplier}|${i.invoiceNo.toUpperCase()}` : '';
-    const kBol = `${i.supplier}|${i.bolNo.toUpperCase()}`;
-    f.duplicateOf = (kNo && seenNo.get(kNo)) || seenBol.get(kBol);
+    // A blank BOL matches nothing: only a BOL number that is actually there can be a duplicate.
+    const kBol = i.bolNo.trim() ? `${i.supplier}|${i.bolNo.trim().toUpperCase()}` : '';
+    f.duplicateOf = (kNo && seenNo.get(kNo)) || (kBol ? seenBol.get(kBol) : undefined);
     if (kNo && !seenNo.has(kNo)) seenNo.set(kNo, i.id);
-    if (!seenBol.has(kBol)) seenBol.set(kBol, i.id);
+    if (kBol && !seenBol.has(kBol)) seenBol.set(kBol, i.id);
     f.onUnpostedNotice = i.invoiceNo ? unposted.get(`${i.storeId}|${i.invoiceNo}`) : undefined;
     f.unsettledPastDue = !i.settlement && !f.duplicateOf && !!i.invoiceNo && !f.onUnpostedNotice && i.dueOn < today;
     out.set(i.id, f);

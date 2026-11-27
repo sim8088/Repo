@@ -31,7 +31,7 @@ function snap(): SBSnapshot {
         { id: 't1', type: 'SALE', amountCents: 1_000_000, categoryId: 'cReg', storeId: 'sA', date: '2026-10-31', gallons: 3000 },
         { id: 't2', type: 'SALE', amountCents: 200_000, categoryId: 'cCom', storeId: 'sA', date: '2026-10-31', gallons: 500 },
         { id: 't3', type: 'SALE', amountCents: 300_000, categoryId: 'cBeer', storeId: 'sA', date: '2026-10-31' },
-        { id: 't4', type: 'EXPENSE', amountCents: 900_000, categoryId: 'cFc', storeId: 'sA', date: '2026-10-05', vendorId: 'v1', invoiceNumber: 'INV-1' },
+        { id: 't4', type: 'EXPENSE', amountCents: 900_000, categoryId: 'cFc', storeId: 'sA', date: '2026-10-05', vendorId: 'v1', invoiceNumber: 'INV-1', referenceNumber: 'BOL-9', gallons: 3500, notes: 'Delivered 2026-10-01 · Paid 2026-10-05' },
         { id: 't5', type: 'EXPENSE', amountCents: 150_000, categoryId: 'cWag', storeId: 'sA', date: '2026-10-09', checkNumber: '1001' },
         { id: 't6', type: 'EXPENSE', amountCents: 25_000, categoryId: 'cCard', storeId: 'sA', date: '2026-10-12' },
         { id: 't7', type: 'EXPENSE', amountCents: -5_000, categoryId: 'cCard', storeId: 'sA', date: '2026-10-20', description: 'Fee refund' },
@@ -71,9 +71,8 @@ describe('StationBooks import', () => {
     expect(row('acct_fuel_regular')).toBe(1_000_000);
     expect(row('acct_wages')).toBe(150_000);
     expect(row('acct_card_fees')).toBe(20_000);
-    // Fuel cost keeps its own account (not 5000), so the accrual basis doesn't swap it out.
-    expect(row('acct_cogs_fuel')).toBeUndefined();
-    expect(r.rows.some((x) => x.account.name.startsWith('Fuel Purchases') && x.total === 900_000)).toBe(true);
+    // Fuel purchases sit on 5000, like any fuel invoice.
+    expect(row('acct_cogs_fuel')).toBe(900_000);
     expect(r.salesByLob.fuel.total).toBe(1_200_000);
     expect(r.salesByLob.inside.total).toBe(300_000);
   });
@@ -88,5 +87,18 @@ describe('StationBooks import', () => {
     expect(balanceAsOf(state, 'acct_trustmark', '2026-10-31')).toBe(4_500_000);
     expect(state.parties.some((p) => p.name === 'Related Co' && p.type === 'related_company')).toBe(true);
     expect(state.transactions.find((t) => t.docNo === 'INV-1')?.partyId).toBe('sb_v_v1');
+  });
+
+  it('fuel purchases with gallons become fuel invoices, split by the month\'s gallon mix at one blended cost', () => {
+    const { state, report } = importStationBooks(snap());
+    const inv = fuelOf(state).invoices;
+    expect(report.fuelInvoices).toBe(1);
+    expect(inv[0]).toMatchObject({ invoiceNo: 'INV-1', bolNo: 'BOL-9', deliveredOn: '2026-10-01', total: 900_000, supplier: 'craddock' });
+    expect(inv[0].settlement?.kind).toBe('imported');
+    // Mix: 3000 gal regular (POS) + 500 diesel (Comdata) → 6/7 regular, 1/7 diesel.
+    expect(inv[0].lines.map((l) => l.grade)).toEqual(['regular', 'diesel']);
+    expect(inv[0].lines.reduce((a, l) => a + l.netGallons, 0)).toBe(3500);
+    expect(inv[0].lines.reduce((a, l) => a + l.cost, 0)).toBe(900_000);
+    expect(inv[0].lines[0].netGallons).toBe(3000);
   });
 });

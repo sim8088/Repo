@@ -36,7 +36,7 @@ export interface FuelInvoice {
   total: Cents;
   attachments: Attachment[];
   /** How it was paid: netted on a Craddock notice, or out of Dash clearing on its due date. */
-  settlement?: { kind: 'notice'; noticeId: ID; on: string; txnId: ID } | { kind: 'dash_clearing'; on: string; txnId: ID };
+  settlement?: { kind: 'notice'; noticeId: ID; on: string; txnId: ID } | { kind: 'dash_clearing'; on: string; txnId: ID } | { kind: 'imported'; on: string; txnId: ID };
   batchId: string;
   source: 'manual' | 'import' | 'demo';
   createdAt: string;

@@ -19,7 +19,7 @@
  */
 import { Books } from '../core/books';
 import type { Account, AccountType, BooksState, LineOfBusiness, Party, PartyType } from '../core/types';
-import type { FuelGrade } from '../core/fuelTypes';
+import type { FuelGrade, FuelInvoice, FuelInvoiceLine } from '../core/fuelTypes';
 import { fuelOf } from '../core/fuel';
 import { emptyState, CFO_ID } from './seed';
 
@@ -39,6 +39,7 @@ export interface SBTxn {
   paymentMethod?: string | null;
   settlementDate?: string | null;
   gallons?: number | null;
+  costPerGallon?: number | null;
   deletedAt?: string | null;
 }
 
@@ -66,6 +67,7 @@ export interface ImportReport {
   to: string;
   accountsCreated: number;
   fuelSaleRows: number;
+  fuelInvoices: number;
   bankBalance?: { date: string; cents: number };
 }
 
@@ -81,6 +83,8 @@ const STD: [RegExp, string][] = [
   [/^fuel discounts$/i, 'acct_fuel_discounts'],
   [/^depreciation/i, 'acct_depreciation'],
   [/^interest/i, 'acct_interest'],
+  // Fuel purchases carry gallons: they become fuel invoices, so their cost sits on 5000 like any fuel invoice.
+  [/^fuel purchases/i, 'acct_cogs_fuel'],
 ];
 const GRADE: Record<string, { acct: string; grade: FuelGrade | null; truck?: boolean }> = {
   regular: { acct: 'acct_fuel_regular', grade: 'regular' },
@@ -164,7 +168,8 @@ export function importStationBooks(snap: SBSnapshot): { state: BooksState; repor
   state.parties = [...state.parties.filter((p) => p.id === 'pt_trustmark'), ...parties];
 
   // Transactions.
-  const report: ImportReport = { exportedAt: snap.exportedAt, posted: 0, skippedOtherBusinesses: [], skippedOther: [], from: '', to: '', accountsCreated: 0, fuelSaleRows: 0 };
+  const report: ImportReport = { exportedAt: snap.exportedAt, posted: 0, skippedOtherBusinesses: [], skippedOther: [], from: '', to: '', accountsCreated: 0, fuelSaleRows: 0, fuelInvoices: 0 };
+  const purchases: { t: SBTxn; storeId: string; txnId: string }[] = [];
   const skippedBiz = new Map<string, number>();
   const all = snap.ledger.flatMap((d) => d.txns).filter((t) => !t.deletedAt).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   const fuel = fuelOf(state);
@@ -188,6 +193,7 @@ export function importStationBooks(snap: SBSnapshot): { state: BooksState; repor
         : [{ accountId: acct, storeId, debit: amt, credit: 0 }, { accountId: 'acct_sb_settlement', storeId, debit: 0, credit: amt }],
     }, { source: 'import', batchId: `stationbooks-${snap.exportedAt.slice(0, 10)}` });
     report.posted += 1;
+    if (acct === 'acct_cogs_fuel' && t.type === 'EXPENSE' && t.amountCents > 0 && t.gallons && t.gallons > 0) purchases.push({ t, storeId, txnId: tx.id });
     if (!report.from || t.date < report.from) report.from = t.date;
     if (!report.to || t.date > report.to) report.to = t.date;
     const g = GRADE[(cats.get(t.categoryId)?.name ?? '').toLowerCase()];
@@ -197,6 +203,45 @@ export function importStationBooks(snap: SBSnapshot): { state: BooksState; repor
       report.fuelSaleRows += 1;
     }
   }
+  // Fuel invoices from the purchases. StationBooks keeps one blended cost per load, so each load is split across
+  // grades in the store's gallon mix for that month, all at the load's blended cost per gallon: store-level fuel
+  // margin is exact; per-grade margins are approximate.
+  const mix = new Map<string, Record<'regular' | 'premium' | 'diesel', number>>();
+  const addMix = (storeId: string, month: string, grade: FuelGrade, gal: number) => {
+    const k = `${storeId}|${month}`;
+    const m = mix.get(k) ?? { regular: 0, premium: 0, diesel: 0 };
+    if (grade === 'plus') { m.regular += gal / 2; m.premium += gal / 2; } else m[grade] += gal;
+    mix.set(k, m);
+  };
+  for (const s of fuel.sales) addMix(s.storeId, s.date.slice(0, 7), s.grade, s.gallons);
+  for (const c of fuel.comdata) addMix(c.storeId, c.date.slice(0, 7), 'diesel', c.gallons);
+  const storeCode = new Map(state.stores.map((s) => [s.id, s.code]));
+  for (const { t, storeId, txnId } of purchases) {
+    const month = t.date.slice(0, 7);
+    const m = mix.get(`${storeId}|${month}`) ?? [...mix.entries()].filter(([k]) => k.startsWith(`${storeId}|`) && k.split('|')[1] < month).sort().at(-1)?.[1] ?? { regular: 1, premium: 0, diesel: 0 };
+    const totalMix = m.regular + m.premium + m.diesel || 1;
+    const grades = (['regular', 'premium', 'diesel'] as const).filter((g) => m[g] > 0);
+    let galLeft = t.gallons!;
+    let costLeft = t.amountCents;
+    const lines: FuelInvoiceLine[] = grades.map((g, i) => {
+      const last = i === grades.length - 1;
+      const gal = last ? galLeft : Math.round((t.gallons! * m[g]) / totalMix);
+      const cost = last ? costLeft : Math.round((t.amountCents * m[g]) / totalMix);
+      galLeft -= gal;
+      costLeft -= cost;
+      return { grade: g, grossGallons: gal, netGallons: gal, cost };
+    });
+    const delivered = /Delivered (\d{4}-\d{2}-\d{2})/.exec(t.notes ?? '')?.[1] ?? t.date;
+    const inv: FuelInvoice = {
+      id: books.nextId('fi'), supplier: /^HM1[13]$/.test(storeCode.get(storeId) ?? '') ? 'craddock' : 'dash', storeId,
+      invoiceNo: t.invoiceNumber ?? undefined, bolNo: t.referenceNumber ?? '', deliveredOn: delivered < t.date ? delivered : t.date, dueOn: t.date,
+      lines, freight: 0, taxes: 0, total: t.amountCents, attachments: [], settlement: { kind: 'imported', on: t.date, txnId },
+      batchId: 'stationbooks', source: 'import', createdAt: snap.exportedAt, createdBy: cfo.id,
+    };
+    fuel.invoices.push(inv);
+    report.fuelInvoices += 1;
+  }
+
   report.skippedOtherBusinesses = [...skippedBiz].map(([code, txns]) => ({ code, txns }));
   report.accountsCreated = created;
 
