@@ -2,6 +2,19 @@
 
 This file records the context and decisions behind the portal so they don't get lost between sessions. Add new entries at the top.
 
+## 2026-11-27 — Integration after all 14 phases
+- Phases 3–14 were built in parallel and merged phase by phase. Every merge was re-verified: typecheck, the full unit suite, and the full browser suite (axe at 390/1440 px, light and dark, plus each phase's workflows).
+- Cross-phase fixes made while merging:
+  - The demo bank feed has its own random stream, and checks written in its last week stay outstanding, so module seeders can't shift the statement.
+  - The duplicate demo inside-count journal (Phase 10) was dropped: Phase 7 counts post inside inventory.
+  - Phase 10's recurring demo accrual is the year-end CPA fee, not interest on the related-party mortgages (the rent pass-throughs cover those).
+  - Meals is 6355 (6350 is bad debt).
+  - Seeder order: tax before budgets/close; controls, then journals and QBO last.
+  - Payroll's pay type is `EmployeePayMethod`.
+- Inside-store counts prove the close checklist's "inventory counted" step (`src/core/closeHooks.ts`).
+- The sidebar follows SPEC §3 order.
+- `SCHEMA` is 3, so books saved by an earlier phase reload the full demo.
+
 ## 2026-11-27 — Phase 13 build (Growth & owners)
 - **One new optional slice, `growth`** (`growthTypes.ts`, read through `growthOf`): settings, sites and weights, pro formas, acquisitions, capital projects, valuation snapshots, scorecard history, fix plans, ramp targets, distributions and distributions before the books. `SCHEMA` unchanged; reset to the demo to see Phase 13 data. **The only thing that posts is a recorded distribution**: Dr 3100 Owner draws (tagged to the owner, `distribution` tag) / Cr the bank at the hub, through `createTransaction` (validated, period-locked). Owner withdrawals under the expense policy are unchanged and still counted by `ownerDraws`.
 - **Investment math.** Flows are dated in years (t can be fractional, so time to open shifts them). NPV discounts by (1 + r)^t with the first flow at t = 0 (a spreadsheet's NPV() starts at t = 1). IRR is bracketed bisection between −99.99% and +1,000% (widened up to ×4⁶) with Newton steps kept inside the bracket; null when the flows never change sign. Payback interpolates within the year and leaves out the residual. Tested against published values.

@@ -370,7 +370,7 @@ describe('security & backups', () => {
     expect(() => restoreBackup(b, owner, p.backup, 'RESTORE')).toThrow(PermissionError);
     expect(parseBackup('not json', b.state)).toMatchObject({ ok: false });
     expect(parseBackup('{"format":"other"}', b.state)).toMatchObject({ ok: false });
-    expect(parseBackup(json.replaceAll('"schema":2', '"schema":1'), b.state)).toMatchObject({ ok: false });
+    expect(parseBackup(json.replaceAll(`"schema":${b.state.schema}`, `"schema":${b.state.schema - 1}`), b.state)).toMatchObject({ ok: false });
     expect(() => exportBackup(b, b.state.users.find((u) => u.role === 'store_manager')!)).toThrow(PermissionError);
     expect(can(cfo, 'backup.restore')).toBe(true);
   });

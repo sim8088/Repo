@@ -5,6 +5,31 @@ export interface NavGroup { title: string; items: NavItem[]; }
 export const NAV: NavGroup[] = [
   { title: 'Today', items: [{ label: 'My day', to: '/', badge: 'inbox' }, { label: 'Approvals', to: '/approvals' }, { label: 'Ask', to: '/ask' }] },
   {
+    title: 'Reports',
+    items: [
+      { label: 'Command center', to: '/reports/command' },
+      { label: 'Profit & loss by store', to: '/reports/pnl' },
+      { label: 'Balance sheet', to: '/reports/balance-sheet' },
+      { label: 'Cash flow', to: '/reports/cash-flow' },
+      { label: 'Store scorecards', to: '/reports/scorecards' },
+      { label: 'Board pack', to: '/reports/board' },
+      { label: 'Report builder', to: '/reports/builder' },
+      { label: 'Trial balance', to: '/reports/trial-balance' },
+    ],
+  },
+  {
+    title: 'Books',
+    items: [
+      { label: 'Transactions', to: '/books/transactions', badge: 'uncat' },
+      { label: 'New entry', to: '/books/new' },
+      { label: 'Chart of accounts', to: '/books/accounts' },
+      { label: 'Journal entries', to: '/books/journals' },
+      { label: 'GL detail', to: '/books/gl' },
+      { label: 'Account reconciliations', to: '/books/recons' },
+      { label: 'Consolidation', to: '/books/consolidation' },
+    ],
+  },
+  {
     title: 'Bank & cash',
     items: [
       { label: 'Bank feed & reconciliation', to: '/bank', badge: 'unmatched' },
@@ -12,6 +37,15 @@ export const NAV: NavGroup[] = [
       { label: 'Deposits', to: '/bank/deposits', badge: 'unclassified' },
       { label: 'Cash chain', to: '/cash', badge: 'cash' },
       { label: 'Cash forecast', to: '/cash/forecast' },
+    ],
+  },
+  {
+    title: 'Intercompany',
+    items: [
+      { label: 'Related parties', to: '/intercompany/parties' },
+      { label: 'Rent pass-throughs', to: '/intercompany/rent' },
+      { label: 'Owner draws', to: '/intercompany/draws' },
+      { label: 'Elimination view', to: '/intercompany/eliminations' },
     ],
   },
   {
@@ -48,12 +82,14 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    title: 'Intercompany',
+    title: 'People',
     items: [
-      { label: 'Related parties', to: '/intercompany/parties' },
-      { label: 'Rent pass-throughs', to: '/intercompany/rent' },
-      { label: 'Owner draws', to: '/intercompany/draws' },
-      { label: 'Elimination view', to: '/intercompany/eliminations' },
+      { label: 'Payroll runs', to: '/people/runs' },
+      { label: 'Weekly review', to: '/people/review' },
+      { label: 'Employees', to: '/people/employees' },
+      { label: 'Cash & check pay', to: '/people/cash-pay' },
+      { label: 'Labor %', to: '/people/labor' },
+      { label: 'Payroll tax tracker', to: '/people/taxes' },
     ],
   },
   {
@@ -73,42 +109,6 @@ export const NAV: NavGroup[] = [
     items: [
       { label: 'Tenant rent', to: '/receivables/rent' },
       { label: 'Rebates & other income', to: '/receivables/other' },
-    ],
-  },
-  {
-    title: 'Reports',
-    items: [
-      { label: 'Command center', to: '/reports/command' },
-      { label: 'Profit & loss by store', to: '/reports/pnl' },
-      { label: 'Balance sheet', to: '/reports/balance-sheet' },
-      { label: 'Cash flow', to: '/reports/cash-flow' },
-      { label: 'Store scorecards', to: '/reports/scorecards' },
-      { label: 'Board pack', to: '/reports/board' },
-      { label: 'Report builder', to: '/reports/builder' },
-      { label: 'Trial balance', to: '/reports/trial-balance' },
-    ],
-  },
-  {
-    title: 'People',
-    items: [
-      { label: 'Payroll runs', to: '/people/runs' },
-      { label: 'Weekly review', to: '/people/review' },
-      { label: 'Employees', to: '/people/employees' },
-      { label: 'Cash & check pay', to: '/people/cash-pay' },
-      { label: 'Labor %', to: '/people/labor' },
-      { label: 'Payroll tax tracker', to: '/people/taxes' },
-    ],
-  },
-  {
-    title: 'Books',
-    items: [
-      { label: 'Transactions', to: '/books/transactions', badge: 'uncat' },
-      { label: 'New entry', to: '/books/new' },
-      { label: 'Chart of accounts', to: '/books/accounts' },
-      { label: 'Journal entries', to: '/books/journals' },
-      { label: 'GL detail', to: '/books/gl' },
-      { label: 'Account reconciliations', to: '/books/recons' },
-      { label: 'Consolidation', to: '/books/consolidation' },
     ],
   },
   {

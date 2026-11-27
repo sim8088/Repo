@@ -49,7 +49,7 @@ import { seedControls } from './seed-controls';
  */
 export const DEMO_START = '2026-09-01';
 export const DEMO_END = '2026-11-26';
-export const SCHEMA = 2;
+export const SCHEMA = 3; // 3: all 14 phases; books saved earlier reload the full demo
 /** The demo bank feed runs through this date; later checks are still outstanding. */
 export const FEED_END = '2026-11-25';
 

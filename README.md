@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close), 9 (Compliance, assets & ask), 10 (GL toolkit & QuickBooks), 11 (Tax), 12 (Debt & treasury), 13 (Growth & owners) and 14 (Controls & risk). The app's `/roadmap` screen shows what each later phase adds.
+The portal was built in 14 phases, each usable on its own. **All 14 are built:** Foundation, Bank & cash, Fuel, Reports, Intercompany & payables, People & payroll, Inside store & kitchen, Budgets & close, Compliance, assets & ask, GL toolkit & QuickBooks, Tax, Debt & treasury, Growth & owners, and Controls & risk. The app's `/roadmap` screen lists what each one covers.
 
 ## Run it
 
