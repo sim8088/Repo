@@ -1,6 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Books } from '../core/books';
 import { buildDemo, SCHEMA, CFO_ID } from '../data/seed';
+import { importStationBooks, isSnapshot, type ImportReport, type SBSnapshot } from '../data/stationbooks';
+import type { BooksState } from '../core/types';
+
+/** A StationBooks export bundled into a private build as `window.__STATIONBOOKS__`, if any. */
+function bundledSnapshot(): SBSnapshot | null {
+  const w = (typeof window !== 'undefined' ? (window as unknown as { __STATIONBOOKS__?: unknown }).__STATIONBOOKS__ : undefined);
+  return isSnapshot(w) ? w : null;
+}
 import { loadState, saveState, clearState } from '../data/storage';
 import { flatLines, type FlatLine } from '../core/reports';
 import { visibleStoreIds } from '../core/permissions';
@@ -11,6 +19,8 @@ interface Ctx {
   user: User;
   setUserId: (id: ID) => void;
   resetDemo: () => Promise<void>;
+  /** Replace the books with a StationBooks export (real data). Returns the import report. */
+  loadStationBooks: (snap: SBSnapshot) => Promise<ImportReport>;
 }
 
 const BooksContext = createContext<Ctx | null>(null);
@@ -30,11 +40,16 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       const saved = await loadState();
-      const state = saved && saved.schema === SCHEMA ? saved : buildDemo();
+      // A private build can carry a StationBooks export (real data). It wins over saved books from another
+      // source or an older export, but books already built from this same export keep their later changes.
+      const sb = bundledSnapshot();
+      let state: BooksState;
+      if (sb) state = saved && saved.schema === SCHEMA && saved.source?.kind === 'stationbooks' && saved.source.exportedAt === sb.exportedAt ? saved : importStationBooks(sb).state;
+      else state = saved && saved.schema === SCHEMA ? saved : buildDemo();
       if (cancelled) return;
       const b = new Books(state);
       b.subscribe(() => saveState(b.state));
-      if (!saved) saveState(state);
+      if (state !== saved) saveState(state);
       setBooks(b);
     })();
     return () => { cancelled = true; };
@@ -53,6 +68,14 @@ export function BooksProvider({ children }: { children: ReactNode }) {
         books.state = fresh;
         saveState(fresh);
         books.logDataEvent(fresh.users[0], 'Reset to the demo dataset');
+      },
+      loadStationBooks: async (snap) => {
+        const { state, report } = importStationBooks(snap);
+        await clearState();
+        books.state = state;
+        saveState(state);
+        books.logDataEvent(state.users.find((u) => u.id === CFO_ID)!, `Loaded the StationBooks export of ${snap.exportedAt.slice(0, 10)}: ${report.posted} transactions`);
+        return report;
       },
     };
   }, [books, userId]);

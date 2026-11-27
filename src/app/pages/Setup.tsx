@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useBooks } from '../store';
+import { isSnapshot } from '../../data/stationbooks';
 import { AccountOptions, Errors, Help, PageHead, PartyOptions, useToast } from '../components/ui';
 import { ValidationError } from '../../core/books';
 import { can, ROLE_LABEL, ROLE_SUMMARY, permissionsFor } from '../../core/permissions';
@@ -236,7 +237,7 @@ export function AuditPage() {
 }
 
 export function SettingsPage() {
-  const { state, books, user, resetDemo } = useBooks();
+  const { state, books, user, resetDemo, loadStationBooks } = useBooks();
   const [s, setS] = useState(state.settings);
   const [toast, say] = useToast();
   const [confirmReset, setConfirmReset] = useState(false);
@@ -256,6 +257,30 @@ export function SettingsPage() {
       </section>
       <section className="panel panel-pad" style={{ marginTop: 20 }} aria-labelledby="data-h">
         <h2 id="data-h" style={{ marginBottom: 8 }}>Data on this device</h2>
+        <p>
+          {state.source?.kind === 'stationbooks'
+            ? <><span className="pill ok">Real data</span> From the StationBooks export of {new Date(state.source.exportedAt ?? '').toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'medium', timeStyle: 'short' })}.</>
+            : <><span className="pill">Demo data</span> Illustrative figures, not your books.</>}
+        </p>
+        {can(user, 'users.edit') && (
+          <p>
+            <label className="btn" style={{ margin: 0 }}>Load a StationBooks export…
+              <input type="file" accept=".json,application/json" className="sr-only" onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (!f) return;
+                try {
+                  const json: unknown = JSON.parse(await f.text());
+                  if (!isSnapshot(json)) { say('That file is not a StationBooks export. Export it from StationBooks again and load that file.'); return; }
+                  const r = await loadStationBooks(json);
+                  setS(books.state.settings);
+                  say(`Loaded ${r.posted.toLocaleString('en-US')} transactions (${r.from} to ${r.to})${r.skippedOtherBusinesses.length ? `; left out ${r.skippedOtherBusinesses.map((x) => `${x.code} ${x.txns}`).join(', ')} from other businesses` : ''}.`);
+                } catch (err) { say((err as Error).message); }
+              }} />
+            </label>
+            <span className="muted small" style={{ marginLeft: 8 }}>Replaces the books on this device. The export is read, never sent anywhere.</span>
+          </p>
+        )}
         <p className="muted">This phase keeps the books in this browser (IndexedDB). The hosted, multi-user back end with 2FA, encryption at rest and daily backups replaces this before real data is loaded.</p>
         <p>{state.transactions.length.toLocaleString('en-US')} transactions · materiality {formatMoney(state.settings.materialityCents, { dollarSign: true })}</p>
         {can(user, 'users.edit') && (confirmReset
