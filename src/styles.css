@@ -363,3 +363,22 @@ details.help ol, details.help ul { padding-left: 20px; }
   .tabbar svg { width: 22px; height: 22px; }
   .hide-phone { display: none !important; }
 }
+
+/* ── budgets & close (phase 8) ─────────────────────────────────────────── */
+.grid-input { width: 92px; min-height: 30px; padding: 3px 6px; font-size: 13.5px; }
+.budget-grid td, .budget-grid th { padding-left: 6px; padding-right: 6px; }
+.budget-grid .fc-cell { background: var(--panel-2); }
+.fc-src { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.close-matrix td { vertical-align: top; }
+.status-btn { cursor: pointer; font-family: inherit; }
+.status-btn.sel { outline: 2px solid var(--focus); outline-offset: 1px; }
+.evidence { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+.evidence li { padding: 3px 0 3px 18px; position: relative; border-bottom: 1px solid var(--rule); }
+.evidence li::before { position: absolute; left: 0; }
+.evidence li.ok::before { content: '✓'; color: var(--pos); }
+.evidence li.bad::before { content: '✗'; color: var(--neg); }
+.var-list li { display: block; }
+.var-comment { font-style: italic; }
+.var-form { display: flex; gap: 8px; margin-top: 6px; max-width: 640px; }
+.var-form input { flex: 1; min-width: 0; }
+.var-list .what > span { display: block; margin-top: 2px; }

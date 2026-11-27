@@ -25,6 +25,9 @@ const ROUTES = [
   '/reports/scorecards', '/reports/board', '/reports/builder',
   '/inside', '/inside?tab=import', '/inside/purchases', '/inside/inventory', '/inside/budgets', '/inside/rebates', '/inside/lottery', '/inside/lottery?show=short', '/inside/age-checks',
   '/kitchen', '/kitchen?tab=import', '/kitchen/food-cost', '/kitchen/waste', '/kitchen/labor', '/kitchen/prices', '/kitchen/prices?tab=invoices', '/kitchen/prices?tab=import',
+  '/budgets', '/budgets?store=st_hm11', '/budgets/bva', '/budgets/bva?month=2026-09&store=st_hm13', '/budgets/forecast', '/budgets/forecast?fy=2027&store=st_hm15',
+  '/budgets/scenarios', '/budgets/scenarios?fy=2027', '/budgets/break-even', '/budgets/break-even?source=budget', '/reports/pnl?basis=accrual&view=budget&from=2026-10',
+  '/close', '/close?month=2026-10&step=intercompany', '/close?month=2026-09&step=bank', '/close?month=2026-10&step=inventory&store=st_hm15', '/close/binder', '/close/binder?month=2026-09',
 ];
 
 async function open(page: Page, route: string) {
@@ -496,4 +499,97 @@ test('inside store: enter a count that shows shrink, post it, and 1310 still tie
   await expect(page.locator('.tie.ok', { hasText: 'HM11 1310 ties to the latest counts' })).toBeVisible();
   await open(page, '/');
   await expect(page.getByText('Shrink over threshold')).toBeVisible();
+});
+
+test('budgets: edit a grid cell; totals tie across the grid, budget vs actual and the forecast', async ({ page }) => {
+  await open(page, '/budgets?store=st_hm13');
+  await expect(page.locator('.tie.ok', { hasText: "Grid ties to the budget's cells" })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Same total on Rolling forecast' })).toBeVisible();
+  const cell = page.getByLabel('Repairs & maintenance, December 2026');
+  await cell.fill('2,500');
+  await cell.press('Enter');
+  await expect(page.getByRole('status')).toContainText('Repairs & maintenance, December 2026: $2,500.00');
+  await expect(page.locator('.tie.ok', { hasText: 'Months add to the year' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Same total on Rolling forecast' })).toBeVisible();
+  await open(page, '/budgets/bva?month=2026-10');
+  await expect(page.locator('.tie.ok', { hasText: 'Actuals tie to the P&L' })).toBeVisible();
+  await expect(page.locator('.tie.ok', { hasText: 'Budget ties to the annual budget grid' })).toBeVisible();
+  await open(page, '/reports/pnl?basis=accrual&view=budget&from=2026-10');
+  await expect(page.locator('.tie.ok', { hasText: 'Actual and budget columns tie to their statements' })).toBeVisible();
+});
+
+test('budgets: comment a variance and it leaves the to-explain list', async ({ page }) => {
+  await open(page, '/budgets/bva?month=2026-10&show=open');
+  const items = page.locator('.var-list li');
+  const before = await items.count();
+  expect(before).toBeGreaterThan(0);
+  await items.first().getByRole('textbox').fill('Late delivery pulled into the month; timing only.');
+  await items.first().getByRole('button', { name: 'Save comment' }).click();
+  await expect(page.getByRole('status')).toContainText('Comment saved');
+  await expect(items).toHaveCount(before - 1);
+  await page.getByLabel('Only without a comment').click();
+  await expect(page.getByLabel('Only without a comment')).not.toBeChecked();
+  await expect(page.getByText('“Late delivery pulled into the month; timing only.”', { exact: false })).toBeVisible();
+});
+
+test('scenarios: the saved scenario ties, and a draft previews before saving', async ({ page }) => {
+  await open(page, '/budgets/scenarios?fy=2027');
+  await expect(page.locator('.tie.ok', { hasText: 'Tighter fuel, HM19 opens March: changes add up to the difference' })).toBeVisible();
+  await page.getByLabel('Scenario name').fill('Fuel plus 3 cents');
+  await page.getByLabel('Cents a gallon (+ or −)').fill('3');
+  await page.getByRole('button', { name: 'Add change' }).click();
+  await expect(page.getByRole('columnheader', { name: 'Fuel plus 3 cents (not saved)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save scenario' }).click();
+  await expect(page.getByRole('status')).toContainText('Saved "Fuel plus 3 cents"');
+  await expect(page.locator('.tie.ok', { hasText: 'Fuel plus 3 cents: changes add up to the difference' })).toBeVisible();
+});
+
+test('close: work October to the lock gate, then lock it', async ({ page }) => {
+  test.setTimeout(180_000);
+  await open(page, '/close?month=2026-10');
+  await expect(page.getByRole('button', { name: 'Lock October 2026' })).toBeDisabled();
+  await page.getByRole('button', { name: /^9\. Inventory counted · HM15: Blocked/ }).click();
+  await page.getByLabel('Status', { exact: true }).selectOption('done');
+  await page.getByLabel('Note').fill('Recount received and signed.');
+  await page.getByRole('button', { name: 'Save step' }).click();
+  await expect(page.getByRole('button', { name: /^9\. Inventory counted · HM15: Done/ })).toBeVisible();
+  await page.getByRole('button', { name: /^8\. Accruals booked: In progress/ }).click();
+  await page.getByLabel('Status', { exact: true }).selectOption('done');
+  await page.getByRole('button', { name: 'Save step' }).click();
+  await expect(page.getByRole('button', { name: /^8\. Accruals booked: Done/ })).toBeVisible();
+  await page.getByRole('button', { name: /^7\. Intercompany agreed: In progress/ }).click();
+  await expect(page.getByRole('heading', { name: '7. Intercompany agreed' })).toBeVisible();
+  for (let i = 0; i < 12; i++) {
+    const b = page.getByRole('button', { name: /^Mark .* agreed$/ });
+    if (!(await b.count())) break;
+    await b.first().click();
+    await page.waitForTimeout(100);
+  }
+  await expect(page.getByRole('button', { name: /^7\. Intercompany agreed: Done/ })).toBeVisible();
+  await open(page, '/budgets/bva?month=2026-10&show=open');
+  for (let i = 0; i < 30; i++) {
+    const item = page.locator('.var-list li');
+    if (!(await item.count())) break;
+    await item.first().getByRole('textbox').fill('Reviewed with the store manager.');
+    await item.first().getByRole('button', { name: 'Save comment' }).click();
+    await page.waitForTimeout(150);
+  }
+  await expect(page.getByText('Every variance over the threshold has a comment.')).toBeVisible();
+  await open(page, '/close?month=2026-10');
+  await expect(page.locator('.tie.ok', { hasText: 'Lock gate open: every other step is done' })).toBeVisible();
+  await page.getByRole('button', { name: 'Lock October 2026' }).click();
+  await expect(page.getByRole('status')).toContainText('October 2026 locked');
+  await expect(page.getByRole('button', { name: /^12\. Lock: Done/ })).toBeVisible();
+});
+
+test('close: the CFO can override the lock gate with a reason; the binder downloads', async ({ page }) => {
+  await open(page, '/close?month=2026-10');
+  await page.getByRole('button', { name: 'Lock anyway…' }).click();
+  await expect(page.getByRole('button', { name: 'Override and lock' })).toBeDisabled();
+  await page.getByLabel(/Why lock with \d+ steps? open\?/).fill('Board pack due; HM15 count follows.');
+  await page.getByRole('button', { name: 'Override and lock' }).click();
+  await expect(page.getByText('Locked with an override: “Board pack due; HM15 count follows.”', { exact: false })).toBeVisible();
+  await open(page, '/close/binder?month=2026-10');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download ZIP of CSVs' }).click()]);
+  expect(dl.suggestedFilename()).toBe('close-binder-2026-10-schedules.zip');
 });

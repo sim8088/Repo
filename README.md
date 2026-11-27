@@ -2,7 +2,7 @@
 
 The CFO's working hub for a group of fuel and convenience stores (HM11 Gluckstadt, HM13 Meadville, HM15 Crystal Springs, HM17 Centreville, HM14 Gulfport leased out, plus Corporate). It's meant to be a workbench rather than a dashboard: it shows what needs doing today, lets you do it on the spot, and traces every number back to the transactions behind it.
 
-The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen) and 9 (Compliance, assets & ask). The app's `/roadmap` screen shows what each later phase adds.
+The portal is built in 14 phases, and each one is usable on its own. **Built so far:** Phases 1 (Foundation), 2 (Bank & cash), 3 (Fuel), 4 (Reports), 5 (Intercompany, payables & receivables), 6 (People & payroll), 7 (Inside store & kitchen), 8 (Budgets & close) and 9 (Compliance, assets & ask). The app's `/roadmap` screen shows what each later phase adds.
 
 ## Run it
 
@@ -54,6 +54,9 @@ src/data/      seed.ts (demo dataset), seed-payroll.ts (phase 6 demo), storage.t
 src/data/      seed.ts (demo dataset), seed-fuel.ts (demo fuel), storage.ts (IndexedDB persistence)
   intercompany.ts, payables.ts, receivables.ts, approvals.ts   phase 5
   statements.ts  phase 4: booked / cash / accrual P&L and the bridge, balance sheet, cash flow, command center, scorecards, report builder
+  budgets.ts     phase 8: budget versions and grid, budget vs actual and variance comments, rolling forecast, scenarios, break-even
+  close.ts       phase 8: month-end checklist, auto-evidence, intercompany agreements, lock gate
+  binder.ts      phase 8: the close binder (printable HTML, ZIP of CSVs)
   xlsx.ts        minimal .xlsx (OOXML) writer for Excel exports
 src/data/      seed.ts (demo dataset), storage.ts (IndexedDB persistence)
   compliance.ts, prepaids.ts, assets.ts, loans.ts, ask.ts   phase 9 (seed-compliance.ts, seed-assets.ts)
@@ -155,11 +158,24 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 | Fixed assets | Register by store, straight-line book depreciation posted from the register (idempotent per asset and month; it replaced the demo's hand-posted entries with the same amounts), disposals with gain/loss, maintenance log and warranties. Ties to 1500/1510/1590. |
 | Loans | Terms, covenants, amortization tables and payoff dates; payments split principal and interest through the ledger; a line of credit with draws and daily interest. Store mortgages carried by Dhunna / SKD are information only (no double-booking of the rent). Ties to 2310/2320. |
 | Ask | Plain-English questions answered from the books with the transactions as proof (⌘K offers "Ask: …"). Never invents a number: it says what's missing instead. Copy as text or export CSV. |
+## What Phase 8 adds
+
+| Area | What works |
+|---|---|
+| Annual budget | Store × P&L line × month for a fiscal year, on the accrual basis. Build from last year's actuals + growth % (the demo has only Sep–Nov 2026, so the complete months are annualized and the version says so) or zero-based; edit in a grid, copy the first month across or spread a total; versions with one active. |
+| Budget vs actual | Every P&L line with variance $ and %, by month or range, store and basis; a comment on each store × line × month variance over a configurable threshold. Also a **Vs budget** view on the P&L. Actuals tie to the P&L; the budget ties to the grid. |
+| Rolling forecast | Actuals for months that are over, actual-to-date + plan for this month, budget or run rate (or your override) for months to come. |
+| Scenarios | Fuel margin ±N¢ a gallon, a new store opening in a month (copied profile with a ramp), closing a kitchen one weekday, % change to any line group; saved and compared side by side with the base forecast. |
+| Break-even | Per store: fixed costs ÷ contribution margin %, as sales, sales a day and gallons, with the margin of safety; actual or budget. |
+| Month-end checklist | The 12 close steps per month and store with owners, due dates (business days after month end), status, notes and evidence attachments. Steps the data can prove (POS closes, fuel invoices settled, notices posted, bank reconciled, cash chain, payroll posted, intercompany agreed, rent pass-throughs, variances explained) compute their status and evidence and link to the screen that does them. |
+| Lock gate | Lock is enabled only when every other step is done; the CFO can override with a reason, kept with the month. Periods › Lock goes through the same gate. |
+| Close binder | One printable HTML document (statements on both bases, bank reconciliation, checklist with evidence, budget vs actual, schedules, document index) and a ZIP of CSVs. |
+| Inbox | Close steps overdue, months past their close date and not locked, budget variances over the threshold with no comment. |
 
 ## Known limits
 
 - **Single device.** The books live in the browser's IndexedDB. Before real data goes in, a hosted multi-user back end has to replace it: server database, sign-in with 2FA, encryption at rest, daily backups. `Books` is storage-agnostic, so that change sits behind `src/data/storage.ts`.
-- **Accrual adjustments aren't posted.** The accrual P&L and the bridge compute accrual fuel COGS, the fuel inventory change and fuel delivered-not-paid, but the ledger (and so the balance sheet) stays on the booked basis until month-end accrual entries arrive with the close (phases 8 and 10).
+- **Accrual adjustments aren't posted.** The accrual P&L and the bridge compute accrual fuel COGS, the fuel inventory change and fuel delivered-not-paid, but the ledger (and so the balance sheet) stays on the booked basis until accrual templates arrive with the GL toolkit (phase 10); the phase 8 close checklist tracks "accruals booked" as a manual step.
 - **PDF is the browser's print.** Scheduled reports keep a cadence, but nothing is emailed yet.
 - No PDF statement parsing or direct bank feed yet. Download CSV/OFX from Trustmark. A live feed needs a provider (e.g. Plaid) and the hosted back end.
 - Craddock and Comdata files are pasted or uploaded as CSV; PDF notices and live supplier feeds aren't read yet.

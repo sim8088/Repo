@@ -25,6 +25,10 @@ import { emptyInside } from '../core/inside';
 import { emptyKitchen } from '../core/kitchen';
 import { seedInside } from './seed-inside';
 import { seedKitchen } from './seed-kitchen';
+import { emptyBudgets } from '../core/budgets';
+import { emptyClose } from '../core/close';
+import { seedBudgets } from './seed-budgets';
+import { seedClose } from './seed-close';
 
 /**
  * Demo dataset: four operating stores, Gulfport (leased out) and Corporate, 1 Sep – 26 Nov 2026.
@@ -61,6 +65,7 @@ export const MODULE_SEEDS: ((ctx: SeedCtx) => void)[] = [
   seedAssets, seedCompliance,
   seedReports,
   seedInside, seedKitchen,
+  seedBudgets, seedClose,
 ];
 
 function rng(seed: number) {
@@ -165,6 +170,8 @@ export function emptyState(): BooksState {
     reports: emptyReports(),
     inside: emptyInside(),
     kitchen: emptyKitchen(),
+    budgets: emptyBudgets(),
+    close: emptyClose(),
     seq: 0,
   };
 }

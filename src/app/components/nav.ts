@@ -107,7 +107,24 @@ export const NAV: NavGroup[] = [
       { label: 'Chart of accounts', to: '/books/accounts' },
     ],
   },
-  { title: 'Close', items: [{ label: 'Periods', to: '/close/periods' }] },
+  {
+    title: 'Budgets',
+    items: [
+      { label: 'Annual budget', to: '/budgets' },
+      { label: 'Budget vs actual', to: '/budgets/bva' },
+      { label: 'Rolling forecast', to: '/budgets/forecast' },
+      { label: 'Scenarios', to: '/budgets/scenarios' },
+      { label: 'Break-even', to: '/budgets/break-even' },
+    ],
+  },
+  {
+    title: 'Close',
+    items: [
+      { label: 'Month-end checklist', to: '/close' },
+      { label: 'Periods', to: '/close/periods' },
+      { label: 'Close binder', to: '/close/binder' },
+    ],
+  },
   {
     title: 'Compliance',
     items: [

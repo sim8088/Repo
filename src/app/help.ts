@@ -498,6 +498,68 @@ export const HELP = {
     purpose: 'Supplier price changes on the items the kitchen buys most.',
     steps: ["Import the supplier's invoice detail. Each invoice is matched to its purchase in the books.", 'Read the alerts: a top item whose latest price moved more than the threshold from the price before.', 'Mark an alert reviewed once you have checked it with the supplier or re-priced the menu.'],
   },
+  // ── Phase 8: budgets & close ──
+  budgetAnnual: {
+    purpose: 'The budget for a fiscal year: every store × P&L line × month, on the accrual basis. Build it from last year\'s actuals plus growth, or start from zero, then edit the grid. One version per year is active; everything else compares against it.',
+    steps: [
+      'Pick the fiscal year and the version. "All stores" shows the company; pick one store to edit its lines.',
+      'Type a figure in any month and leave the cell (or press Enter) to save it. Sales and costs are both entered as positive numbers.',
+      'Use "Copy Jan →" to repeat the first month across the year, or "Even out" to spread the year\'s total evenly over twelve months.',
+      'Add a line the store has no budget for yet with "Add a line".',
+      'Build another version (a stretch plan, a zero-based draft or a copy of the active one) below, and make it active when it is agreed.',
+    ],
+    tips: ['The demo books start in September 2026, so "last year + growth" annualizes the complete months on file (Sep and Oct) flat across the year and says so on the version. A store that opened this month is scaled up from its days so far.', 'The tie-out checks the grid against the version\'s cells and against the rolling forecast\'s budget column.'],
+  },
+  budgetBva: {
+    purpose: 'Budget vs actual on every P&L line: variance in dollars and percent, and a comment on every variance over the threshold. The month-end close needs those comments before it can lock.',
+    steps: [
+      'Pick the month (or a range), a store and the basis. Accrual is the default because the budget is built on it.',
+      'Read the variance column: green helps profit, red hurts it. Click a line for the entries behind the actual.',
+      'Work the list of variances over the threshold: say in a sentence why each one happened and save it.',
+      'Set the threshold (a percent and a dollar floor) at the bottom.',
+    ],
+    tips: ['Variances are judged per store, line and month, the level the budget is set at.', 'The actual column ties to the P&L on the same basis; the budget column ties to the annual budget grid.'],
+  },
+  budgetForecast: {
+    purpose: 'The fiscal year as it is turning out: actuals for every month that is over, actual-to-date plus the rest of the plan for this month, and the budget (or the run rate) for the months to come.',
+    steps: [
+      'Pick the year and a store.',
+      'Switch "Months to come" between the budget and the run rate of the last three complete months.',
+      'With one store picked, type over any forecast month to override it; clear it to go back to the plan.',
+      'Compare the year and budget columns at the right.',
+    ],
+    tips: ['A year with no budget of its own uses last year\'s actuals plus the last budget\'s growth as a stand-in, and says so.'],
+  },
+  budgetScenarios: {
+    purpose: 'What-ifs on top of the rolling forecast, side by side: fuel margin up or down so many cents a gallon, a new store opening in a given month, closing a kitchen one day a week, or a percent change to any group of lines.',
+    steps: [
+      'Pick the fiscal year. Saved scenarios show as columns next to the base forecast; untick one to hide it.',
+      'Build a scenario: add one or more changes, watch the draft column, then save it with a name.',
+      'Read each scenario\'s breakdown: what every change does to net profit and how it was figured.',
+    ],
+    tips: ['Fuel margin uses forecast gallons (forecast fuel sales ÷ the store\'s average price per gallon).', 'A new store copies another store\'s forecast: sales, cost of goods and card fees ramp from the opening level; fixed costs start in full.', 'Closing a kitchen removes that weekday\'s share of kitchen sales and food cost, and the same share of the kitchen\'s part of labor.', 'Changes apply only to months still to come.'],
+  },
+  budgetBreakEven: {
+    purpose: 'How much each store has to sell to cover its fixed costs: fixed costs ÷ contribution margin %, in sales dollars, sales a day and gallons.',
+    steps: ['Pick the months, and actual or budget figures.', 'Read the margin of safety: how far sales are above (or below) break-even.', 'Export the table for the owners.'],
+    tips: ['Variable costs are cost of goods plus card and network fees; everything else is fixed.', 'The figures agree with the break-even on the store scorecards for the same month.'],
+  },
+  closeChecklist: {
+    purpose: 'The one-screen month-end close: twelve steps for every store and for the company, with an owner and a due date each. Where the data can prove a step (bank reconciled, notices posted, payroll posted…), it turns done by itself and shows its evidence.',
+    steps: [
+      'Pick the month. The figures show how many steps are done, open and overdue.',
+      'Click a status to see its evidence. "Open …" takes you to the screen that does the work; come back and the step updates.',
+      'For manual steps (accruals, inventory counts) set the status, add a note and attach the support.',
+      'Agree intercompany balances in step 7: each related party\'s month-end balance, once they confirm it.',
+      'Lock the month in step 12 once every other step is done. The CFO can lock anyway with a reason, which is kept with the month.',
+    ],
+    tips: ['A step proved by the data can\'t be marked done by hand: fix the data instead, or mark it blocked with a note.', 'Change owners and due dates (business days after month end) under "Owners and due dates".', 'Inventory counts arrive with Inside store (phase 7); until then step 9 is manual.'],
+  },
+  closeBinder: {
+    purpose: 'Everything an outside accountant or the owners need for the month, in one printable document: P&L on both bases with the bridge, balance sheet, cash flow, bank reconciliation, budget vs actual, the checklist with its evidence, schedules and an index of supporting documents.',
+    steps: ['Pick the month.', 'Open the printable binder and print it to PDF, or download the HTML.', 'Download the ZIP of CSVs for the schedules.'],
+    tips: ['Each section carries its tie-outs; a red one is worth fixing before sending.', 'Export downloads are written to the audit log.'],
+  },
 } satisfies Record<string, { purpose: string; steps: string[]; tips?: string[] }>;
 
 export type HelpKey = keyof typeof HELP;

@@ -5,12 +5,15 @@ import { Help, Money, PageHead, useToast } from '../components/ui';
 import { periodLabel, periodOf, todayInChicago, periodsBetween, lastDayOfPeriod } from '../../core/dates';
 import { can } from '../../core/permissions';
 import { pnl, uncategorized } from '../../core/reports';
+import { lockMonth } from '../../core/close';
+import { ValidationError } from '../../core/books';
 
 export function Periods() {
   const { state, books, user, lines, stores } = useBooks();
   const [toast, say] = useToast();
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [gate, setGate] = useState<{ p: string; msg: string } | null>(null);
   const current = periodOf(todayInChicago());
   const periods = useMemo(() => {
     const ps = lines.map((f) => f.period).filter((p) => p >= '2000');
@@ -48,7 +51,7 @@ export function Periods() {
                       {!locked && can(user, 'period.lock') && !isFuture && (
                         <button className="btn sm" title={u ? 'Categorize everything first' : undefined} onClick={() => {
                           if (u && !confirm(`${u} line(s) in ${periodLabel(p)} are still uncategorized. Lock anyway?`)) return;
-                          books.lockPeriod(user, p); say(`${periodLabel(p)} locked.`);
+                          try { lockMonth(books, user, p); say(`${periodLabel(p)} locked.`); } catch (e) { setGate({ p, msg: e instanceof ValidationError ? e.errors.join(' ') : (e as Error).message }); }
                         }}>Lock</button>
                       )}
                       {locked && can(user, 'period.unlock') && <button className="btn sm ghost" onClick={() => { setUnlocking(p); setReason(''); }}>Unlock</button>}
@@ -59,6 +62,11 @@ export function Periods() {
             </tbody>
           </table>
         </div>
+        {gate && (
+          <div className="panel-pad" style={{ borderTop: '1px solid var(--rule)' }} role="alert">
+            <b>{periodLabel(gate.p)} can't be locked yet.</b> {gate.msg} <Link to={`/close?month=${gate.p}`}>Open the month-end checklist</Link>. <button className="btn sm ghost" onClick={() => setGate(null)}>Dismiss</button>
+          </div>
+        )}
         {unlocking && (
           <div className="panel-pad" style={{ borderTop: '1px solid var(--rule)' }} role="region" aria-label={`Unlock ${periodLabel(unlocking)}`}>
             <div className="field" style={{ maxWidth: 520 }}><label htmlFor="unlock-reason">Why unlock {periodLabel(unlocking)}?</label><input id="unlock-reason" autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Late Entergy bill for HM11" /></div>
@@ -69,7 +77,7 @@ export function Periods() {
           </div>
         )}
       </section>
-      <p className="muted small" style={{ marginTop: 12 }}>The full month-end checklist (sales posted, fuel tied to settlement, bank reconciled, cash chain balanced…) arrives in phase 8 and will gate this lock.</p>
+      <p className="muted small" style={{ marginTop: 12 }}>Lock goes through the <Link to="/close">month-end checklist</Link>: a month locks once every other step is done. The CFO can override from the checklist with a reason.</p>
       {toast}
       <Help k="periods" />
     </>
