@@ -20,6 +20,8 @@ const ptsS = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : '−'
 const errList = (e: unknown) => (e instanceof ValidationError ? e.errors : [(e as Error).message]);
 const GATE_PILL: Record<GateStatus, string> = { pass: 'ok', fail: 'bad', na: 'warn' };
 const GATE_LABEL: Record<GateStatus, string> = { pass: 'Pass', fail: 'Fail', na: "Can't tell yet" };
+/** Months of sales shown in the same-store table (the latest). */
+const SS_MONTHS = 6;
 const ROLE_PILL = { grow: 'ok', harvest: '', fix: 'bad', watch: 'warn' } as const;
 
 function Panel({ id, title, extra, children }: { id: string; title: string; extra?: ReactNode; children: ReactNode }) {
@@ -139,6 +141,10 @@ export function CompassPage() {
             </ol>
             <p className="compass-stage" data-testid="compass-stage">{STAGE_LABEL[v.stage]}</p>{v.provisional && <p className="muted small" style={{ margin: '0 0 4px' }}>Provisional: some gates can't be judged on these books yet.</p>}
             <p className="compass-why">{v.sentence}</p>
+            <p className="compass-spread" style={{ margin: '0 0 6px' }}>
+              ROIC − WACC: <b className={v.company.spread === null ? undefined : v.company.spread >= 0 ? 'pos' : 'neg'}>{v.company.spread === null ? "can't tell yet" : ptsS(v.company.spread)}</b>
+              <span className="muted"> (ROIC {v.company.roic === null ? 'not measurable without fixed assets' : pc(v.company.roic)} vs WACC {pc(v.wacc.wacc)})</span>
+            </p>
             <p className="muted small" style={{ margin: 0 }}>{STAGES[stageIdx].definition}</p>
           </div>
         </section>
@@ -146,10 +152,10 @@ export function CompassPage() {
         {ch.changed && <div className="note warn" role="status">{ch.message}</div>}
         <section className="figures" aria-label="Returns and cash">
           <Figure label="ROIC − WACC" value={<span className={v.company.spread === null ? undefined : v.company.spread >= 0 ? 'pos' : 'neg'}>{ptsS(v.company.spread)}</span>} note={v.company.spread === null ? 'No invested capital to measure' : v.company.spread >= 0 ? 'Creating value' : 'Earning less than the capital costs'} />
-          <Figure label="Company ROIC" value={pc(v.company.roic)} note={`NOPAT ${usd(v.company.nopatAnnual)} ÷ ${usd(i.company.capital.total)} invested`} />
-          <Figure label="WACC" value={pc(v.wacc.wacc)} note={`Cost of equity ${pc(v.wacc.costOfEquity)} (a judgement call)`} />
-          <Figure label="Free cash flow" value={usd(v.cash.fcfAnnual)} note={`A year; ${pc(v.cash.conversion, 0)} of EBITDA`} href={`/reports/cash-flow?from=${i.from}&to=${i.period}`} />
-          <Figure label="Months to fund the next store" value={v.cash.monthsToFund === null ? '–' : String(v.cash.monthsToFund)} note={`${usd(i.cash.equityNeed)} equity; ${usd(Math.max(0, i.cash.deployable))} above the reserve`} href="/growth/capital" />
+          <Figure label="Company ROIC vs WACC" value={<>{v.company.roic === null ? "Can't tell yet" : pc(v.company.roic)}<span className="muted"> vs {pc(v.wacc.wacc)}</span></>} note={v.company.roic === null ? `Needs fixed assets on the books; cost of equity ${pc(v.wacc.costOfEquity)} (a judgement call)` : `NOPAT ${usd(v.company.nopatAnnual)} ÷ ${usd(i.company.capital.total)} invested; cost of equity ${pc(v.wacc.costOfEquity)} (a judgement call)`} />
+          <Figure label="Months to fund the next store" value={v.cash.monthsToFund === null ? (v.gates.find((g) => g.key === 'equity')?.status === 'na' ? "Can't tell yet" : '–') : String(v.cash.monthsToFund)} note={i.cash.equityKnown ? `${usd(i.cash.equityNeed)} equity; ${usd(Math.max(0, i.cash.deployable))} above the reserve` : 'No pro forma or next-store equity on file'} href="/growth/capital" />
+          <Figure label="Free cash flow" value={v.cash.fcfAnnual === null ? "Can't tell yet" : usd(v.cash.fcfAnnual)} note={v.cash.fcfAnnual === null ? 'Needs bank activity, not just a P&L' : `A year; ${pc(v.cash.conversion, 0)} of EBITDA`} href={`/reports/cash-flow?from=${i.from}&to=${i.period}`} />
+          <Figure label="Bank vs floor" value={i.bank.accounts.length && i.bank.known ? <span className={i.bank.balance < i.bank.floor ? 'neg' : undefined}>{usd(i.bank.balance)}</span> : "Can't tell yet"} note={i.bank.accounts.length ? `Floor ${usd(i.bank.floor)}${i.bank.lastDate && i.bank.lastDate < i.asOf ? `; last entry ${shortDate(i.bank.lastDate)}` : ''}` : 'No floor set'} href="/bank" />
         </section>
 
         <Panel id="cp-gates-h" title="The gates" extra={`${STAGES[stageIdx].next}: ${v.gates.filter((g) => g.stage === v.stage && g.status === 'pass').length} of ${v.gates.filter((g) => g.stage === v.stage).length} pass`}>
@@ -192,7 +198,8 @@ export function CompassPage() {
                   <dt>ROIC</dt><dd>{pc(s.roic)}</dd>
                   <dt>Spread</dt><dd className={s.spread === null ? undefined : s.spread >= 0 ? 'pos' : 'neg'}>{ptsS(s.spread)}</dd>
                   <dt>Profit a gallon, all-in</dt><dd>{s.profitPerGallon === null ? '–' : `${s.profitPerGallon.toFixed(1)}¢`}</dd>
-                  <dt>Profit a month</dt><dd>{usd(s.profitPerMonth)}</dd>
+                  <dt>Profit a month</dt><dd>{s.profitPerMonth === null ? '–' : usd(s.profitPerMonth)}</dd>
+                  <dt>Fuel margin</dt><dd>{x.fuelCpg === null ? '–' : `${x.fuelCpg.toFixed(1)}¢${x.fuelSource === 'pnl' ? ' (P&L)' : ''}`}</dd>
                   <dt>Margin a transaction</dt><dd>{x.traffic ? `${usd(x.traffic.marginPerTxn)}` : 'No POS counts'}</dd>
                   <dt>Labor</dt><dd>{s.laborPct === null ? '–' : `${s.laborPct.toFixed(1)}% vs ${x.laborTargetPct.toFixed(1)}%`}</dd>
                   <dt>Break-even headroom</dt><dd>{pc(x.breakEvenSafety)}</dd>
@@ -208,12 +215,12 @@ export function CompassPage() {
           <p className="panel-pad muted small" style={{ margin: 0 }}>Margin a transaction = average ticket × inside and kitchen margin, on the days with an imported POS customer count{v.stores.some((s) => s.input.traffic) ? ` (${Math.max(...v.stores.map((s) => s.input.traffic?.days ?? 0))} days on file)` : ''}. Break-even headroom is on the accrual basis (Budgets › Break-even).</p>
         </Panel>
 
-        <Panel id="cp-ss-h" title="Same-store growth" extra="No prior-year data: the books start in September 2026, so this is month over month and against the budget">
+        <Panel id="cp-ss-h" title="Same-store growth" extra={i.hasPriorYear ? 'Month over month and against the budget' : `No prior year on these books: they start ${i.firstPeriod ? periodLabel(i.firstPeriod) : 'empty'}, so this is month over month and against the budget only`}>
           <div className="table-wrap"><table className="t">
-            <thead><tr><th scope="col">Store</th>{(v.stores[0]?.input.monthly ?? []).map((m) => <th key={m.period} scope="col" className="num">{periodLabel(m.period)} sales</th>)}<th scope="col" className="num">Month over month</th><th scope="col" className="num">Gallons, month over month</th><th scope="col" className="num">Vs budget</th><th scope="col">Trend</th></tr></thead>
+            <thead><tr><th scope="col">Store</th>{(v.stores[0]?.input.monthly ?? []).slice(-SS_MONTHS).map((m) => <th key={m.period} scope="col" className="num">{periodLabel(m.period)} sales</th>)}<th scope="col" className="num">Month over month</th><th scope="col" className="num">Gallons, month over month</th><th scope="col" className="num">Vs budget</th><th scope="col">Trend</th></tr></thead>
             <tbody>{v.stores.map((s) => <tr key={s.input.storeId}>
               <td>{s.input.code}</td>
-              {s.input.monthly.map((m) => <td key={m.period} className="num">{usd(m.sales)}</td>)}
+              {s.input.monthly.slice(-SS_MONTHS).map((m) => <td key={m.period} className="num">{usd(m.sales)}</td>)}
               <td className="num">{s.salesChange === null ? '–' : pc(s.salesChange)}</td>
               <td className="num">{s.volumeChange === null ? '–' : pc(s.volumeChange)}</td>
               <td className="num">{s.input.budget && s.input.budget.budgetSales ? pc((s.input.budget.sales - s.input.budget.budgetSales) / s.input.budget.budgetSales) : '–'}</td>
@@ -226,12 +233,16 @@ export function CompassPage() {
           <Panel id="cp-cash-h" title="Cash engine and capacity">
             <div className="table-wrap"><table className="t">
               <tbody>
-                <tr><th scope="row">Operating cash flow</th><td className="num">{usd(i.cash.operating)}</td></tr>
-                <tr><th scope="row">Less capex</th><td className="num">{usd(i.cash.capex)}</td></tr>
-                <tr className="total"><th scope="row">Free cash flow ({i.months} month{i.months === 1 ? '' : 's'})</th><td className="num">{usd(i.cash.fcf)}</td></tr>
+                {i.cash.known ? <>
+                  <tr><th scope="row">Operating cash flow</th><td className="num">{usd(i.cash.operating)}</td></tr>
+                  <tr><th scope="row">Less capex</th><td className="num">{usd(i.cash.capex)}</td></tr>
+                  <tr className="total"><th scope="row">Free cash flow ({i.months} month{i.months === 1 ? '' : 's'})</th><td className="num">{usd(i.cash.fcf)}</td></tr>
+                </> : <tr><th scope="row">Free cash flow</th><td className="small">Can't tell yet: {usd(i.cash.placeholder)} of profit sits on the import's settlement clearing account, not in the bank. Import the bank statements (Bank) to measure cash.</td></tr>}
+                <tr><th scope="row">Bank vs floor</th><td className="num">{i.bank.accounts.length ? `${usd(i.bank.balance)} vs ${usd(i.bank.floor)}` : 'No floor set'}</td></tr>
+                <tr><th scope="row">Bank and overdraft fees</th><td className="num">{i.fees.count ? `${i.fees.count} charge${i.fees.count === 1 ? '' : 's'}, ${usd(i.fees.total)}` : 'None'}</td></tr>
                 <tr><th scope="row">Cash conversion (FCF ÷ EBITDA)</th><td className="num">{pc(v.cash.conversion)}</td></tr>
-                <tr><th scope="row">Cash vs reserve</th><td className="num">{usd(i.cash.cash)} vs {usd(i.cash.reserveTarget)}</td></tr>
-                <tr><th scope="row">Deployable</th><td className="num">{usd(i.cash.deployable)}</td></tr>
+                <tr><th scope="row">Cash vs reserve</th><td className="num">{usd(i.cash.cash)} vs {i.cash.reserveGaps.length ? `${usd(i.cash.reserveTarget)} so far (incomplete)` : usd(i.cash.reserveTarget)}</td></tr>
+                <tr><th scope="row">Deployable</th><td className="num">{i.cash.reserveGaps.length ? "Can't tell yet" : usd(i.cash.deployable)}</td></tr>
                 <tr><th scope="row">DSCR today</th><td className="num">{i.capacity.dscr === null ? '–' : `${i.capacity.dscr.toFixed(2)}x`}</td></tr>
                 <tr><th scope="row">DSCR after {i.capacity.dealName ?? 'a new loan'}</th><td className="num">{v.capacity.dscrAfter === null ? '–' : `${v.capacity.dscrAfter.toFixed(2)}x`}</td></tr>
                 <tr><th scope="row">Leverage after the deal</th><td className="num">{v.capacity.leverageAfter === null ? "Can't tell yet" : `${v.capacity.leverageAfter.toFixed(2)}x`}</td></tr>
@@ -239,7 +250,7 @@ export function CompassPage() {
               </tbody>
             </table></div>
             <TieOut items={[
-              { label: 'Free cash flow ties to the cash flow statement', ok: i.ties.cashFlow && i.ties.cashFlowNetIncome, detail: `net income ${usd(i.tieDetail.cfNetIncome)} = the booked P&L ${usd(i.tieDetail.bookedNetIncome)}` },
+              { label: 'Free cash flow ties to the cash flow statement', ok: i.ties.cashFlow && i.ties.cashFlowNetIncome, detail: `operating ${usd(i.cash.operating)} and capex ${usd(i.cash.capex)} from the statement; its net income ${usd(i.tieDetail.cfNetIncome)} = the booked P&L ${usd(i.tieDetail.bookedNetIncome)}` },
             ]} />
           </Panel>
           <Panel id="cp-trig-h" title={`Open store #${i.nextStoreNumber} when …`} extra={v.stage === 'replicate' || v.stage === 'scale' ? 'Ready for one store; these are the gates to a pipeline' : undefined}>

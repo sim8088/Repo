@@ -821,7 +821,10 @@ test('growth compass: a stage, three moves, and the spread moves with the cost o
   await expect(page.getByTestId('compass-stage')).toHaveText('Fix');
   await expect(page.locator('.compass-ladder [aria-current="step"]')).toContainText('Fix');
   await expect(page.locator('.compass-moves > li')).toHaveCount(3);
-  await expect(page.locator('tr', { hasText: 'No covenant broken or forecast to break' }).locator('.pill')).toHaveText('Fail');
+  const gates = page.getByRole('region', { name: 'The gates' });
+  await expect(gates.locator('tr', { hasText: 'No covenant broken or forecast to break' }).locator('.pill')).toHaveText('Fail');
+  await expect(gates.locator('tr', { hasText: 'Bank at or above its floor' }).locator('.pill')).toHaveText('Pass');
+  await expect(page.locator('.compass-why')).toContainText('forecast to break');
   await expect(page.locator('.tie.ok', { hasText: 'Invested capital ties to the balance sheet' })).toBeVisible();
   await expect(page.locator('.tie.ok', { hasText: 'Free cash flow ties to the cash flow statement' })).toBeVisible();
   const spread = page.locator('.figure', { hasText: 'ROIC − WACC' }).locator('.value');
@@ -831,7 +834,7 @@ test('growth compass: a stage, three moves, and the spread moves with the cost o
   await expect(page.getByText('Assumptions saved.')).toBeVisible();
   await expect(spread).not.toHaveText('+1.0 pts');
   await expect(spread).toContainText('−');
-  await expect(page.locator('tr', { hasText: 'Company ROIC at or above the cost of capital' }).locator('.pill')).toHaveText('Fail');
+  await expect(gates.locator('tr', { hasText: 'Company ROIC at or above the cost of capital' }).locator('.pill')).toHaveText('Fail');
   await axe(page, 'compass after an edit');
   await page.getByRole('button', { name: 'Record October 2026' }).click();
   await expect(page.locator('.tie.ok', { hasText: 'October 2026 is in the history' })).toBeVisible();

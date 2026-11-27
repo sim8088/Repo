@@ -17,8 +17,9 @@ import { formatMoney, type Cents } from './money';
 import { lastDayOfPeriod, periodLabel, periodOf, periodsBetween, shortDate } from './dates';
 import {
   COVENANT_LABEL, covenantMetrics, covenantMonitor, debtDashboard, debtOf, dscrWithNewDebt, firstBooksPeriod, formatCovenant, formatMetric, headlineMetrics,
-  monthsBetween, monthsToFund, paydownPlan, ratioX, reserveTarget, trendLine, TREND_MIN_MONTHS, metricOf,
+  monthsBetween, monthsToFund, paydownPlan, ratioX, reserveTarget, trendLine, TREND_MIN_MONTHS, metricOf, PLACEHOLDER_CLEARING,
 } from './debt';
+import { balanceAsOf } from './reports';
 import { balanceSheet, basisEntries, cashFlow, LABOR_ACCTS, statement, thresholdsOf, type BalanceSheet, type BasisEntry, type Statement } from './statements';
 import { breakEven, budgetStatement, hasBudget } from './budgets';
 import { fuelMargin } from './fuel';
@@ -106,10 +107,16 @@ export interface StoreInput {
   labor: Cents;
   insideSales: Cents;
   insideGp: Cents;
-  /** Fuel, accrual cost (the fuel screen): gallons incl. truck lane, margin $ and ¢/gal. */
+  /** Any sales or gallons in the window. A store without either is on Watch, never judged on zeros. */
+  hasSales: boolean;
+  /**
+   * Fuel: gallons incl. truck lane, margin $ and ¢/gal. From the fuel screen (delivered cost) when every gallon has a
+   * cost; else from the P&L's fuel gross profit (imported books keep fuel cost on its own account); else unknown.
+   */
   gallons: number;
   fuelMargin: Cents;
   fuelCpg: number | null;
+  fuelSource: 'fuel' | 'pnl' | null;
   laborTargetPct: number;
   /** Break-even margin of safety (accrual, budgets screen): (sales − break-even) ÷ sales. */
   breakEvenSafety: number | null;
@@ -136,10 +143,27 @@ export interface CompassInputs {
   date: string;
   company: { sales: Cents; netIncome: Cents; interest: Cents; depreciation: Cents; ebitda: Cents; gallons: number; fuelMargin: Cents; capital: InvestedCapital; otherBasis: ReportBasis; otherNetIncome: Cents; corporateNet: Cents };
   stores: StoreInput[];
+  /** First month with any entry, and whether the books reach back a year before the latest complete month. */
+  firstPeriod: string | null;
+  hasPriorYear: boolean;
+  /** Operating bank accounts that carry a floor (Setup › Accounts), read at asOf. */
+  bank: { known: boolean; balance: Cents; floor: Cents; lastDate: string | null; accounts: { id: ID; name: string; balance: Cents; floor: Cents }[] };
+  /** Bank / overdraft fee charges in the window (acct_bank_fees and accounts named overdraft / bank / NSF fees). */
+  fees: { count: number; total: Cents; accounts: string[] };
   monthlyCompany: { period: string; ebitda: Cents; net: Cents; sales: Cents }[];
   tax: { rateBps: number; source: string };
   capitalStructure: { debt: Cents; equity: Cents; wacdBps: number | null; loans: { name: string; balance: Cents; rateBps: number }[] };
-  cash: { operating: Cents; capex: Cents; fcf: Cents; reserveTarget: Cents; cash: Cents; deployable: Cents; equityNeed: Cents; equitySource: string };
+  cash: {
+    operating: Cents; capex: Cents; fcf: Cents; reserveTarget: Cents; cash: Cents; deployable: Cents; equityNeed: Cents; equitySource: string;
+    /** False when the window's cash movement rests on a placeholder clearing account (single-entry imports), not real money. */
+    known: boolean;
+    /** Balance of placeholder clearing at the month end (left out of cash and invested capital). */
+    placeholder: Cents;
+    /** Reserve components the books can't supply yet (e.g. no fuel invoices for a store that sells fuel). */
+    reserveGaps: string[];
+    /** The next store's equity comes from a pro forma or the Debt settings, not a default. */
+    equityKnown: boolean;
+  };
   covenants: CovenantInput[];
   capacity: { dscr: number | null; ebitdaAnnual: Cents; debtServiceAnnual: Cents; debt: Cents; addedDebtService: Cents; addedEbitda: Cents; newLoan: Cents; dealName: string | null; dealId: ID | null };
   ramp: { code: string; rows: { period: string; gallonsPct: number | null; insidePct: number | null; days: number; daysInMonth: number }[] } | null;
@@ -158,11 +182,12 @@ export interface CompassInputs {
 const DA_ACCTS: ID[] = ['acct_depreciation', 'acct_disposal'];
 const sumRows = (st: Statement, ids: ID[], col?: string) => st.rows.filter((r) => ids.includes(r.account.id)).reduce((a, r) => a + (col ? r.by[col] ?? 0 : r.total), 0);
 const groupTotal = (bs: BalanceSheet, section: 'assets' | 'liabilities', key: string) => bs.sections.find((s) => s.key === section)?.groups.find((g) => g.key === key)?.total ?? 0;
-/** Invested capital from a balance sheet: net fixed assets + inventory + operating working capital (bank cash and intercompany left out). */
+/** Invested capital from a balance sheet: net fixed assets + inventory + operating working capital (bank cash, intercompany and placeholder clearing left out). */
 export function capitalOf(bs: BalanceSheet): InvestedCapital {
   const fixed = groupTotal(bs, 'assets', 'fixed_asset');
   const inventory = groupTotal(bs, 'assets', 'inventory');
-  const wcAssets = ['cash', 'clearing', 'receivable', 'prepaid'].reduce((a, k) => a + groupTotal(bs, 'assets', k), 0);
+  const placeholder = bs.sections.find((s) => s.key === 'assets')?.groups.find((g) => g.key === 'clearing')?.lines.filter((l) => PLACEHOLDER_CLEARING.includes(l.account.id)).reduce((a, l) => a + l.amount, 0) ?? 0;
+  const wcAssets = ['cash', 'clearing', 'receivable', 'prepaid'].reduce((a, k) => a + groupTotal(bs, 'assets', k), 0) - placeholder;
   const wcLiabs = ['payable', 'accrued'].reduce((a, k) => a + groupTotal(bs, 'liabilities', k), 0);
   const workingCapital = wcAssets - wcLiabs;
   return { fixed, inventory, workingCapital, total: fixed + inventory + workingCapital };
@@ -212,6 +237,11 @@ export function compassInputs(state: BooksState, asOf: string, opts: { entries?:
     const capital = share === 1 ? ec : { fixed: Math.round(ec.fixed * share), inventory: Math.round(ec.inventory * share), workingCapital: Math.round(ec.workingCapital * share), total: 0 };
     if (share !== 1) capital.total = capital.fixed + capital.inventory + capital.workingCapital;
     const f = fm.stores.find((x) => x.storeId === s.id);
+    const fuelCostKnown = !!f && !fm.rows.some((r) => r.storeId === s.id && r.gallons > 0 && r.cogs === 0);
+    const pnlFuelSales = st.salesByLob.fuel[s.id] ?? 0, pnlFuelGp = st.gpByLob.fuel[s.id] ?? 0;
+    const fuelSource: StoreInput['fuelSource'] = !f ? null : fuelCostKnown ? 'fuel' : pnlFuelGp < pnlFuelSales ? 'pnl' : null;
+    const fuelMarginC = fuelSource === 'fuel' ? f!.margin : fuelSource === 'pnl' ? pnlFuelGp : 0;
+    const gallons = f?.gallons ?? 0;
     const ni = st.netIncome[s.id] ?? 0, int = sumRows(st, ['acct_interest'], s.id), dep = sumRows(st, DA_ACCTS, s.id);
     const tr = storeTraffic(state, [s.id], d0, d1);
     const ik = (st.salesByLob.inside[s.id] ?? 0) + (st.salesByLob.kitchen[s.id] ?? 0);
@@ -221,11 +251,12 @@ export function compassInputs(state: BooksState, asOf: string, opts: { entries?:
       storeId: s.id, code: s.code, name: s.name, openedOn: s.openedOn, monthsOpen: s.openedOn ? Math.max(0, monthsBetween(s.openedOn, asOf)) : null,
       sales: st.netSales[s.id] ?? 0, netIncome: ni, interest: int, depreciation: dep, ebitda: ni + int + dep, labor: sumRows(st, LABOR_ACCTS, s.id),
       insideSales: st.salesByLob.inside[s.id] ?? 0, insideGp: st.gpByLob.inside[s.id] ?? 0,
-      gallons: f?.gallons ?? 0, fuelMargin: f?.margin ?? 0, fuelCpg: f && f.gallons ? f.marginCpg : null,
+      hasSales: (st.netSales[s.id] ?? 0) !== 0 || gallons > 0,
+      gallons, fuelMargin: fuelMarginC, fuelCpg: fuelSource && gallons ? fuelMarginC / gallons : null, fuelSource,
       laborTargetPct: laborTarget(state, s.id) / 100, breakEvenSafety: be.find((r) => r.storeId === s.id)?.safety ?? null, capital,
       monthly: complete.map((p) => ({ period: p, sales: monthSt.get(p)!.netSales[s.id] ?? 0, net: monthSt.get(p)!.netIncome[s.id] ?? 0, gallons: Math.round(fm.rows.filter((r) => r.storeId === s.id && r.bucket === p).reduce((a, r) => a + r.gallons, 0)) })),
       budget: budget && latest ? { period: latest, sales: budget.a.netSales[s.id] ?? 0, budgetSales: budget.b.netSales[s.id] ?? 0, net: budget.a.netIncome[s.id] ?? 0, budgetNet: budget.b.netIncome[s.id] ?? 0 } : null,
-      traffic: tr.transactions && tr.avgTicket !== null ? { days: tr.days, transactions: tr.transactions, avgTicket: tr.avgTicket, marginPct, marginPerTxn: Math.round(tr.avgTicket * marginPct) } : null,
+      traffic: tr.transactions && tr.avgTicket !== null && ikGp < ik ? { days: tr.days, transactions: tr.transactions, avgTicket: tr.avgTicket, marginPct, marginPerTxn: Math.round(tr.avgTicket * marginPct) } : null,
     };
   });
   // Fuel margin for months outside the fuel window would double count; complete months only use the fuel rows in the window.
@@ -269,6 +300,32 @@ export function compassInputs(state: BooksState, asOf: string, opts: { entries?:
   const corp = state.stores.filter((s) => s.kind === 'corporate').reduce((a, s) => a + (st.netIncome[s.id] ?? 0), 0);
   const taxBps = cs.taxRateBps ?? ownerRateBps(state);
 
+  // Bank against its floor, today (the latest entry on each floored bank account).
+  const floored = state.accounts.filter((a) => a.active && a.type === 'asset' && a.subtype === 'bank' && a.floorCents !== undefined);
+  const lastBankDate = (id: ID) => state.transactions.filter((t) => !t.deleted && t.date <= asOf && t.lines.some((l) => l.accountId === id)).reduce<string | null>((a, t) => (!a || t.date > a ? t.date : a), null);
+  const bankRows = floored.map((a) => ({ id: a.id, name: a.name, balance: balanceAsOf(state, a.id, asOf), floor: a.floorCents!, last: lastBankDate(a.id) }));
+  const bankLast = bankRows.reduce<string | null>((a, r) => (r.last && (!a || r.last > a) ? r.last : a), null);
+  // Bank and overdraft fees in the window: the standard account plus any imported account named for them.
+  const feeAccts = state.accounts.filter((a) => a.type === 'expense' && (a.id === 'acct_bank_fees' || /overdraft|bank (service )?(fee|charge)|nsf|returned item/i.test(a.name)));
+  const feeIds = new Set(feeAccts.map((a) => a.id));
+  let feeCount = 0, feeTotal = 0;
+  for (const t of state.transactions) {
+    if (t.deleted || t.date < d0 || t.date > d1) continue;
+    for (const l of t.lines) if (feeIds.has(l.accountId) && l.debit - l.credit !== 0) { feeTotal += l.debit - l.credit; if (l.debit > 0) feeCount += 1; }
+  }
+  // Placeholder clearing (single-entry imports): its balance is profit, not money.
+  const placeholder = PLACEHOLDER_CLEARING.reduce((a, id) => a + balanceAsOf(state, id, date), 0);
+  const placeholderMoved = state.transactions.some((t) => !t.deleted && t.date >= d0 && t.date <= d1 && t.lines.some((l) => PLACEHOLDER_CLEARING.includes(l.accountId)));
+  // Reserve parts the books can't supply: a fuel-selling store without delivered invoices, or labor on the P&L with no pay runs.
+  const pol = ds.reserve;
+  const reserveGaps: string[] = [];
+  const noLoad = reserve.fuelLoads.filter((x) => x.cost === 0 && (stores.find((s) => s.storeId === x.storeId)?.gallons ?? 0) > 0);
+  if (noLoad.length) reserveGaps.push(`fuel invoices for ${noLoad.map((x) => state.stores.find((s) => s.id === x.storeId)?.code ?? x.storeId).join(', ')} to size one fuel load (Fuel › Invoices)`);
+  if (pol.payroll && reserve.payroll === 0 && stores.some((s) => s.labor > 0)) reserveGaps.push('payroll runs to size one payroll (People › Payroll)');
+  const equityKnown = !!dr || state.debt?.settings?.nextStoreEquity !== undefined;
+  const latestComplete = complete.at(-1) ?? null;
+  const hasPriorYear = !!first && !!latestComplete && first <= addMonthsP(latestComplete, -12);
+
   return {
     asOf, ready: !!m, basis, period, from, months: m?.months ?? 0, factor, annualized: !!m?.annualized, date,
     company: {
@@ -276,10 +333,13 @@ export function compassInputs(state: BooksState, asOf: string, opts: { entries?:
       gallons: stores.reduce((a, s) => a + s.gallons, 0), fuelMargin: stores.reduce((a, s) => a + s.fuelMargin, 0), capital: capCompany,
       otherBasis, otherNetIncome: other.netIncome.total, corporateNet: corp,
     },
-    stores, monthlyCompany,
+    stores, monthlyCompany, firstPeriod: first ?? null, hasPriorYear,
+    bank: { known: bankRows.some((r) => r.last !== null), balance: bankRows.reduce((a, r) => a + r.balance, 0), floor: bankRows.reduce((a, r) => a + r.floor, 0), lastDate: bankLast, accounts: bankRows.map(({ last: _l, ...r }) => r) },
+    fees: { count: feeCount, total: feeTotal, accounts: feeAccts.filter((a) => state.transactions.some((t) => !t.deleted && t.date >= d0 && t.date <= d1 && t.lines.some((l) => l.accountId === a.id))).map((a) => a.name) },
     tax: { rateBps: taxBps, source: cs.taxRateBps === undefined ? 'Owner rate from the tax tables (federal + state)' : 'Set on this screen' },
     capitalStructure: { debt: debtBs, equity: bsAll.totalEquity, wacdBps: dd.wacdBps, loans: dd.company.map((r) => ({ name: r.loan.name, balance: r.balance, rateBps: r.rateBps })) },
-    cash: { operating, capex, fcf: operating + capex, reserveTarget: reserve.target, cash: reserve.cash, deployable: reserve.deployable, equityNeed, equitySource: dr ? `${deal!.name}: equity + debt service before opening` : 'Next-store equity in the Debt settings' },
+    cash: { operating, capex, fcf: operating + capex, reserveTarget: reserve.target, cash: reserve.cash, deployable: reserve.deployable, equityNeed, equitySource: dr ? `${deal!.name}: equity + debt service before opening` : 'Next-store equity in the Debt settings',
+      known: !placeholderMoved, placeholder, reserveGaps, equityKnown },
     covenants,
     capacity: {
       dscr: m?.dscr ?? null, ebitdaAnnual: m?.ebitdaAnnual ?? 0, debtServiceAnnual: m?.debtServiceAnnual ?? 0, debt: m?.debt ?? 0,
@@ -332,7 +392,7 @@ export function waccOf(x: { debt: Cents; equity: Cents; wacdBps: number | null; 
   if (x.equity <= 0) return { costOfEquity: ke, preTaxDebt: kd, afterTaxDebt: kdAfter, debtWeight: 0, equityWeight: 1, wacc: ke, note: 'Equity on the books is not positive, so the weights mean nothing: the cost of equity is used alone.' };
   const d = kdAfter === null ? 0 : Math.max(0, x.debt);
   const wd = d / (d + x.equity), we = 1 - wd;
-  return { costOfEquity: ke, preTaxDebt: kd, afterTaxDebt: kdAfter, debtWeight: wd, equityWeight: we, wacc: we * ke + wd * (kdAfter ?? 0), note: kdAfter === null ? 'No company debt: all equity.' : 'Weights are the loans and the equity on the group balance sheet.' };
+  return { costOfEquity: ke, preTaxDebt: kd, afterTaxDebt: kdAfter, debtWeight: wd, equityWeight: we, wacc: we * ke + wd * (kdAfter ?? 0), note: kdAfter === null ? 'No loans on file, so all equity. If the company has debt, enter the loans (Assets › Loans).' : 'Weights are the loans and the equity on the group balance sheet.' };
 }
 
 export type GateStatus = 'pass' | 'fail' | 'na';
@@ -370,7 +430,7 @@ export interface StoreView {
   levers: Lever[];
   mainLever: Lever | null;
   profitPerGallon: number | null;
-  profitPerMonth: Cents;
+  profitPerMonth: Cents | null;
   laborPct: number | null;
   volumeChange: number | null;
   salesChange: number | null;
@@ -385,7 +445,8 @@ export interface Verdict {
   sentence: string;
   wacc: Wacc;
   company: { nopatAnnual: Cents; roic: number | null; spread: number | null; netIncomeAnnual: Cents; ebitdaAnnual: Cents; profitPerGallon: number | null; profitPerStoreMonth: Cents | null };
-  cash: { fcfAnnual: Cents; fcfMonthly: Cents; conversion: number | null; monthsToFund: number | null };
+  /** Free cash flow is null when the books can't tell cash from profit (single-entry imports). */
+  cash: { fcfAnnual: Cents | null; fcfMonthly: Cents | null; conversion: number | null; monthsToFund: number | null };
   capacity: { dscrAfter: number | null; dscrTarget: number; leverageAfter: number | null; leverageTarget: number };
   /** Gates that can't be judged on these books, with what they need. */
   missing: { key: string; label: string; needs: string }[];
@@ -403,14 +464,15 @@ const TO = { pnl: '/reports/pnl', covenants: '/debt/covenants', reserve: '/debt/
 
 function storeView(s: StoreInput, x: { factor: number; taxBps: number; wacc: number; targets: CompassInputs['targets']; cs: CompassSettings; months: number }): StoreView {
   const nopatAnnual = nopat(s.ebitda, s.depreciation, x.taxBps, x.factor);
-  const roic = s.capital.fixed > 0 ? roicOf(nopatAnnual, s.capital.total) : null;
+  const roic = s.capital.fixed > 0 && s.hasSales ? roicOf(nopatAnnual, s.capital.total) : null;
   const spread = roic === null ? null : roic - x.wacc;
   const levers: Lever[] = [];
   const cpgGap = s.fuelCpg === null ? 0 : x.targets.fuelCpg - s.fuelCpg;
-  if (cpgGap > 0) levers.push({ kind: 'fuel', label: `fuel margin ${cents1(cpgGap)} below the ${cents1(x.targets.fuelCpg)} target`, gap: Math.round(cpgGap * s.gallons * x.factor), to: '/fuel' });
+  if (cpgGap > 0) levers.push({ kind: 'fuel', label: `fuel margin ${cents1(cpgGap)} below the ${cents1(x.targets.fuelCpg)} target${s.fuelSource === 'pnl' ? ' (fuel cost as booked on the P&L)' : ''}`, gap: Math.round(cpgGap * s.gallons * x.factor), to: '/fuel' });
   const laborPct = s.sales ? (s.labor / s.sales) * 100 : null;
   if (laborPct !== null && laborPct > s.laborTargetPct) levers.push({ kind: 'labor', label: `labor ${(laborPct - s.laborTargetPct).toFixed(1)} pts over the ${s.laborTargetPct.toFixed(1)}% target`, gap: Math.round(((laborPct - s.laborTargetPct) / 100) * s.sales * x.factor), to: '/people/labor' });
-  const gm = s.insideSales ? (s.insideGp / s.insideSales) * 100 : null;
+  // Inside margin only when inside cost is on the books (an import with no inside COGS shows 100%).
+  const gm = s.insideSales && s.insideGp < s.insideSales ? (s.insideGp / s.insideSales) * 100 : null;
   if (gm !== null && gm < x.targets.insideGmPct) levers.push({ kind: 'inside', label: `inside margin ${(x.targets.insideGmPct - gm).toFixed(1)} pts below the ${x.targets.insideGmPct}% target`, gap: Math.round(((x.targets.insideGmPct - gm) / 100) * s.insideSales * x.factor), to: '/inside' });
   levers.sort((a, b) => b.gap - a.gap);
   const mainLever = levers[0] ?? null;
@@ -422,9 +484,11 @@ function storeView(s: StoreInput, x: { factor: number; taxBps: number; wacc: num
   let role: StoreRole, roleWhy: string;
   const young = s.monthsOpen !== null && s.monthsOpen < x.cs.watchMonths;
   const noAssets = s.capital.fixed <= 0;
-  if (young || roic === null || noAssets) {
+  if (young || !s.hasSales || roic === null || noAssets) {
     role = 'watch';
-    roleWhy = young ? `Opened ${shortDate(s.openedOn!)}, under ${x.cs.watchMonths} months: judged on its ramp, not its returns.` : "Can't tell yet: needs its fixed assets on the books to measure a return (Assets › Fixed assets).";
+    roleWhy = young ? `Opened ${shortDate(s.openedOn!)}, under ${x.cs.watchMonths} months: judged on its ramp, not its returns${s.hasSales ? '' : ' (no sales in the window yet)'}.`
+      : !s.hasSales ? 'No sales recorded in the window: nothing to judge yet.'
+      : "Can't tell yet: needs its fixed assets on the books to measure a return (Assets › Fixed assets).";
   } else if (spread! < 0) {
     role = 'fix';
     roleWhy = `ROIC ${pct1(roic)} is ${pts(spread!)} against the cost of capital${mainLever ? `; main lever: ${mainLever.label} (about ${money(mainLever.gap)} a year)` : '; no operating lever is below target, so the gap is the capital tied up'}.`;
@@ -437,7 +501,7 @@ function storeView(s: StoreInput, x: { factor: number; taxBps: number; wacc: num
   }
   return {
     input: s, nopatAnnual, roic, spread, role, roleWhy, levers, mainLever,
-    profitPerGallon: s.gallons ? s.netIncome / s.gallons : null, profitPerMonth: x.months ? Math.round(s.netIncome / x.months) : 0,
+    profitPerGallon: s.gallons ? s.netIncome / s.gallons : null, profitPerMonth: s.hasSales && x.months ? Math.round(s.netIncome / x.months) : null,
     laborPct, volumeChange, salesChange, trend,
   };
 }
@@ -487,6 +551,14 @@ export function evaluateGates(inp: CompassInputs, cs: CompassSettings, growthTar
     detail: inp.covenants.length ? inp.covenants.map((x) => `${x.label} ${x.actual} vs ${x.limit}${x.forecastDate ? `, forecast to break ${shortDate(x.forecastDate)}` : ''}`).join('; ') + '.' : 'No covenants on file.',
     why: badCov.map((x) => `the ${x.name.toLowerCase()} covenant on the ${x.loan[0].toLowerCase()}${x.loan.slice(1)} is ${x.status === 'breach' ? `broken (${x.actual} vs ${x.limit})` : `forecast to break on ${shortDate(x.forecastDate!)}`}`).join(' and '), to: TO.covenants,
   });
+  const b = inp.bank;
+  const lastNote = b.lastDate && b.lastDate < inp.asOf ? ` (last bank entry ${shortDate(b.lastDate)})` : '';
+  gates.push({
+    key: 'floor', stage: 'fix', label: 'Bank at or above its floor', status: st(b.accounts.length ? b.balance >= b.floor : null),
+    value: `${money(b.balance)} in the bank${lastNote}`, target: `≥ the ${money(b.floor)} floor`,
+    detail: b.accounts.map((a) => `${a.name} ${money(a.balance)} vs ${money(a.floor)}`).join('; ') + (inp.fees.count ? `. ${inp.fees.count} bank / overdraft fee charge${inp.fees.count === 1 ? '' : 's'} (${money(inp.fees.total)}) in the window.` : '.'),
+    why: `the bank is ${money(b.floor - b.balance)} below its ${money(b.floor)} floor`, to: '/bank',
+  });
   gates.push({
     key: 'reserve', stage: 'fix', label: 'Cash covers the reserve', status: st(deployable >= 0),
     value: `${money(inp.cash.cash)} cash`, target: `≥ the ${money(inp.cash.reserveTarget)} reserve target`,
@@ -517,7 +589,7 @@ export function evaluateGates(inp: CompassInputs, cs: CompassSettings, growthTar
   gates.push({
     key: 'stores', stage: 'optimize', label: 'Most stores earn more than the cost of capital', status: st(share === null ? null : share * 100 >= cs.valueStoreSharePct),
     value: measured.length ? `${creating.length} of ${measured.length} stores` : 'No store measured yet', target: `≥ ${cs.valueStoreSharePct}% of the stores past their first year with a positive spread`,
-    detail: stores.map((s) => `${s.input.code} ${s.role === 'watch' ? 'watch (ramping)' : `${pct1(s.roic)} (${s.spread === null ? '–' : pts(s.spread)})`}`).join('; ') + '. Store ROIC is before corporate overhead.',
+    detail: stores.map((s) => `${s.input.code} ${s.role === 'watch' ? (s.input.hasSales ? 'on watch' : 'no sales') : `${pct1(s.roic)} (${s.spread === null ? '–' : pts(s.spread)})`}`).join('; ') + '. Store ROIC is before corporate overhead.',
     why: `${measured.length - creating.length} of ${measured.length} stores earn less than the cost of capital`, to: '/reports/scorecards',
   });
   gates.push({
@@ -546,35 +618,6 @@ export function evaluateGates(inp: CompassInputs, cs: CompassSettings, growthTar
     detail: !inp.ramp ? 'No ramp targets entered for the newest store.' : !rl ? 'No sales yet in a target month.' : `${periodLabel(rl.period)}, ${rl.days} of ${rl.daysInMonth} days (targets prorated).`,
     why: inp.ramp && rl ? `${inp.ramp.code} is at ${pct1(rampVal)} of its ramp target` : 'the newest store has no ramp to judge', to: TO.readiness,
   });
-  // Missing evidence: say what is needed rather than judge zeros.
-  const ev = inp.evidence;
-  const unknown = (key: string, msg: string) => { const g = gates.find((x) => x.key === key)!; g.status = 'na'; g.needs = msg; g.value = `Can't tell yet: needs ${msg}`; };
-  if (!inp.ready) unknown('profit', 'a complete month of P&L (Books › Transactions)');
-  if (!ev.loans && !inp.covenants.length) unknown('covenants', 'the loans and their covenants (Assets › Loans, Debt › Covenants)');
-  if (inp.cash.reserveTarget <= 0) {
-    const r = 'a reserve target from fixed costs, fuel loads and payroll (Debt › Cash reserve)';
-    unknown('reserve', r); unknown('cushion', r); unknown('equity', r);
-  }
-  if (inp.company.capital.fixed <= 0) unknown('roic', 'fixed assets on the books to know invested capital (Assets › Fixed assets)');
-  if (!inp.ready) unknown('conversion', 'a complete month of P&L (Books › Transactions)');
-  else if (!ev.cashFlowDetail) unknown('conversion', 'balance-sheet activity (bank, payables, inventory, assets) to tell cash from profit (Bank, Payables, Assets)');
-  if (!measured.length) unknown('stores', 'each store\'s fixed assets to measure its return (Assets › Fixed assets)');
-  if (!ev.hasDeal) { const d = 'a new-store pro forma with its loan (Growth › Pro forma)'; unknown('dscrAfter', d); unknown('leverageAfter', d); }
-  else if (!ev.loans) unknown('dscrAfter', 'the loans on file for today\'s debt service (Assets › Loans)');
-  else if (!inp.ready) { unknown('dscrAfter', 'a complete month of P&L (Books › Transactions)'); unknown('leverageAfter', 'a complete month of P&L (Books › Transactions)'); }
-  if (!inp.ramp) unknown('ramp', 'ramp targets for the newest store (Growth › Expansion readiness)');
-  else if (!rl) unknown('ramp', `a month of sales at ${inp.ramp.code} in a target month`);
-  const replicateReady = gates.every((g) => g.status === 'pass');
-  const prior = [...inp.history].filter((h) => h.period < inp.period).sort((a, b) => b.period.localeCompare(a.period));
-  let held = replicateReady ? 1 : 0;
-  if (replicateReady) for (let i = 0, p = addMonthsP(inp.period, -1); i < prior.length && prior[i].period === p && prior[i].replicateReady; i++, p = addMonthsP(p, -1)) held += 1;
-  // Replicate → Scale
-  gates.push({
-    key: 'held', stage: 'replicate', label: `Replicate gates held ${cs.scaleMonths} months in a row`, status: st(held >= cs.scaleMonths),
-    value: `${held} month${held === 1 ? '' : 's'}`, target: `${cs.scaleMonths} consecutive recorded months`,
-    detail: prior.length ? `Recorded: ${prior.slice(0, 6).map((h) => `${periodLabel(h.period)} ${h.replicateReady ? 'ready' : STAGE_LABEL[h.stage]}`).join(', ')}.` : 'No earlier month recorded yet; record each month to build the history.',
-    why: `the replicate gates have held ${held} of ${cs.scaleMonths} months`, to: TO.compass,
-  });
   const after = deployable - need;
   const toFundNext = monthsToFund(need, Math.max(0, after), fcfMonthly);
   gates.push({
@@ -583,19 +626,72 @@ export function evaluateGates(inp: CompassInputs, cs: CompassSettings, growthTar
     detail: `After the next store's ${money(need)} equity, ${money(Math.max(0, after))} is left above the reserve; free cash flow is ${money(fcfMonthly)} a month.`,
     why: 'free cash flow would not fund another store soon enough', to: TO.capital,
   });
-  // The furthest stage the available evidence supports: the first rung with a failing gate. Gates that can't be judged
-  // don't block, but a store is never opened on missing evidence: with any unknown up to Replicate, the stage stops at Optimize.
+  // Missing evidence: say what is needed rather than judge zeros.
+  const ev = inp.evidence;
+  const unknown = (key: string, msg: string, detail = 'Not judged until the input is on the books.') => {
+    const g = gates.find((x) => x.key === key);
+    if (!g || g.needs) return; // the first missing input named wins
+    g.status = 'na'; g.needs = msg; g.value = `Can't tell yet: needs ${msg}`; g.detail = detail;
+  };
+  const pnl = 'a complete month of P&L (Books › Transactions)';
+  if (!inp.ready) unknown('profit', pnl);
+  if (!ev.loans && !inp.covenants.length) unknown('covenants', 'the loans and their covenants (Assets › Loans, Debt › Covenants)', 'No loans on file. Books imported from a P&L carry no loans, so whether there is debt to test is not known.');
+  if (!b.accounts.length) unknown('floor', 'a floor on the operating bank account (Setup › Accounts)');
+  else if (!b.known) unknown('floor', 'the bank balance: a statement or a balance snapshot (Bank › Import)');
+  const cashNeeds = 'bank activity, not just a P&L: import the bank statements so cash can be told from profit (Bank › Import)';
+  const placeholderNote = `The ${money(inp.cash.placeholder)} on the import's settlement clearing account is profit booked single-entry, not cash.`;
+  if (!inp.cash.known) {
+    unknown('conversion', cashNeeds, placeholderNote);
+    unknown('fund', cashNeeds, placeholderNote);
+  }
+  if (inp.cash.reserveGaps.length) {
+    const r = inp.cash.reserveGaps.join(' and ');
+    const d = `The reserve target (${money(inp.cash.reserveTarget)} so far) leaves out what the books can't supply yet; cash ${money(inp.cash.cash)}.`;
+    unknown('reserve', r, d); unknown('cushion', r, d); unknown('equity', r, d); unknown('fund', r, d);
+  } else if (inp.cash.reserveTarget <= 0) {
+    const r = 'a reserve target from fixed costs, fuel loads and payroll (Debt › Cash reserve)';
+    unknown('reserve', r); unknown('cushion', r); unknown('equity', r); unknown('fund', r);
+  }
+  if (!inp.cash.equityKnown) { const e = "the next store's equity: a new-store pro forma (Growth › Pro forma) or the next-store equity (Debt › Settings)"; unknown('equity', e); unknown('fund', e); }
+  if (inp.company.capital.fixed <= 0) unknown('roic', 'fixed assets on the books to know invested capital (Assets › Fixed assets)', `NOPAT ${money(nopatAnnual)} a year; invested capital can't be measured without the asset register.`);
+  if (!inp.ready) unknown('conversion', pnl);
+  else if (!ev.cashFlowDetail) unknown('conversion', 'balance-sheet activity (bank, payables, inventory, assets) to tell cash from profit (Bank, Payables, Assets)');
+  if (!measured.length) unknown('stores', 'each store\'s fixed assets to measure its return (Assets › Fixed assets)', stores.map((s) => `${s.input.code}: ${s.roleWhy}`).join(' '));
+  if (!ev.hasDeal) { const d = 'a new-store pro forma with its loan (Growth › Pro forma)'; unknown('dscrAfter', d); unknown('leverageAfter', d); }
+  else if (!ev.loans) { const l = 'the loans on file for today\'s debt (Assets › Loans)'; unknown('dscrAfter', l); unknown('leverageAfter', l); }
+  else if (!inp.ready) { unknown('dscrAfter', pnl); unknown('leverageAfter', pnl); }
+  if (!inp.ramp) unknown('ramp', 'ramp targets for the newest store (Growth › Expansion readiness)');
+  else if (!rl) unknown('ramp', `a month of sales at ${inp.ramp.code} in a target month`);
+  const replicateReady = gates.every((g) => g.stage === 'replicate' || g.status === 'pass');
+  const prior = [...inp.history].filter((h) => h.period < inp.period).sort((a, b) => b.period.localeCompare(a.period));
+  let held = replicateReady ? 1 : 0;
+  if (replicateReady) for (let i = 0, p = addMonthsP(inp.period, -1); i < prior.length && prior[i].period === p && prior[i].replicateReady; i++, p = addMonthsP(p, -1)) held += 1;
+  // Replicate → Scale
+  gates.splice(gates.findIndex((g) => g.key === 'fund'), 0, {
+    key: 'held', stage: 'replicate', label: `Replicate gates held ${cs.scaleMonths} months in a row`, status: st(held >= cs.scaleMonths),
+    value: `${held} month${held === 1 ? '' : 's'}`, target: `${cs.scaleMonths} consecutive recorded months`,
+    detail: prior.length ? `Recorded: ${prior.slice(0, 6).map((h) => `${periodLabel(h.period)} ${h.replicateReady ? 'ready' : STAGE_LABEL[h.stage]}`).join(', ')}.` : 'No earlier month recorded yet; record each month to build the history.',
+    why: `the replicate gates have held ${held} of ${cs.scaleMonths} months`, to: TO.compass,
+  });
+  // The furthest stage the evidence supports: the first rung with a gate that doesn't pass. A failing gate holds the
+  // company there; a gate that can't be judged holds it there too (provisionally), because a rung is only climbed on
+  // evidence. Zeros never pass or fail a gate: missing inputs are named instead.
+  for (const g of gates) if (g.status === 'na' && !g.needs) { g.needs = 'more data than these books hold'; g.value = "Can't tell yet"; }
   let stage: CompassStage = 'scale';
-  for (const k of ['fix', 'stabilize', 'optimize', 'replicate'] as CompassStage[]) if (gates.some((g) => g.stage === k && g.status === 'fail')) { stage = k; break; }
+  for (const k of ['fix', 'stabilize', 'optimize', 'replicate'] as CompassStage[]) if (gates.some((g) => g.stage === k && g.status !== 'pass')) { stage = k; break; }
   const missing = gates.filter((g) => g.status === 'na').map((g) => ({ key: g.key, label: g.label, needs: g.needs ?? 'more data' }));
-  const unknownBefore = gates.some((g) => g.status === 'na' && ['fix', 'stabilize', 'optimize'].includes(g.stage));
-  if (unknownBefore && STAGE_ORDER.indexOf(stage) > STAGE_ORDER.indexOf('optimize')) stage = 'optimize';
-  const provisional = gates.some((g) => g.status === 'na' && STAGE_ORDER.indexOf(g.stage) <= STAGE_ORDER.indexOf(stage));
+  const provisional = !gates.some((g) => g.stage === stage && g.status === 'fail') && gates.some((g) => g.stage === stage && g.status === 'na');
+  const na = (k: string) => gates.find((g) => g.key === k)!.status === 'na';
+  const withSales = inp.stores.filter((x) => x.hasSales);
   return {
     stage, gates, wacc, stores, replicateReady, held, missing, provisional,
-    company: { nopatAnnual, roic, spread, netIncomeAnnual, ebitdaAnnual, profitPerGallon: inp.company.gallons ? inp.company.netIncome / inp.company.gallons : null, profitPerStoreMonth: inp.stores.length && inp.months ? Math.round(inp.stores.reduce((a, s) => a + s.netIncome, 0) / inp.stores.length / inp.months) : null },
-    cash: { fcfAnnual, fcfMonthly, conversion, monthsToFund: toFund },
-    capacity: { dscrAfter: gates.find((g) => g.key === 'dscrAfter')!.status === 'na' ? null : dscrAfter, dscrTarget, leverageAfter: gates.find((g) => g.key === 'leverageAfter')!.status === 'na' || !Number.isFinite(leverageAfter) ? null : leverageAfter, leverageTarget },
+    company: {
+      nopatAnnual, roic: na('roic') ? null : roic, spread: na('roic') ? null : spread, netIncomeAnnual, ebitdaAnnual,
+      profitPerGallon: inp.company.gallons ? inp.company.netIncome / inp.company.gallons : null,
+      profitPerStoreMonth: withSales.length && inp.months ? Math.round(withSales.reduce((a, x) => a + x.netIncome, 0) / withSales.length / inp.months) : null,
+    },
+    cash: { fcfAnnual: inp.cash.known ? fcfAnnual : null, fcfMonthly: inp.cash.known ? fcfMonthly : null, conversion: na('conversion') ? null : conversion, monthsToFund: na('equity') ? null : toFund },
+    capacity: { dscrAfter: na('dscrAfter') ? null : dscrAfter, dscrTarget, leverageAfter: na('leverageAfter') || !Number.isFinite(leverageAfter) ? null : leverageAfter, leverageTarget },
   };
 }
 type GateResult = ReturnType<typeof evaluateGates>;
@@ -614,6 +710,20 @@ export function rankMoves(inp: CompassInputs, cs: CompassSettings, r: GateResult
     out.push({ key: `lever:${leverStore.input.storeId}`, title: `${leverStore.input.code}: close the ${l.kind === 'fuel' ? 'fuel margin' : l.kind === 'labor' ? 'labor' : 'inside margin'} gap`, why: `${l.label[0].toUpperCase()}${l.label.slice(1)}. Gap × volume ≈ ${money(l.gap)} a year.`, value: l.gap, valueKind: 'annual', to: l.to, linkLabel: l.kind === 'fuel' ? 'Fuel margin' : l.kind === 'labor' ? 'Labor' : 'Inside store', clears: failing.has('profit') || failing.has('roic') || failing.has('stores') ? [...failing].find((k) => ['profit', 'roic', 'stores'].includes(k)) : undefined });
   }
   const dep = inp.cash.deployable;
+  // Protect cash: the bank under its floor, or bank / overdraft fees being charged.
+  const b = inp.bank;
+  const below = b.accounts.length && b.known && b.balance < b.floor ? b.floor - b.balance : 0;
+  const feesAnnual = Math.round(inp.fees.total * inp.factor);
+  if (below > 0 || inp.fees.count > 0) {
+    const feeText = inp.fees.count ? `${inp.fees.count} bank / overdraft fee charge${inp.fees.count === 1 ? '' : 's'} (${money(inp.fees.total)}) ${periodLabel(inp.from)}${inp.from !== inp.period ? ` – ${periodLabel(inp.period)}` : ''}, about ${money(feesAnnual)} a year${inp.fees.accounts.length ? ` (${inp.fees.accounts.join(', ')})` : ''}` : '';
+    out.push({
+      key: 'cash', title: below > 0 ? 'Protect cash: get the bank back above its floor' : 'Stop the bank and overdraft fees',
+      why: below > 0
+        ? `${money(b.balance)} in the bank${b.lastDate ? ` at ${shortDate(b.lastDate)}` : ''} is ${money(below)} under the ${money(b.floor)} floor. Hold discretionary payments and owner draws, and time bills to deposits, until it is back above.${feeText ? ` ${feeText[0].toUpperCase()}${feeText.slice(1)}.` : ''}`
+        : `${feeText[0].toUpperCase()}${feeText.slice(1)}. Keep a buffer in the operating account and time payments to deposits so the charges stop.`,
+      value: below > 0 ? below + Math.max(0, feesAnnual) : Math.max(0, feesAnnual), valueKind: below > 0 ? 'risk' : 'annual', to: below > 0 ? '/cash/forecast' : '/books/transactions', linkLabel: below > 0 ? 'Cash forecast' : 'Transactions', clears: below > 0 ? 'floor' : undefined,
+    });
+  }
   // Head off a covenant breach.
   const bad = inp.covenants.filter((x) => x.status === 'breach' || (x.within && x.forecastDate));
   for (const x of bad) {
@@ -640,6 +750,12 @@ export function rankMoves(inp: CompassInputs, cs: CompassSettings, r: GateResult
   if (inp.proForma && (r.stage === 'replicate' || r.stage === 'scale')) {
     const pf = inp.proForma;
     out.push({ key: 'store', title: `Open store #${inp.nextStoreNumber}: ${pf.name}`, why: `Levered NPV ${money(pf.npv)}, IRR ${pct1(pf.irr)}; about ${money(pf.stabilizedCash)} a year after debt service once stabilized (year ${pf.stabilizedYear}), on ${money(pf.equity)} of equity.`, value: pf.stabilizedCash, valueKind: 'annual', to: `/growth/evaluate`, linkLabel: 'Evaluate a deal' });
+  }
+  // Missing evidence at the current rung: getting it on file is how the verdict moves at all.
+  const gap = r.gates.find((g) => g.stage === r.stage && g.status === 'na');
+  if (gap) {
+    const others = r.gates.filter((g) => g.status === 'na' && g.key !== gap.key).length;
+    out.push({ key: `evidence:${gap.key}`, title: `Put the evidence for ${GATE_SHORT[gap.key] ?? lower(gap.label)} on file`, why: `${STAGE_LABEL[r.stage]} can't be confirmed or left until ${GATE_SHORT[gap.key] ?? lower(gap.label)} can be judged: that needs ${gap.needs}.${others ? ` ${others} other gate${others === 1 ? '' : 's'} also wait${others === 1 ? 's' : ''} on data.` : ''}`, value: null, valueKind: 'risk', to: gap.to, linkLabel: 'Where to enter it' });
   }
   const rank = (m: Move) => (m.clears && failing.has(m.clears) ? 0 : 1);
   return out.sort((a, b) => rank(a) - rank(b) || (b.value ?? -1) - (a.value ?? -1));
@@ -669,7 +785,7 @@ export function buildTriggers(inp: CompassInputs, cs: CompassSettings, r: GateRe
   const at = (months: number | null) => (months === null ? null : addMonthsDate(inp.asOf, months));
   for (const g of gates) {
     let eta: { months: number | null; note: string } = { months: null, note: 'no estimate from the data on file' };
-    const fcf = r.cash.fcfMonthly;
+    const fcf = r.cash.fcfMonthly ?? 0;
     if (g.status === 'na') {
       eta = { months: null, note: `can't tell yet: needs ${g.needs}` };
     } else if (g.key === 'equity' || g.key === 'reserve' || g.key === 'cushion') {
@@ -693,6 +809,10 @@ export function buildTriggers(inp: CompassInputs, cs: CompassSettings, r: GateRe
         const k = slope > 0 ? Math.ceil((cs.rampMinPct / 100 - ys.at(-1)!) / slope) : null;
         eta = { months: k, note: k === null ? 'no estimate: the ramp is not improving' : `about ${k} month${k === 1 ? '' : 's'} at the last month's improvement` };
       }
+    } else if (g.key === 'floor') {
+      const gap = inp.bank.floor - inp.bank.balance;
+      const m = r.cash.fcfMonthly === null ? null : monthsToFund(gap, 0, fcf);
+      eta = r.cash.fcfMonthly === null ? { months: null, note: 'no estimate: free cash flow is not known on these books (the bank activity is missing)' } : { months: m, note: m === null ? 'no estimate: free cash flow is not positive' : `about ${m} month${m === 1 ? '' : 's'} if free cash flow (${money(fcf)} a month) stays in the bank` };
     } else if (g.key === 'covenants') {
       eta = { months: null, note: 'clears when no covenant is broken and the forecast stays above every limit' };
     } else if (g.key === 'held') {
@@ -706,12 +826,23 @@ export function buildTriggers(inp: CompassInputs, cs: CompassSettings, r: GateRe
   return out;
 }
 
+const lower = (t: string) => (/^[A-Z][a-z]/.test(t) ? `${t[0].toLowerCase()}${t.slice(1)}` : t);
+/** Short names for the verdict sentence. */
+export const GATE_SHORT: Record<string, string> = {
+  profit: 'profit', covenants: 'the covenants', floor: 'the bank floor', reserve: 'the reserve', roic: 'ROIC against WACC', conversion: 'cash conversion',
+  cushion: 'the reserve cushion', stores: 'the stores creating value', dscrAfter: 'DSCR after a new loan', leverageAfter: 'leverage after the deal',
+  equity: 'equity on hand', ramp: "the newest store's ramp", held: 'months held', fund: 'funding the store after next',
+};
+const andList = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
 const sentenceOf = (stage: CompassStage, gates: Gate[]) => {
   const fails = gates.filter((g) => g.stage === stage && g.status === 'fail');
   const unknown = gates.filter((g) => g.status === 'na');
-  const tail = unknown.length ? ` Can't tell yet: ${unknown.map((g) => `${g.label[0].toLowerCase()}${g.label.slice(1)} (needs ${g.needs})`).join('; ')}.` : '';
+  const tail = unknown.length ? ` ${unknown.length} gate${unknown.length === 1 ? " can't" : "s can't"} be judged on these books yet; what each needs is listed below.` : '';
   if (stage === 'scale') return 'Scale: every gate passes, has held for months, and cash funds the next store quickly.';
-  if (!fails.length) return `${STAGE_LABEL[stage]}, provisionally: every gate with evidence passes up to here, but some can't be judged on these books.${tail}`;
+  if (!fails.length) {
+    const here = unknown.filter((g) => g.stage === stage).map((g) => GATE_SHORT[g.key] ?? g.label);
+    return `${STAGE_LABEL[stage]}, provisionally: nothing on the books fails here, but ${andList(here)} can't be judged yet, so the evidence goes no further.${tail}`;
+  }
   return `${STAGE_LABEL[stage]}: ${fails.map((g) => g.why).join('; ')}.${tail}`;
 };
 
@@ -785,7 +916,7 @@ export function assumptions(v: Verdict): Assumption[] {
   const i = v.inputs, s = v.settings;
   const ic = i.company.capital;
   return [
-    { key: 'window', label: 'Window', formula: `The covenant headline month and its trailing window, ${i.basis} basis${i.annualized ? `; annualized × ${i.factor.toFixed(1)} from ${i.months} month${i.months === 1 ? '' : 's'}, not a true trailing year` : ''}. There is no prior year on these books, so nothing is compared with last year.`, value: `${periodLabel(i.from)} – ${periodLabel(i.period)}`, setting: 'basis' },
+    { key: 'window', label: 'Window', formula: `The covenant headline month and its trailing window, ${i.basis} basis${i.annualized ? `; annualized × ${i.factor.toFixed(1)} from ${i.months} month${i.months === 1 ? '' : 's'}, not a true trailing year` : ''}. ${i.hasPriorYear ? '' : ` There is no prior year on these books (they start ${i.firstPeriod ? periodLabel(i.firstPeriod) : 'with no entries'}), so nothing is compared with last year: trends are month over month and against the budget.`}`, value: `${periodLabel(i.from)} – ${periodLabel(i.period)}`, setting: 'basis' },
     { key: 'ke', label: 'Cost of equity', formula: 'A judgement call: what the owners could earn on money at this risk elsewhere. Not from the books.', value: `${(s.costOfEquityBps / 100).toFixed(2)}%`, setting: 'costOfEquityBps' },
     { key: 'tax', label: 'Tax rate', formula: `Used for NOPAT and the debt tax shield. ${i.tax.source}.`, value: `${(i.tax.rateBps / 100).toFixed(2)}%`, setting: 'taxRateBps' },
     { key: 'kd', label: 'After-tax cost of debt', formula: 'Weighted-average cost of company debt (Debt dashboard, balance-weighted) × (1 − tax rate). Related-party mortgages are not on our books: their cost sits in rent.', value: v.wacc.afterTaxDebt === null ? 'No company debt' : `${pct1(v.wacc.preTaxDebt)} × (1 − ${(i.tax.rateBps / 100).toFixed(1)}%) = ${(v.wacc.afterTaxDebt * 100).toFixed(2)}%` },
@@ -793,17 +924,19 @@ export function assumptions(v: Verdict): Assumption[] {
     { key: 'nopat', label: 'NOPAT', formula: '(EBITDA − depreciation) less tax at the rate when positive, × the annualizing factor. EBITDA = net income + interest (6500) + depreciation and disposals (6400 / 6410).', value: `(${money(i.company.ebitda)} − ${money(i.company.depreciation)}) × (1 − tax) × ${i.factor.toFixed(1)} = ${money(v.company.nopatAnnual)}` },
     { key: 'ic', label: 'Invested capital', formula: 'Net fixed assets + inventory + operating working capital (cash on hand, card and supplier clearing, receivables, prepaids − payables − accrued) from the balance sheet at the month end. Bank cash and intercompany balances are left out. Store figures are before corporate overhead.', value: `${money(ic.fixed)} + ${money(ic.inventory)} + ${money(ic.workingCapital)} = ${money(ic.total)}` },
     { key: 'roic', label: 'ROIC and spread', formula: 'ROIC = NOPAT ÷ invested capital. Spread = ROIC − WACC; positive means value is created.', value: `${pct1(v.company.roic)} − ${pct1(v.wacc.wacc)} = ${v.company.spread === null ? '–' : pts(v.company.spread)}` },
-    { key: 'fcf', label: 'Free cash flow', formula: 'Operating cash flow − capex (purchases of fixed assets) from the cash flow statement, annualized. Working-capital swings in a short history can flatter or hurt it.', value: `${money(i.cash.operating)} − ${money(-i.cash.capex)} = ${money(i.cash.fcf)} (${money(v.cash.fcfAnnual)} a year)` },
+    { key: 'fcf', label: 'Free cash flow', formula: 'Operating cash flow − capex (purchases of fixed assets) from the cash flow statement, annualized. Working-capital swings in a short history can flatter or hurt it.', value: v.cash.fcfAnnual === null ? `Can't tell yet: ${i.cash.placeholder ? `${money(i.cash.placeholder)} of profit sits on the import's settlement clearing, not in the bank` : 'no bank activity'}` : `${money(i.cash.operating)} − ${money(-i.cash.capex)} = ${money(i.cash.fcf)} (${money(v.cash.fcfAnnual)} a year)` },
+    { key: 'floor', label: 'Bank floor', formula: 'The operating bank account’s balance today against the floor set on the account (Setup › Accounts). Below it, the stage is Fix and protecting cash is a move.', value: i.bank.accounts.length ? `${money(i.bank.balance)} vs ${money(i.bank.floor)}` : 'No floor set' },
+    { key: 'fees', label: 'Bank and overdraft fees', formula: 'Charges on 6310 Bank fees and on any account named for overdraft, bank or NSF fees, in the window; annualized for the cash move.', value: `${i.fees.count} charge${i.fees.count === 1 ? '' : 's'}, ${money(i.fees.total)}` },
     { key: 'conv', label: 'Cash conversion', formula: 'Free cash flow ÷ EBITDA over the same months.', value: `${pct1(v.cash.conversion)} (gate ≥ ${s.cashConversionMinPct}%)`, setting: 'cashConversionMinPct' },
     { key: 'cushion', label: 'Reserve cushion', formula: 'Cash above the reserve target (Debt › Cash reserve) as a share of the target; below it the reserve is thin.', value: `≥ ${s.reserveCushionPct}%`, setting: 'reserveCushionPct' },
-    { key: 'fund', label: 'Months to fund', formula: '(Equity needed − cash above the reserve) ÷ free cash flow a month, rounded up.', value: v.cash.monthsToFund === null ? 'Not at the current pace' : `${v.cash.monthsToFund} months` },
+    { key: 'fund', label: 'Months to fund', formula: '(Equity needed − cash above the reserve) ÷ free cash flow a month, rounded up.', value: v.cash.monthsToFund === null ? (v.gates.find((g) => g.key === 'equity')?.status === 'na' ? "Can't tell yet" : 'Not at the current pace') : `${v.cash.monthsToFund} months` },
     { key: 'stores', label: 'Stores creating value', formula: 'Share of stores past their first year whose spread is positive.', value: `≥ ${s.valueStoreSharePct}%`, setting: 'valueStoreSharePct' },
     { key: 'dscr', label: 'DSCR after the new loan', formula: '(EBITDA + the deal pro forma’s year-1 EBITDA) ÷ (debt service + its year-1 debt service), as Expansion readiness.', value: `≥ ${v.capacity.dscrTarget.toFixed(2)}x${s.dscrAfterTarget === undefined ? ' (growth DSCR target)' : ''}`, setting: 'dscrAfterTarget' },
     { key: 'lev', label: 'Leverage after the deal', formula: '(Loans + the new loan) ÷ (EBITDA + the deal’s year-1 EBITDA).', value: `≤ ${v.capacity.leverageTarget.toFixed(2)}x${s.leverageAfterTarget === undefined ? ' (growth leverage target)' : ''}`, setting: 'leverageAfterTarget' },
     { key: 'ramp', label: 'Ramp', formula: 'The newest store’s latest month against its ramp targets (prorated by days with sales); the lower of gallons and inside.', value: `≥ ${s.rampMinPct}%`, setting: 'rampMinPct' },
     { key: 'scale', label: 'Scale', formula: 'Replicate gates held for N recorded months in a row, and after funding the next store, free cash flow funds the one after within M months.', value: `N = ${s.scaleMonths}, M = ${s.scaleFundMonths}`, setting: 'scaleMonths' },
     { key: 'scalefund', label: 'Scale funding window', formula: 'Months of free cash flow allowed to fund the store after next.', value: `${s.scaleFundMonths} months`, setting: 'scaleFundMonths' },
-    { key: 'roles', label: 'Store roles', formula: `Watch: open under ${s.watchMonths} months. Fix: spread below zero (main lever = the biggest of fuel ¢/gal under the ${i.targets.fuelCpg}¢ scorecard target × gallons, labor % over the store target × sales, inside margin under ${i.targets.insideGmPct}% × inside sales). Grow: spread ≥ ${s.growSpreadPts} pts and gallons up ≥ ${s.growVolumePct}% on the month before. Harvest: the rest.`, value: `${s.growSpreadPts} pts / ${s.growVolumePct}%`, setting: 'growSpreadPts' },
+    { key: 'roles', label: 'Store roles', formula: `Watch: open under ${s.watchMonths} months, no sales in the window, or no fixed assets to measure a return. Fix: spread below zero (main lever = the biggest of fuel ¢/gal under the ${i.targets.fuelCpg}¢ scorecard target × gallons, labor % over the store target × sales, inside margin under ${i.targets.insideGmPct}% × inside sales). Grow: spread ≥ ${s.growSpreadPts} pts and gallons up ≥ ${s.growVolumePct}% on the month before. Harvest: the rest.`, value: `${s.growSpreadPts} pts / ${s.growVolumePct}%`, setting: 'growSpreadPts' },
     { key: 'growvol', label: 'Grow: volume rising', formula: 'Gallons up at least this much on the month before.', value: `${s.growVolumePct}%`, setting: 'growVolumePct' },
     { key: 'watch', label: 'Watch: months open', formula: 'A store open fewer months than this is judged on its ramp.', value: `${s.watchMonths} months`, setting: 'watchMonths' },
     { key: 'shock', label: 'Sensitivity', formula: 'Fuel margin moved by ±N¢ on every gallon, or gallons by ±M% at today’s margin; inside sales, costs, covenants and the reserve held. Flows straight to EBITDA, profit and free cash flow.', value: `±${s.shockCpg}¢, ±${s.shockGallonsPct}%`, setting: 'shockCpg' },

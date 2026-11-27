@@ -154,6 +154,8 @@ docs/          HOW-TO.md (one note per screen), DECISIONS.md
 - **Capacity.** The bank's view: DSCR and leverage after a typical new-store loan.
 - **Stage gates.** Explicit, written-down thresholds, each pass or fail with the actual number, so the decision to grow is a checklist rather than a feeling. The thresholds are editable and logged.
 - **Prove it twice.** Scale (a pipeline of stores) needs the gates to hold for months in a row and cash to fund the next store quickly.
+- **Decide on evidence, not on zeros.** A gate whose input isn't on the books (no loans, no asset register, no bank activity) says "can't tell yet" and what it needs; the stage stops at the first rung the evidence can't confirm.
+- **Cash first.** Before anything else: the bank above its floor and no overdraft fees; below the floor the stage is Fix and protecting cash is the first move.
 
 ## What Phase 12 adds
 
@@ -276,6 +278,6 @@ Working papers for the CPA, not tax advice: rates, lives and thresholds are conf
 - Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). Tax depreciation and the covenant monitor come in phases 11 and 12.
 - QuickBooks syncs by file: the live QBO API (OAuth, webhooks, real ids) needs the hosted back end. Recurring entries and reversals are generated when someone presses the button (the inbox says when), not on a timer.
 - Ask understands a fixed set of question patterns (no language model, no back end). Vault documents are indexed by their metadata, not their contents (no OCR). The covenant monitor and the risk register come in phases 12 and 14.
-- Growth compass: store ROIC is before corporate overhead; with fewer than 3 complete months there is no EBITDA trend, so most trigger dates say no estimate; the cost of equity is a judgement call.
+- Growth compass: store ROIC is before corporate overhead; with fewer than 3 complete months there is no EBITDA trend, so most trigger dates say no estimate; the cost of equity is a judgement call; books with no loans on file can't pass the covenant gate yet (there is no "no debt" declaration).
 - Growth: pro formas are pre-tax and assume a balloon is refinanced on the same amortization; same-store and TTM checks need more history than the demo has; valuation multiples are entered, not market data.
 - Tax: only ordinary income is allocated to owners (no separately stated items, QBI or state apportionment); partner basis leaves out liabilities; the books start in September, so earlier book income is entered.

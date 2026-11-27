@@ -717,9 +717,15 @@ export function onePayroll(state: BooksState, asOf: string): { amount: Cents; we
   return { amount: Math.round(tot / weeks.length), weeks };
 }
 
+/**
+ * Placeholder clearing accounts: the other side of single-entry imports (StationBooks posts every sale and expense
+ * against 1095). Their balance is accumulated profit, not money, so reserve cash leaves them out.
+ */
+export const PLACEHOLDER_CLEARING: ID[] = ['acct_sb_settlement'];
+
 export function reserveCash(state: BooksState, asOf: string): Cents {
   const subs = debtOf(state).settings.reserve.cashSubtypes;
-  return [...balancesAt(state, accountsOfSubtype(state, subs), asOf).values()].reduce((a, b) => a + b, 0);
+  return [...balancesAt(state, accountsOfSubtype(state, subs).filter((id) => !PLACEHOLDER_CLEARING.includes(id)), asOf).values()].reduce((a, b) => a + b, 0);
 }
 
 /** Target = N weeks of fixed costs + one fuel load per fuel-selling store + one payroll + cushion. Cash above it is deployable. */

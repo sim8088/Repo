@@ -11,6 +11,7 @@ import { covenantMetrics, debtOf, headlineMetrics, reserveTarget, debtDashboard 
 import { ownerRateBps } from './tax';
 import type { BalanceSheet } from './statements';
 import type { BooksState, CompassSettings } from './types';
+import { importStationBooks, type SBSnapshot } from '../data/stationbooks';
 
 const T = '2026-11-27';
 const demo = buildDemo();
@@ -23,7 +24,7 @@ const GT = { dscr: 125, leverage: 350 };
 function store(x: Partial<StoreInput> & { code: string }): StoreInput {
   return {
     storeId: `st_${x.code.toLowerCase()}`, name: x.code, monthsOpen: null, sales: 20_000_000, netIncome: 0, interest: 0, depreciation: 0, ebitda: 0, labor: 1_600_000,
-    insideSales: 5_000_000, insideGp: 1_500_000, gallons: 0, fuelMargin: 0, fuelCpg: 30, laborTargetPct: 10, breakEvenSafety: 0.1,
+    insideSales: 5_000_000, insideGp: 1_500_000, hasSales: true, gallons: 0, fuelMargin: 0, fuelCpg: 30, fuelSource: 'fuel', laborTargetPct: 10, breakEvenSafety: 0.1,
     capital: { fixed: 0, inventory: 0, workingCapital: 0, total: 0 }, monthly: [], budget: null, traffic: null, ...x,
   };
 }
@@ -38,10 +39,13 @@ function base(): CompassInputs {
       store({ code: 'B', netIncome: 1_100_000, ebitda: 1_500_000, depreciation: 400_000, gallons: 30_000, fuelMargin: 900_000, capital: cap(60_000_000), monthly: [{ period: '2026-09', sales: 20_000_000, net: 1_000_000, gallons: 30_000 }, { period: '2026-10', sales: 20_000_000, net: 1_100_000, gallons: 30_000 }] }),
       store({ code: 'D', monthsOpen: 2, openedOn: '2026-09-15', netIncome: -500_000, ebitda: -500_000, capital: cap(10_000_000) }),
     ],
+    firstPeriod: '2026-10', hasPriorYear: false,
+    bank: { known: true, balance: 50_000_000, floor: 3_000_000, lastDate: '2026-11-26', accounts: [{ id: 'acct_bank', name: 'Operating', balance: 50_000_000, floor: 3_000_000 }] },
+    fees: { count: 0, total: 0, accounts: [] },
     monthlyCompany: [{ period: '2026-10', ebitda: 6_500_000, net: 5_000_000, sales: 100_000_000 }],
     tax: { rateBps: 2500, source: 'test' },
     capitalStructure: { debt: 100_000_000, equity: 200_000_000, wacdBps: 800, loans: [] },
-    cash: { operating: 5_000_000, capex: -1_000_000, fcf: 4_000_000, reserveTarget: 20_000_000, cash: 60_000_000, deployable: 40_000_000, equityNeed: 30_000_000, equitySource: 'test deal' },
+    cash: { operating: 5_000_000, capex: -1_000_000, fcf: 4_000_000, reserveTarget: 20_000_000, cash: 60_000_000, deployable: 40_000_000, equityNeed: 30_000_000, equitySource: 'test deal', known: true, placeholder: 0, reserveGaps: [], equityKnown: true },
     covenants: [{ key: 'c1', kind: 'dscr', label: 'Note: DSCR', loan: 'Note', name: 'DSCR', status: 'ok', actual: '3.90x', limit: '≥ 1.25x', forecastDate: null, within: false }],
     capacity: { dscr: 3.9, ebitdaAnnual: 78_000_000, debtServiceAnnual: 20_000_000, debt: 100_000_000, addedDebtService: 15_000_000, addedEbitda: 20_000_000, newLoan: 150_000_000, dealName: 'Deal', dealId: 'pf1' },
     ramp: { code: 'D', rows: [{ period: '2026-10', gallonsPct: 1.05, insidePct: 1.02, days: 31, daysInMonth: 31 }] },
@@ -330,7 +334,7 @@ describe('the demo verdict', () => {
     expect(i.cash.fcf).toBe(i.cash.operating + i.cash.capex);
     const r = reserveTarget(demo, T, { entries });
     expect(i.cash.deployable).toBe(r.deployable);
-    expect(v.cash.monthsToFund).toBe(Math.ceil((i.cash.equityNeed - r.deployable) / v.cash.fcfMonthly));
+    expect(v.cash.monthsToFund).toBe(Math.ceil((i.cash.equityNeed - r.deployable) / v.cash.fcfMonthly!));
     const t = v.triggers.find((x) => x.gate === 'equity')!;
     expect(t.etaDate).toBe(addMonthsDate(T, v.cash.monthsToFund!));
   });
@@ -340,6 +344,13 @@ describe('the demo verdict', () => {
     expect(r.firstFlip!.key).toBe('roic');
     expect(r.firstFlip!.cpg!).toBeLessThan(0);
   });
+  it('has no NaN or Infinity anywhere; HM17 (opened after the window) is on Watch', () => {
+    expect(badNumbers({ v, sens: compassSensitivity(i, v.settings, GT), a: assumptions(v), rows: compassRows(v) })).toEqual([]);
+    expect(v.stores.find((s) => s.input.code === 'HM17')!.roleWhy).toBe('Opened Nov 1, 2026, under 12 months: judged on its ramp, not its returns (no sales in the window yet).');
+    expect(v.gates.find((g) => g.key === 'floor')!.status).toBe('pass');
+    expect(v.missing).toEqual([]);
+    expect(v.provisional).toBe(false);
+  });
   it('explains every formula, exports every section, and records the month', () => {
     const a = assumptions(v);
     expect(a.find((x) => x.key === 'window')!.formula).toContain('no prior year');
@@ -347,6 +358,181 @@ describe('the demo verdict', () => {
     const rows = compassRows(v);
     expect(rows[0]).toEqual(['Verdict', 'Stage', 'Fix', v.sentence, '']);
     expect(rows.filter((r) => r[0] === 'Gate')).toHaveLength(v.gates.length);
+  });
+});
+
+// ── Cash protection, missing evidence, no sales ──────────────────────────
+describe('cash protection and missing evidence', () => {
+  it('the bank under its floor is Fix, and protecting cash is the first move with a date to get back', () => {
+    const i = base(); i.bank = { ...i.bank, balance: 2_000_000, accounts: [{ ...i.bank.accounts[0], balance: 2_000_000 }] };
+    const v = verdict(i);
+    expect(v.stage).toBe('fix');
+    expect(v.gates.find((g) => g.key === 'floor')!.status).toBe('fail');
+    expect(v.sentence).toBe('Fix: the bank is $10,000 below its $30,000 floor.');
+    expect(v.moves[0]).toMatchObject({ key: 'cash', clears: 'floor', value: 1_000_000, valueKind: 'risk', to: '/cash/forecast' });
+    const t = v.triggers.find((x) => x.gate === 'floor')!;
+    expect(t.eta).toBe('about 1 month if free cash flow ($40,000 a month) stays in the bank'); // $10,000 gap ÷ $40,000 a month
+    expect(t.etaDate).toBe('2026-12-27');
+  });
+  it('bank and overdraft fees are counted, annualized and become a move', () => {
+    const i = base(); i.fees = { count: 3, total: 10_500, accounts: ['Overdraft Fees'] };
+    const v = verdict(i);
+    const m = rankMoves(i, S, evaluateGates(i, S, GT)).find((x) => x.key === 'cash')!;
+    expect(m.title).toBe('Stop the bank and overdraft fees');
+    expect(m.value).toBe(126_000); // $105 in one month × 12
+    expect(m.why).toContain('3 bank / overdraft fee charges ($105)');
+    expect(v.gates.find((g) => g.key === 'floor')!.detail).toContain('3 bank / overdraft fee charges ($105)');
+  });
+  it("a gate without its input can't pass: the stage stops on that rung, provisionally, and says what is missing", () => {
+    const i = base(); i.covenants = []; i.evidence = { ...i.evidence, loans: 0 };
+    const v = verdict(i);
+    expect(v.stage).toBe('fix');
+    expect(v.provisional).toBe(true);
+    const g = v.gates.find((x) => x.key === 'covenants')!;
+    expect(g.status).toBe('na');
+    expect(g.value).toBe("Can't tell yet: needs the loans and their covenants (Assets › Loans, Debt › Covenants)");
+    expect(v.sentence).toBe("Fix, provisionally: nothing on the books fails here, but the covenants can't be judged yet, so the evidence goes no further. 3 gates can't be judged on these books yet; what each needs is listed below.");
+    expect(v.missing.map((x) => x.key)).toEqual(['covenants', 'dscrAfter', 'leverageAfter']); // no loans: no debt service today either
+    expect(v.moves.some((x) => x.key === 'evidence:covenants')).toBe(true);
+    // No fixed assets: ROIC can't be judged, so the verdict claims nothing beyond Stabilize.
+    const j = base(); j.company.capital = { fixed: 0, inventory: 0, workingCapital: 5_000_000, total: 5_000_000 };
+    const w = verdict(j);
+    expect(w.gates.find((x) => x.key === 'roic')!.status).toBe('na');
+    expect(w.company.roic).toBeNull();
+    expect(w.stage).toBe('stabilize');
+    expect(w.provisional).toBe(true);
+    // Cash that is really single-entry profit: conversion and the scale funding can't be judged.
+    const k = base(); k.cash.known = false; k.cash.placeholder = 4_000_000;
+    const x = verdict(k);
+    expect(x.gates.find((g) => g.key === 'conversion')!.status).toBe('na');
+    expect(x.cash.fcfAnnual).toBeNull();
+    expect(x.stage).toBe('stabilize');
+    // A reserve the books can only partly size can't be judged either.
+    const r = base(); r.cash.reserveGaps = ['payroll runs to size one payroll (People › Payroll)'];
+    expect(['reserve', 'cushion', 'equity'].map((key) => verdict(r).gates.find((g) => g.key === key)!.status)).toEqual(['na', 'na', 'na']);
+  });
+  it('a store with no sales is on Watch, never judged on zeros', () => {
+    const i = base();
+    i.stores.push(store({ code: 'Z', sales: 0, hasSales: false, labor: 0, insideSales: 0, insideGp: 0, capital: cap(50_000_000) }));
+    const z = verdict(i).stores.find((s) => s.input.code === 'Z')!;
+    expect(z.role).toBe('watch');
+    expect(z.roleWhy).toBe('No sales recorded in the window: nothing to judge yet.');
+    expect(z.roic).toBeNull();
+    expect(z.profitPerMonth).toBeNull();
+    expect(verdict(i).company.profitPerStoreMonth).toBe(Math.round((3_500_000 + 1_100_000 - 500_000) / 3));
+  });
+});
+
+// ── Imported StationBooks books ──────────────────────────────────────────
+/** The synthetic export from stationbooks.test.ts (no real data), plus an overdraft fee and a bank balance to vary. */
+function sbSnap(bankCents = 4_500_000): SBSnapshot {
+  return {
+    format: 'stationbooks-export',
+    exportedAt: '2026-11-27T12:00:00.000Z',
+    meta: {
+      stores: { items: [{ id: 'sA', code: 'HM11', name: 'Store A' }, { id: 'sC', code: 'CORP', name: 'Corp', isCorporate: true }, { id: 'sX', code: 'PERS', name: 'Personal', isCorporate: true }] },
+      categories: { items: [
+        { id: 'gFuel', name: 'Fuel Sales', classification: 'REVENUE', parentId: null },
+        { id: 'cReg', name: 'Regular', classification: 'REVENUE', parentId: 'gFuel', isFuel: true },
+        { id: 'cCom', name: 'Diesel - COMDATA', classification: 'REVENUE', parentId: 'gFuel', isFuel: true },
+        { id: 'gIn', name: 'Inside Sales', classification: 'REVENUE', parentId: null },
+        { id: 'cBeer', name: 'Beer', classification: 'REVENUE', parentId: 'gIn' },
+        { id: 'gFc', name: 'Fuel COGS', classification: 'COGS', parentId: null },
+        { id: 'cFc', name: 'Fuel Purchases', classification: 'COGS', parentId: 'gFc' },
+        { id: 'gPay', name: 'Payroll', classification: 'OPERATING_EXPENSE', parentId: null },
+        { id: 'cWag', name: 'Wages', classification: 'OPERATING_EXPENSE', parentId: 'gPay' },
+        { id: 'gFin', name: 'Financial Expenses', classification: 'OPERATING_EXPENSE', parentId: null },
+        { id: 'cCard', name: 'Credit Card / Merchant Fees', classification: 'OPERATING_EXPENSE', parentId: 'gFin' },
+        { id: 'cOd', name: 'Overdraft Fees', classification: 'OPERATING_EXPENSE', parentId: 'gFin' },
+      ] },
+      vendors: { items: [{ id: 'v1', name: 'Fuel Supplier' }] },
+      settings: { company: { name: 'Demo Co', fiscalYearStartMonth: 1 } },
+    },
+    ledger: [
+      { storeId: 'sA', month: '2026-10', txns: [
+        { id: 't1', type: 'SALE', amountCents: 1_000_000, categoryId: 'cReg', storeId: 'sA', date: '2026-10-31', gallons: 3000 },
+        { id: 't2', type: 'SALE', amountCents: 200_000, categoryId: 'cCom', storeId: 'sA', date: '2026-10-31', gallons: 500 },
+        { id: 't3', type: 'SALE', amountCents: 300_000, categoryId: 'cBeer', storeId: 'sA', date: '2026-10-31' },
+        { id: 't4', type: 'EXPENSE', amountCents: 900_000, categoryId: 'cFc', storeId: 'sA', date: '2026-10-05', vendorId: 'v1', invoiceNumber: 'INV-1' },
+        { id: 't5', type: 'EXPENSE', amountCents: 150_000, categoryId: 'cWag', storeId: 'sA', date: '2026-10-09', checkNumber: '1001' },
+        { id: 't6', type: 'EXPENSE', amountCents: 25_000, categoryId: 'cCard', storeId: 'sA', date: '2026-10-12' },
+        { id: 't7', type: 'EXPENSE', amountCents: -5_000, categoryId: 'cCard', storeId: 'sA', date: '2026-10-20', description: 'Fee refund' },
+        { id: 't8', type: 'EXPENSE', amountCents: 3_500, categoryId: 'cOd', storeId: 'sA', date: '2026-10-14' },
+        { id: 't9', type: 'EXPENSE', amountCents: 3_500, categoryId: 'cOd', storeId: 'sA', date: '2026-10-22' },
+      ] },
+      { storeId: 'sX', month: '2026-10', txns: [{ id: 'p1', type: 'EXPENSE', amountCents: 10_000, categoryId: 'cWag', storeId: 'sX', date: '2026-10-02' }] },
+    ],
+    accounts: { items: [{ id: 'b1', kind: 'BANK', name: 'Operating' }] },
+    balances: { items: [{ accountId: 'b1', balanceCents: bankCents, date: '2026-10-31' }] },
+    parties: { items: [{ id: 'r1', name: 'Related Co', kind: 'RELATED_COMPANY' }] },
+  };
+}
+/** Every number anywhere in a value is finite. */
+function badNumbers(x: unknown, path = '$', out: string[] = []): string[] {
+  if (typeof x === 'number') { if (!Number.isFinite(x)) out.push(`${path} = ${x}`); }
+  else if (typeof x === 'string') { if (/NaN|Infinity/.test(x)) out.push(`${path} = "${x}"`); }
+  else if (Array.isArray(x)) x.forEach((v, k) => badNumbers(v, `${path}[${k}]`, out));
+  else if (x && typeof x === 'object') for (const [k, v] of Object.entries(x)) badNumbers(v, `${path}.${k}`, out);
+  return out;
+}
+
+describe('the compass on imported StationBooks books', () => {
+  const { state } = importStationBooks(sbSnap());
+  const v = growthCompass(state, T);
+  const gate = (k: string) => v.gates.find((g) => g.key === k)!;
+  it('gives a verdict on the evidence there is and names what is missing', () => {
+    expect(v.stage).toBe('fix');
+    expect(v.provisional).toBe(true);
+    expect(gate('profit').status).toBe('pass'); // the booked P&L is there
+    expect(gate('floor').status).toBe('pass'); // $45,000 snapshot ≥ $30,000
+    expect(gate('floor').value).toBe('$45,000 in the bank (last bank entry Oct 31, 2026)');
+    expect(v.sentence).toMatch(/^Fix, provisionally: nothing on the books fails here, but the covenants and the reserve can't be judged yet/);
+    const missing = v.missing.map((m) => m.key);
+    expect(missing).toEqual(expect.arrayContaining(['covenants', 'reserve', 'roic', 'conversion', 'cushion', 'stores', 'dscrAfter', 'leverageAfter', 'equity', 'ramp', 'fund']));
+    for (const g of v.gates.filter((x) => x.status === 'na')) expect(g.value).toMatch(/^Can't tell yet: needs .+\(.+›.+\)/);
+    expect(gate('reserve').needs).toContain('payroll runs');
+    expect(gate('reserve').needs).toContain('fuel invoices for HM11');
+    expect(gate('conversion').needs).toContain('bank activity');
+  });
+  it('has no NaN or Infinity anywhere, in the verdict, the sensitivity, the assumptions or the export', () => {
+    const sens = compassSensitivity(v.inputs, v.settings, GT);
+    expect(badNumbers({ v, sens, a: assumptions(v), rows: compassRows(v) })).toEqual([]);
+  });
+  it('reads the P&L as booked: fuel margin from the imported fuel cost, labor, and no invented cash', () => {
+    const hm11 = v.stores.find((s) => s.input.code === 'HM11')!;
+    expect(hm11.input.fuelSource).toBe('pnl');
+    expect(hm11.input.fuelMargin).toBe(1_200_000 - 900_000);
+    expect(hm11.input.gallons).toBe(3500);
+    expect(hm11.input.labor).toBe(150_000);
+    expect(hm11.role).toBe('watch'); // no asset register: no return to measure
+    expect(hm11.roic).toBeNull();
+    expect(v.stores.filter((s) => s.input.code !== 'HM11').every((s) => s.role === 'watch' && !s.input.hasSales)).toBe(true);
+    // The 1095 settlement clearing is profit, not money: out of cash, the reserve and invested capital.
+    expect(v.inputs.cash.placeholder).toBe(v.inputs.company.netIncome);
+    expect(v.inputs.cash.cash).toBe(4_500_000);
+    expect(v.inputs.company.capital.workingCapital).toBe(0);
+    expect(v.inputs.cash.known).toBe(false);
+    expect(v.cash.fcfAnnual).toBeNull();
+    expect(v.wacc.wacc).toBe(0.15); // no loans on file: all equity
+  });
+  it('counts the overdraft fees and sizes them', () => {
+    expect(v.inputs.fees).toEqual({ count: 2, total: 7_000, accounts: ['Overdraft Fees (Financial Expenses)'] });
+    const m = v.moves.find((x) => x.key === 'cash')!;
+    expect(m.title).toBe('Stop the bank and overdraft fees');
+    expect(m.value).toBe(84_000); // $70 in one month × 12
+  });
+  it('a snapshot balance under $30,000 fails the bank floor gate, and protecting cash comes first', () => {
+    const low = growthCompass(importStationBooks(sbSnap(2_500_000)).state, T);
+    const g = low.gates.find((x) => x.key === 'floor')!;
+    expect(g.status).toBe('fail');
+    expect(g.value).toBe('$25,000 in the bank (last bank entry Oct 31, 2026)');
+    expect(low.stage).toBe('fix');
+    expect(low.provisional).toBe(false);
+    expect(low.sentence).toMatch(/^Fix: the bank is \$5,000 below its \$30,000 floor\. \d+ gates can't be judged on these books yet/);
+    expect(low.moves[0].key).toBe('cash');
+    expect(low.moves[0].value).toBe(500_000 + 84_000);
+    expect(low.triggers.find((t) => t.gate === 'floor')!.eta).toContain('free cash flow is not known');
+    expect(badNumbers(low)).toEqual([]);
   });
 });
 
