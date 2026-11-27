@@ -7,7 +7,7 @@ const PHASES: { n: number; name: string; status: 'built' | 'next' | 'planned'; i
   { n: 3, name: 'Fuel', status: 'next', items: 'Invoices and BOLs, Craddock notice import and netting, Dash clearing, truck lane (Comdata, Mudflap, Fiserv), gallons and margin, tank variance.' },
   { n: 4, name: 'Reports', status: 'planned', items: 'P&L on cash and accrual with the bridge, balance sheet, cash flow, command center, store scorecards, PDF and Excel exports.' },
   { n: 5, name: 'Intercompany & payables', status: 'planned', items: 'Party ledgers and statements, bills inbox, AP aging, utilities tracker, payment calendar.' },
-  { n: 6, name: 'People', status: 'planned', items: 'Gusto import, cash payroll, week-over-week review, labor %, payroll tax tracker.' },
+  { n: 6, name: 'People', status: 'built', items: 'Employees with approved rate changes, Gusto run import that ties to the report and posts per SPEC §6.7, cash and check pay matched by employee and week, weekly review with the 15% flag, labor % of sales, payroll tax tracker with the 941 and W-2 / 1099 checklists.' },
   { n: 7, name: 'Inside & kitchen', status: 'planned', items: 'POS import, department margin, purchasing budgets, inventory counts, food cost and waste.' },
   { n: 8, name: 'Budgets & close', status: 'planned', items: 'Budgets, forecasts and scenarios; month-end checklist, period lock gate, close binder.' },
   { n: 9, name: 'Compliance, assets & ask', status: 'planned', items: 'Tax calendar, licenses, document vault, fixed assets and loans, natural-language questions with proof.' },
@@ -31,6 +31,7 @@ export function Roadmap() {
         </table></div>
       </section>
       <p className="muted small" style={{ marginTop: 12 }}>Phase 1 screens: <Link to="/">My day</Link>, <Link to="/books/transactions">Transactions</Link>, <Link to="/reports/trial-balance">Trial balance</Link>, <Link to="/reports/pnl">Profit &amp; loss by store</Link>, <Link to="/close/periods">Periods</Link>, <Link to="/setup/stores">Setup</Link>. Phase 2: <Link to="/bank">Bank feed &amp; reconciliation</Link>, <Link to="/bank/checks">Checks</Link>, <Link to="/bank/deposits">Deposits</Link>, <Link to="/cash">Cash chain</Link>, <Link to="/cash/forecast">13-week forecast</Link>.</p>
+      <p className="muted small" style={{ marginTop: 6 }}>Phase 6: <Link to="/people/runs">Payroll runs</Link>, <Link to="/people/review">Weekly review</Link>, <Link to="/people/employees">Employees</Link>, <Link to="/people/cash-pay">Cash &amp; check pay</Link>, <Link to="/people/labor">Labor %</Link>, <Link to="/people/taxes">Payroll tax tracker</Link>.</p>
     </>
   );
 }

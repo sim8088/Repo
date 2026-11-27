@@ -2,6 +2,21 @@
 
 This file records the context and decisions behind the portal so they don't get lost between sessions. Add new entries at the top.
 
+## 2026-11-27 — Phase 6 build (People & payroll)
+- **Posting follows SPEC §6.7:** per store, net pay → `6100`, employee + employer taxes → `6110`, on the pay date, crediting Trustmark (CORP). The Gusto debit line equals the run's *total company debit* (direct-deposit net + all taxes). Paper checks on a Gusto run aren't in Gusto's debit, so each posts on its own with its check number and shows in the checks register. A run can only post when its lines tie to the report's totals, and never into a locked month.
+- **Demo runs are attached, not re-posted.** Each weekly `GUSTO PAYROLL <store>` entry the core demo already posted got a run whose employee lines add to it to the cent (`txnIds` points at it), so the Phase 2 bank feed and reconciliations are unchanged. The 27 Nov runs are imported but not posted: that's the week waiting for review.
+- **Import is idempotent by line:** key = pay date + Gusto id (or name) + gross + net, numbered within the file. One pay date per import. Unknown employees are added and wait in "New hires to confirm". Deductions aren't supported yet (gross must equal net + employee taxes).
+- **Pay weeks run Saturday–Friday**, named by the Friday pay date. Weekly review, the cash/Gusto comparison and labor % all use this week. Labor % compares the pay week's labor with the same week's POS sales (a simplification: Gusto may pay a period in arrears).
+- **Labor cost = gross + employer taxes + cash/check pay**, which is the same as net + all taxes + cash/check, i.e. 6100 + 6110 in the books once posted. Labor % targets are per store (demo: HM11 6.5%, HM13 9.5%, HM15 7.5%, HM17 12%, of total POS sales including fuel).
+- **Cash and check pay outside Gusto** is one entry per employee and pay week. Linking to an existing cash-chain payroll payout posts nothing new and can't exceed the payout. **Never assumed to duplicate Gusto:** paid both ways in a week shows "Both" until someone confirms what the extra pay was for.
+- **The 15% flag** fires when labor cost moves more than 15% either way against the prior pay week (strictly over 15%). A store with nothing yet this week shows "Not in yet" rather than −100%.
+- **Rate changes** need `payroll.edit` to request (CFO, bookkeeper) and `approve` to approve (CFO, owner). A rejection needs a reason. The current rate is the starting rate plus approved changes effective by that date. The review warns when Gusto pays a rate that isn't approved.
+- **New permission `payroll.edit`** (CFO, bookkeeper). Payroll screens need `view.reports`; store managers don't see payroll.
+- **Payroll taxes:** liability = employee + employer taxes on every run, split federal / state using the run's state-tax column. Demo: Gusto deposits federal on each pay date and state monthly; Q3 941 and state returns are marked filed.
+- **Older saved books** without the `people` slice still open (read through `peopleOf`; written on first payroll change), so `SCHEMA` stays at 2.
+- **"Payments with no document"** still leaves out payroll: the Gusto run is the document.
+- **Not yet:** a live Gusto API connection (needs the hosted back end and OAuth), deductions/benefits and garnishments, payroll accruals at month end (phase 8/10), per-entity 941s (the tracker totals all employers), and PDF pay stubs.
+
 ## 2026-11-27 — Phase 2 build (Bank & cash)
 - **Keep building in this repo** (CFO decision, 2026-11-27); StationBooks stays as it is.
 - **HM17 opened November 2026** (CFO decision, 2026-11-27).

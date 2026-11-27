@@ -14,6 +14,17 @@ export const NAV: NavGroup[] = [
       { label: 'Cash forecast', to: '/cash/forecast' },
     ],
   },
+  {
+    title: 'People',
+    items: [
+      { label: 'Payroll runs', to: '/people/runs' },
+      { label: 'Weekly review', to: '/people/review' },
+      { label: 'Employees', to: '/people/employees' },
+      { label: 'Cash & check pay', to: '/people/cash-pay' },
+      { label: 'Labor %', to: '/people/labor' },
+      { label: 'Payroll tax tracker', to: '/people/taxes' },
+    ],
+  },
   { title: 'Reports', items: [{ label: 'Profit & loss by store', to: '/reports/pnl' }, { label: 'Trial balance', to: '/reports/trial-balance' }] },
   {
     title: 'Books',

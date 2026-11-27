@@ -7,6 +7,8 @@ const ROUTES = [
   '/close/periods', '/setup/stores', '/setup/entities', '/setup/parties', '/setup/rules', '/setup/users', '/setup/audit', '/setup/settings', '/roadmap',
   '/books/transactions/TX-000300',
   '/bank', '/bank?tab=reconcile', '/bank?tab=lines', '/bank?tab=import', '/bank/checks', '/bank/deposits', '/cash', '/cash?show=flagged', '/cash/forecast', '/books/new?kind=transfer',
+  '/people/runs', '/people/runs?tab=import', '/people/review', '/people/review?week=2026-11-20&all=1', '/people/employees', '/people/employees?show=pending', '/people/employees?status=all',
+  '/people/cash-pay', '/people/cash-pay?all=1', '/people/labor', '/people/taxes',
 ];
 
 async function open(page: Page, route: string) {
@@ -155,4 +157,83 @@ test('dismissing a duplicate updates the list straight away', async ({ page }) =
   await open(page, '/books/transactions?queue=dup');
   await page.getByRole('button', { name: 'Not a duplicate' }).first().click();
   await expect(page.getByText('No possible duplicates')).toBeVisible();
+});
+
+async function axe(page: Page, what: string) {
+  const res = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  expect(res.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`), `axe on ${what}`).toEqual([]);
+}
+
+test('weekly payroll review: run pulled, this week vs last, approve the raise, post', async ({ page }) => {
+  await open(page, '/people/review');
+  await expect(page.locator('#wr-week')).toHaveValue('2026-11-27');
+  await expect(page.getByText('Every run ties to its Gusto report totals')).toBeVisible();
+  const hm15 = page.locator('section', { has: page.getByRole('heading', { name: /2 · This week vs last/ }) }).locator('tr', { hasText: 'HM15' });
+  await expect(hm15.locator('.pill.bad').first()).toContainText('+20');
+  await expect(page.getByText(/Gusto already pays the raise waiting for approval/).first()).toBeVisible();
+  await expect(page.locator('tr', { hasText: 'Quinn P.' }).getByText('New hire')).toBeVisible();
+  await page.getByRole('button', { name: 'Approve' }).click();
+  await expect(page.getByText(/Gusto already pays the raise/)).toHaveCount(0);
+  await expect(page.getByText('No rate changes waiting for approval.')).toBeVisible();
+  await page.getByRole('button', { name: 'Post 4 runs to the books' }).click();
+  await expect(page.getByText(/Every run for this week is posted/)).toBeVisible();
+  await expect(page.getByText('HM15 posted entries tie to the run')).toBeVisible();
+  await open(page, '/people/runs');
+  await expect(page.getByText('To review & post')).toHaveCount(0);
+  await open(page, '/bank/checks?status=outstanding');
+  await expect(page.locator('tr', { hasText: '#4127' })).toBeVisible();
+});
+
+test('payroll: import a Gusto report whose preview ties, then re-import adds nothing', async ({ page }) => {
+  const csv = [
+    'Pay date,Employee,Employee ID,Location,Department,Regular hours,Overtime hours,Gross pay,Employee taxes,Employer taxes,Net pay,Payment method',
+    '12/04/2026,Logan N.,,HM13,Front,40,0,480.00,73.44,52.80,406.56,Direct deposit',
+    '12/04/2026,Test Hire Z.,G-9001,HM13,Kitchen,20,0,240.00,36.72,26.40,203.28,Check',
+    'Total,,,,,,,720.00,110.16,79.20,609.84,',
+  ].join('\n');
+  await open(page, '/people/runs?tab=import');
+  await page.locator('input[type=file]').setInputFiles({ name: 'gusto-2026-12-04.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByText('Gross ties to the report total')).toBeVisible();
+  await expect(page.getByText('Net pay ties to the report total')).toBeVisible();
+  await expect(page.getByText(/New in Gusto: Test Hire Z\./)).toBeVisible();
+  await axe(page, 'Gusto import preview');
+  await page.getByRole('button', { name: 'Import 2 new lines' }).click();
+  await expect(page.getByRole('heading', { name: /Run paid Dec 4, 2026/ })).toBeVisible();
+  await expect(page.getByText('Company debit ties to the Gusto report')).toBeVisible();
+  await axe(page, 'run detail');
+  await page.getByRole('button', { name: 'Import a Gusto report' }).click();
+  await page.locator('input[type=file]').setInputFiles({ name: 'gusto-2026-12-04.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  await expect(page.getByText('0 new, 2 already imported')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Import 0 new lines' })).toBeDisabled();
+  await open(page, '/people/employees?show=new');
+  await expect(page.locator('li', { hasText: 'Test Hire Z.' })).toBeVisible();
+});
+
+test('employees: a raise goes for approval and only an approver can approve it', async ({ page }) => {
+  await open(page, '/people/employees?q=Logan');
+  await page.getByRole('link', { name: 'Logan N.' }).click();
+  await page.getByRole('button', { name: 'Change rate' }).click();
+  await page.getByLabel('New rate').fill('12.75');
+  await page.getByLabel('Reason', { exact: true }).fill('Six-month review');
+  await page.getByRole('button', { name: 'Send for approval' }).click();
+  await expect(page.getByText('Awaiting approval').first()).toBeVisible();
+  await axe(page, 'employee detail');
+  await page.locator('#acting-as').selectOption('usr_bk');
+  await open(page, '/people/employees?show=pending');
+  await expect(page.getByText('Waiting for the CFO or an owner to approve.').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+  await page.locator('#acting-as').selectOption('usr_owner');
+  await open(page, '/people/employees?show=pending');
+  await page.locator('li', { hasText: 'Logan N.' }).getByRole('button', { name: 'Approve' }).click();
+  await expect(page.locator('li', { hasText: 'Logan N.' })).toHaveCount(0);
+});
+
+test('cash & check pay: someone paid by Gusto and in cash is shown both ways and confirmed, not dropped', async ({ page }) => {
+  await open(page, '/people/cash-pay');
+  await expect(page.getByText('Every payroll payout is split by employee')).toBeVisible();
+  const row = page.locator('tr', { hasText: 'Morgan T.' }).first();
+  await expect(row.getByText('Both: confirm it is extra pay')).toBeVisible();
+  await row.getByLabel('What the extra pay was for').fill('Covered two extra shifts');
+  await row.getByRole('button', { name: 'Confirm extra pay' }).click();
+  await expect(page.locator('tr', { hasText: 'Morgan T.' }).first().getByText('Both: confirmed extra pay')).toBeVisible();
 });
